@@ -1,0 +1,207 @@
+
+// ─── Attach liked/saved status for logged-in user ─────────────────────────────
+async function attachUserStatus(posts, userId) {
+  if (!userId || !posts.length) return posts;
+  const Like = require('../models/Like');
+  const Save = require('../models/Save');
+  const postIds = posts.map(p => p._id);
+  const [likes, saves] = await Promise.all([
+    Like.find({ userId, postId: { $in: postIds } }).select('postId').lean(),
+    Save.find({ userId, postId: { $in: postIds } }).select('postId').lean(),
+  ]);
+  const likedSet = new Set(likes.map(l => String(l.postId)));
+  const savedSet = new Set(saves.map(s => String(s.postId)));
+  return posts.map(p => ({
+    ...p,
+    liked: likedSet.has(String(p._id)),
+    saved: savedSet.has(String(p._id)),
+  }));
+}
+
+const Post          = require('../models/Post');
+const searchService = require('../services/searchService');
+const User = require('../models/User');
+const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
+const { getCache, setCache } = require('../utils/cache');
+const logger = require('../utils/logger');
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+exports.search = async (req, res) => {
+  try {
+    const { q, type = 'all', cursor } = req.query;
+    if (!q?.trim()) return res.json({ posts: [], users: [], hashtags: [] });
+    const query   = String(q).trim().slice(0, 50);
+    const results = {};
+
+    // ✅ Use abstracted searchService — swap provider via SEARCH_PROVIDER env
+    if (type === 'all' || type === 'posts') {
+      const r = await searchService.searchPosts(query, { cursor });
+      results.posts      = r.posts;
+      results.nextCursor = r.nextCursor;
+      results.hasMore    = r.hasMore;
+    }
+    if (type === 'all' || type === 'users') {
+      const r = await searchService.searchUsers(query);
+      results.users = r.users;
+    }
+    if (type === 'all' || type === 'hashtags') {
+      const r = await searchService.searchHashtags(query);
+      results.hashtags = r.hashtags;
+    }
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ message: 'Search failed.' });
+  }
+};
+
+
+exports.getAllPosts = async (req, res) => {
+  try {
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+
+    const posts = await Post.find({
+      isPublic:    true,
+      isDeleted:   { $ne: true },
+      isTakenDown: { $ne: true },
+      ...cursorFilter,
+    })
+      .sort(sort)
+      .limit(limit + 1)
+      .populate('author', '_id username avatar isVerified fullName')
+      .lean();
+
+    const hasMore = posts.length > limit;
+    const items   = hasMore ? posts.slice(0, limit) : posts;
+
+    const userId = req.user?._id;
+    const enriched = await attachUserStatus(items, userId);
+
+    res.json({
+      posts:      enriched,
+      hasMore,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
+    });
+  } catch (err) {
+    logger.error('Get all posts failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load posts.' });
+  }
+};
+
+// ─── By Category (cursor-paginated) ──────────────────────────────────────────
+const VALID_CATEGORIES = ['Love', 'Sad', 'Motivational', 'Funny', 'Spiritual', 'Nature', 'Life', 'Friendship', 'Patriotic', 'Other'];
+
+exports.getByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+    if (!VALID_CATEGORIES.includes(category))
+      return res.status(400).json({ message: 'Invalid category' });
+
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+
+    const posts = await Post.find({
+      $or:         [{ categories: category }, { category }],
+      isPublic:    true,
+      isDeleted:   { $ne: true },
+      isTakenDown: { $ne: true },
+      ...cursorFilter,
+    })
+      .sort(sort)
+      .limit(limit + 1)
+      .populate('author', '_id username avatar isVerified fullName')
+      .lean();
+
+    const hasMore = posts.length > limit;
+    const items   = hasMore ? posts.slice(0, limit) : posts;
+
+    const userId = req.user?._id;
+    const enriched = await attachUserStatus(items, userId);
+
+    res.json({
+      posts:      enriched,
+      hasMore,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load category.' });
+  }
+};
+
+// ─── By Hashtag ───────────────────────────────────────────────────────────────
+exports.getByHashtag = async (req, res) => {
+  try {
+    const safeTag = String(req.params.tag)
+      .replace(/[^a-zA-Z0-9_\u0900-\u097F\u0600-\u06FF]/g, '')
+      .slice(0, 50).toLowerCase();
+
+    if (!safeTag) return res.status(400).json({ message: 'Invalid hashtag' });
+
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+
+    const posts = await Post.find({
+      hashtags:    safeTag,
+      isPublic:    true,
+      isDeleted:   { $ne: true },
+      isTakenDown: { $ne: true },
+      ...cursorFilter,
+    })
+      .sort(sort).limit(limit + 1)
+      .populate('author', '_id username avatar isVerified')
+      .lean();
+
+    const hasMore = posts.length > limit;
+    const items   = hasMore ? posts.slice(0, limit) : posts;
+
+    res.json({ posts: items, hasMore, nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load hashtag.' });
+  }
+};
+
+// ─── Trending (uses counters) ─────────────────────────────────────────────────
+exports.getTrending = async (req, res) => {
+  try {
+    const cached = await getCache('trending:posts');
+    if (cached) return res.json({ posts: cached, cached: true });
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const posts = await Post.aggregate([
+      {
+        $match: {
+          createdAt:   { $gte: since },
+          isPublic:    true,
+          isDeleted:   { $ne: true },
+          isTakenDown: { $ne: true },
+        },
+      },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              { $ifNull: ['$likesCount',    0] },
+              { $multiply: [{ $ifNull: ['$commentsCount', 0] }, 2] },
+              { $ifNull: ['$views',         0] },
+            ],
+          },
+        },
+      },
+      { $sort: { score: -1, createdAt: -1 } },
+      { $limit: 20 },
+    ]);
+
+    const populated = await Post.populate(posts, {
+      path: 'author', select: '_id username avatar isVerified',
+    });
+
+    await setCache('trending:posts', populated, 120);
+    res.json({ posts: populated });
+  } catch (err) {
+    logger.error('Trending failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load trending.' });
+  }
+};

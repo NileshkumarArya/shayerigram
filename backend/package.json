@@ -1,0 +1,53 @@
+{
+  "name": "shayerigram-backend",
+  "version": "1.0.0",
+  "description": "ShayeriGram Backend API - Production Ready",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node utils/seeder.js",
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch",
+    "migrate": "node migrations/migrateToSeparateCollections.js",
+    "cleanup": "node jobs/workers/cleanupWorker.js",
+    "worker:email": "node jobs/workers/emailWorker.js",
+    "worker:notification": "node jobs/workers/notificationWorker.js",
+    "worker:cleanup": "node jobs/workers/cleanupWorker.js",
+    "worker": "node workers.js",
+    "audit": "npm audit --audit-level=high",
+    "audit:fix": "npm audit fix"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "file-type": "^16.5.4",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^6.9.16",
+    "sharp": "^0.33.5",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.0.5",
+    "redis": "^4.7.0",
+    "mongodb": "^6.5.0",
+    "bullmq": "^5.4.2",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "razorpay": "^2.9.2",
+    "@sentry/node": "^8.0.0",
+    "cookie-parser": "^1.4.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^10.1.4",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0"
+  }
+}
