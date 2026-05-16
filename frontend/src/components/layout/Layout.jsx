@@ -42,7 +42,7 @@ export default function Layout() {
 
       {/* Main content — no left margin on mobile, sidebar is hidden */}
       <main className="flex-1 md:ml-16 xl:ml-64 pb-20 md:pb-0 relative z-10">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="w-full max-w-2xl mx-auto px-4 py-6 overflow-x-hidden">
           <Outlet context={{ setNotifCount }} />
         </div>
       </main>

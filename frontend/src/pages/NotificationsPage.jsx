@@ -111,7 +111,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto hide-scrollbar pb-1">
+      <div className="flex gap-2 mb-5 overflow-x-auto hide-scrollbar pb-1 w-full">
         {FILTERS.map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className="shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all"

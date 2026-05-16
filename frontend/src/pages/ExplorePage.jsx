@@ -148,7 +148,7 @@ export default function ExplorePage() {
 
       {/* Category chips */}
       {!query && (
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-5">
+       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-5 w-full">
           {CATEGORIES.map(cat => {
             const isActive = activeCategory === cat.name;
             return (
