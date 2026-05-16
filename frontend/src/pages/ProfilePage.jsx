@@ -136,7 +136,7 @@ export default function ProfilePage() {
                   className={following ? 'btn-ghost text-sm py-2 px-5' : 'btn-primary text-sm py-2 px-5'}>
                   {followLoading ? '...' : following ? 'Following' : 'Follow'}
                 </button>
-                <button className="btn-ghost text-sm py-2 px-5">Message</button>
+               
               </div>
             )}
           </div>
@@ -196,19 +196,20 @@ export default function ProfilePage() {
       )}
 
       {/* Followers/Following modals */}
-      {(showFollowers || showFollowing) && (
-        <UserListModal
-          title={showFollowers ? 'Followers' : 'Following'}
-          userId={profile._id}
-          type={showFollowers ? 'followers' : 'following'}
-          onClose={() => { setShowFollowers(false); setShowFollowing(false); }}
+    {(showFollowers || showFollowing) && (
+  <UserListModal
+    title={showFollowers ? 'Followers' : 'Following'}
+    userId={profile?._id}
+    username={profile?.username}
+    type={showFollowers ? 'followers' : 'following'}
+    onClose={() => { setShowFollowers(false); setShowFollowing(false); }}
         />
       )}
     </div>
   );
 }
 
-function UserListModal({ title, userId, type, onClose }) {
+function UserListModal({ title, userId, username, type, onClose }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -216,7 +217,7 @@ function UserListModal({ title, userId, type, onClose }) {
     const load = async () => {
       try {
         // ✅ Use dedicated followers/following endpoints
-        const username = profile?.username;
+       
         if (!username) return;
         const endpoint = type === 'followers' ? 'followers' : 'following';
         const { data } = await import('../services/api').then(m =>
