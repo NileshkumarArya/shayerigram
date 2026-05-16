@@ -108,7 +108,7 @@ export default function ExplorePage() {
   const activeCat = CATEGORIES.find(c => c.name === activeCategory) || CATEGORIES[0];
 
   return (
-    <div className="animate-fade-in">
+<div className="animate-fade-in w-full min-w-0">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-2xl font-cinzel gradient-text mb-1">Explore</h1>

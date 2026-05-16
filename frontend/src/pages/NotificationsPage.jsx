@@ -97,7 +97,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="animate-fade-in">
+  <div className="animate-fade-in w-full min-w-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
