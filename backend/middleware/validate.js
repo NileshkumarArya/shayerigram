@@ -40,7 +40,15 @@ const registerValidation = [
 const loginValidation = [
   body('identifier')
     .trim().notEmpty().withMessage('Email or username is required')
-    .isLength({ max: 254 }).withMessage('Too long'),
+    .isLength({ max: 254 }).withMessage('Too long')
+    .customSanitizer(value => {
+      // Gmail dot normalization — n.k.arya@gmail.com → nkarya@gmail.com
+      if (typeof value === 'string' && value.includes('@gmail.com')) {
+        const [local, domain] = value.split('@');
+        return local.replace(/\./g, '') + '@' + domain;
+      }
+      return value;
+    }),
   body('password')
     .notEmpty().withMessage('Password is required')
     .isLength({ max: 72 }).withMessage('Invalid password'),
