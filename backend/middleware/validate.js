@@ -38,9 +38,9 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email')
-    .trim().notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Invalid email').normalizeEmail(),
+  body('identifier')
+    .trim().notEmpty().withMessage('Email or username is required')
+    .isLength({ max: 254 }).withMessage('Too long'),
   body('password')
     .notEmpty().withMessage('Password is required')
     .isLength({ max: 72 }).withMessage('Invalid password'),
