@@ -9,9 +9,7 @@ import { useSocket } from '../../hooks/useSocket';
 export default function Layout() {
   const [notifCount, setNotifCount] = useState(0);
 
-  // ✅ Real-time notification via socket
   useSocket((data) => {
-    // Increment unread count badge when notification arrives
     setNotifCount(prev => prev + 1);
   });
 
@@ -39,11 +37,11 @@ export default function Layout() {
           style={{ background: 'radial-gradient(circle, #c084fc, transparent)', filter: 'blur(60px)' }} />
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar — desktop only (md+) */}
       <Sidebar notifCount={notifCount} />
 
-      {/* Main content */}
-      <main className="flex-1 ml-16 xl:ml-64 pb-16 md:pb-0 relative z-10">
+      {/* Main content — no left margin on mobile, sidebar is hidden */}
+      <main className="flex-1 md:ml-16 xl:ml-64 pb-20 md:pb-0 relative z-10">
         <div className="max-w-2xl mx-auto px-4 py-6">
           <Outlet context={{ setNotifCount }} />
         </div>

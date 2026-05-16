@@ -11,9 +11,7 @@ const NavItem = ({ to, icon, label, badge, onClick }) => {
   const content = (
     <div
       className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group relative ${
-        isActive
-          ? 'text-white'
-          : 'text-gray-400 hover:text-white'
+        isActive ? 'text-white' : 'text-gray-400 hover:text-white'
       }`}
       style={isActive ? {
         background: 'linear-gradient(135deg, rgba(147,51,234,0.2), rgba(124,58,237,0.1))',
@@ -52,9 +50,10 @@ export default function Sidebar({ notifCount = 0 }) {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 h-screen w-16 xl:w-64 flex flex-col z-40 glass-strong"
+      {/* hidden on mobile — shown only md and above */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-16 xl:w-64 flex-col z-40 glass-strong"
         style={{ borderRight: '1px solid var(--border)' }}>
-        
+
         {/* Logo */}
         <div className="px-4 py-6 xl:px-6">
           <Link to="/" className="flex items-center gap-3 group">
@@ -69,7 +68,6 @@ export default function Sidebar({ notifCount = 0 }) {
           </Link>
         </div>
 
-        {/* Divider */}
         <div className="mx-4 mb-3" style={{ height: '1px', background: 'var(--border)' }} />
 
         {/* Navigation */}
@@ -77,11 +75,7 @@ export default function Sidebar({ notifCount = 0 }) {
           <NavItem to="/"         icon="🏠" label="Home" />
           <NavItem to="/explore"  icon="🔍" label="Explore" />
           <NavItem to="/notifications" icon="🔔" label="Notifications" badge={notifCount} />
-          <NavItem
-            icon="✨"
-            label="Create Post"
-            onClick={() => setShowCreate(true)}
-          />
+          <NavItem icon="✨" label="Create Post" onClick={() => setShowCreate(true)} />
           <NavItem to="/saved"    icon="🔖" label="Saved" />
           {user?.role === 'admin' && (
             <NavItem to="/admin" icon="⚙️" label="Admin Panel" />
@@ -95,7 +89,6 @@ export default function Sidebar({ notifCount = 0 }) {
             <NavItem icon="⚙️" label="Settings" to="/settings" />
           </div>
 
-          {/* User card */}
           <div className="flex items-center gap-3 p-3 rounded-xl glass-hover cursor-pointer"
             onClick={() => navigate(`/profile/${user?.username}`)}>
             <Avatar user={user} size="sm" />
@@ -107,7 +100,6 @@ export default function Sidebar({ notifCount = 0 }) {
                 {user?.fullName || 'Shayar'}
               </p>
             </div>
-            {/* Logout */}
             <button
               className="hidden xl:flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:bg-red-500/20 hover:text-red-400 text-gray-500"
               onClick={(e) => { e.stopPropagation(); setShowLogoutConfirm(true); }}
@@ -118,23 +110,11 @@ export default function Sidebar({ notifCount = 0 }) {
               </svg>
             </button>
           </div>
-
-          {/* Mobile logout */}
-          <button
-            className="xl:hidden w-full flex justify-center p-3 mt-1 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-            onClick={() => setShowLogoutConfirm(true)}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-          </button>
         </div>
       </aside>
 
-      {/* Create post modal */}
       {showCreate && <CreatePostModal onClose={() => setShowCreate(false)} />}
 
-      {/* Logout confirm */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
           <div className="glass rounded-2xl p-8 max-w-xs w-full mx-4 text-center animate-fade-in">

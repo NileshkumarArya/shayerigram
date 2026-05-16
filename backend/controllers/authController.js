@@ -5,7 +5,8 @@ const { enqueueEmail } = require('../jobs/queues/emailQueue');
 const logger      = require('../utils/logger');
 const { sanitizeString, authCookieOptions, cookieName } = require('../middleware/security');
 
-const POLICY_VERSION = '2026-04-13';
+const POLICY_VERSION    = '2026-04-13';
+const EMAIL_ACCOUNT_LIMIT = 3; // Ek email se max kitne accounts
 
 const buildAppUrl = () =>
   (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -28,14 +29,12 @@ const safeUser = (user) => ({
   role:            user.role,
 });
 
-// ─── Issue auth response (access token + optional refresh token) ───────────────
+// ─── Issue auth response ───────────────────────────────────────────────────────
 const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
   const accessToken = generateAccessToken(user._id);
 
-  // Set access token cookie
   res.cookie(cookieName, accessToken, authCookieOptions);
 
-  // Set refresh token cookie (only if we have request context)
   if (req) {
     try {
       const refreshRaw = await generateRefreshToken(user._id, {
@@ -43,7 +42,6 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
         userAgent: req.headers['user-agent'],
         deviceId:  req.headers['x-device-id'],
       });
-      // ✅ FIX: Match cross-domain logic from auth.js getRefreshCookieOptions
       const isCrossDomain = String(process.env.CROSS_DOMAIN) === 'true';
       const isProd        = process.env.NODE_ENV === 'production';
       res.cookie('refreshToken', refreshRaw, {
@@ -54,7 +52,6 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
         path:     '/api/auth/refresh',
       });
     } catch (err) {
-      // Non-fatal — user still gets access token
       logger.warn('Refresh token creation failed', { userId: user._id, error: err.message });
     }
   }
@@ -64,12 +61,12 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
-  // Age gate check helper
   const isUnder13 = (dob) => {
     if (!dob) return false;
     const age = Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
     return age < 13;
   };
+
   try {
     const username    = sanitizeString(req.body.username,  30)?.toLowerCase();
     const email       = sanitizeString(req.body.email,    254)?.toLowerCase();
@@ -83,13 +80,22 @@ exports.register = async (req, res) => {
     if (!acceptTerms)
       return res.status(400).json({ message: 'You must accept the Terms and Community Guidelines.' });
 
-    const exists = await User.findOne({ $or: [{ email }, { username }] });
-    if (exists)
+    // ─── Username uniqueness check ─────────────────────────────────────────
+    const usernameExists = await User.findOne({ username });
+    if (usernameExists)
       return res.status(400).json({
         message: 'Unable to create account with provided details. Please try different credentials.',
       });
 
-    // Age gate — must be 13+
+    // ─── FIX 4: Email account limit — ek email se max EMAIL_ACCOUNT_LIMIT accounts ─
+    const emailCount = await User.countDocuments({ email, isDeleted: { $ne: true } });
+    if (emailCount >= EMAIL_ACCOUNT_LIMIT) {
+      return res.status(400).json({
+        message: `This email already has ${EMAIL_ACCOUNT_LIMIT} accounts. Maximum limit reached.`,
+      });
+    }
+
+    // Age gate
     const { dateOfBirth } = req.body;
     if (dateOfBirth && isUnder13(dateOfBirth)) {
       return res.status(400).json({ message: 'You must be at least 13 years old to register.' });
@@ -130,63 +136,91 @@ exports.register = async (req, res) => {
 };
 
 // ─── Login ────────────────────────────────────────────────────────────────────
+// FIX 3: `identifier` accept karo — email ya username dono chalega
 exports.login = async (req, res) => {
   try {
-    if (typeof req.body.email !== 'string' || typeof req.body.password !== 'string')
+    const rawIdentifier = req.body.identifier ?? req.body.email; // backward compat
+    if (typeof rawIdentifier !== 'string' || typeof req.body.password !== 'string')
       return res.status(400).json({ message: 'Invalid credentials.' });
 
-    const email    = sanitizeString(req.body.email, 254)?.toLowerCase();
-    const password = req.body.password;
+    const identifier = sanitizeString(rawIdentifier, 254)?.toLowerCase();
+    const password   = req.body.password;
 
-    if (!email) return res.status(400).json({ message: 'Invalid credentials.' });
+    if (!identifier) return res.status(400).json({ message: 'Invalid credentials.' });
 
-    // ✅ Single DB query — no populate needed (counters are denormalized)
-    const user = await User.findOne({ email, isDeleted: { $ne: true } })
-      .select('+password +failedLoginAttempts +lockUntil +knownIps');
+    // Email ya username? @ se detect karo
+    const isEmail = identifier.includes('@');
 
-    // Account locked (too many failed attempts)
-    if (user?.isLocked?.()) {
-      const mins = Math.ceil(((user.lockUntil || 0) - Date.now()) / 60000);
-      logger.warn('Locked account login attempt', { email, ip: req.ip });
-      return res.status(423).json({
-        message: `Account temporarily locked. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
-      });
-    }
+    let user = null;
 
-    // Account suspended
-    if (user?.isSuspended)
-      return res.status(403).json({ message: 'This account has been suspended.' });
+    if (isEmail) {
+      // Email se login — multiple accounts ho sakti hain, password match karo
+      const candidates = await User.find({ email: identifier, isDeleted: { $ne: true } })
+        .select('+password +failedLoginAttempts +lockUntil +knownIps');
 
-    // Password check
-    const passwordMatch = user ? await user.matchPassword(password) : false;
-
-    if (!user || !passwordMatch) {
-      // Increment failed attempts (non-blocking)
-      if (user?.incrementFailedLogin) {
-        user.incrementFailedLogin().catch(() => {});
+      // Pehle non-suspended, non-locked user dhundho jiska password match kare
+      for (const candidate of candidates) {
+        if (candidate.isSuspended) continue;
+        if (candidate.isLocked?.()) continue;
+        const match = await candidate.matchPassword(password);
+        if (match) { user = candidate; break; }
       }
-      logger.warn('Failed login', { email, ip: req.ip });
-      return res.status(401).json({ message: 'Invalid email or password.' });
+
+      // Agar koi match nahi — locked ya suspended check karo for specific error
+      if (!user) {
+        const lockedUser = candidates.find(c => c.isLocked?.());
+        if (lockedUser) {
+          const mins = Math.ceil(((lockedUser.lockUntil || 0) - Date.now()) / 60000);
+          return res.status(423).json({
+            message: `Account temporarily locked. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+          });
+        }
+        const suspendedUser = candidates.find(c => c.isSuspended);
+        if (suspendedUser) {
+          return res.status(403).json({ message: 'This account has been suspended.' });
+        }
+      }
+    } else {
+      // Username se login — unique hai, direct lookup
+      user = await User.findOne({ username: identifier, isDeleted: { $ne: true } })
+        .select('+password +failedLoginAttempts +lockUntil +knownIps');
+
+      if (user?.isLocked?.()) {
+        const mins = Math.ceil(((user.lockUntil || 0) - Date.now()) / 60000);
+        logger.warn('Locked account login attempt', { identifier, ip: req.ip });
+        return res.status(423).json({
+          message: `Account temporarily locked. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+        });
+      }
+
+      if (user?.isSuspended)
+        return res.status(403).json({ message: 'This account has been suspended.' });
+
+      const passwordMatch = user ? await user.matchPassword(password) : false;
+      if (!passwordMatch) user = null;
     }
 
-    // ✅ Reset failed attempts (non-blocking)
+    if (!user) {
+      logger.warn('Failed login', { identifier, ip: req.ip });
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Reset failed attempts
     if (user.resetFailedLogin) {
       user.resetFailedLogin().catch(() => {});
     }
 
-    // ✅ Track login IP safely (non-blocking, fire-and-forget)
+    // Track login IP
     const currentIp = req.ip;
     const knownIps  = user.knownIps || [];
     const isNewIp   = knownIps.length > 0 && !knownIps.includes(currentIp);
-
     if (isNewIp) {
       logger.warn('Login from new IP', { username: user.username, newIp: currentIp });
     }
 
-    // Keep max 10 known IPs (sliding window)
     User.findByIdAndUpdate(user._id, {
-      $set:      { lastLoginAt: new Date(), lastLoginIp: currentIp },
-      $push:     { knownIps: { $each: [currentIp], $slice: -10 } },
+      $set:  { lastLoginAt: new Date(), lastLoginIp: currentIp },
+      $push: { knownIps: { $each: [currentIp], $slice: -10 } },
     }).catch(() => {});
 
     logger.info('Login success', { username: user.username, ip: req.ip, newIp: isNewIp });
@@ -201,7 +235,6 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    // ✅ FIX 3: Generic message — don't reveal whether user ID exists in DB
     if (!user) return res.status(401).json({ message: 'Session invalid. Please log in again.' });
     res.json(safeUser(user));
   } catch {
@@ -209,9 +242,8 @@ exports.getMe = async (req, res) => {
   }
 };
 
-// ─── Logout (handled in auth middleware — just placeholder export) ─────────────
+// ─── Logout ───────────────────────────────────────────────────────────────────
 exports.logout = (req, res) => {
-  // Real logout is in auth middleware: revokeCurrentDevice
   res.json({ message: 'Logged out.' });
 };
 
@@ -246,16 +278,21 @@ exports.resendVerification = async (req, res) => {
     const email   = sanitizeString(req.body.email, 254)?.toLowerCase();
     if (!email) return res.status(400).json({ message: 'Email is required.' });
     const GENERIC = 'If this email exists and is unverified, a verification link has been sent.';
-    const user    = await User.findOne({ email }).select('+emailVerifyToken +emailVerifyExpires');
-    if (!user || user.isEmailVerified) return res.json({ message: GENERIC });
+    // Multiple accounts possible — resend for all unverified
+    const users = await User.find({ email, isEmailVerified: false, isDeleted: { $ne: true } })
+      .select('+emailVerifyToken +emailVerifyExpires');
+    if (!users.length) return res.json({ message: GENERIC });
 
-    const verifyToken = user.createEmailVerifyToken();
-    await user.save();
-    const verifyUrl = `${buildAppUrl()}/verify-email?token=${verifyToken}`;
-    enqueueEmail({
-      to: user.email, subject: 'Verify your ShayeriGram email',
-      text: `Verify: ${verifyUrl}`, html: `<p><a href="${verifyUrl}">Verify Email</a></p>`,
-    }).catch(() => {});
+    for (const user of users) {
+      const verifyToken = user.createEmailVerifyToken();
+      await user.save();
+      const verifyUrl = `${buildAppUrl()}/verify-email?token=${verifyToken}`;
+      enqueueEmail({
+        to: user.email, subject: 'Verify your ShayeriGram email',
+        text: `Verify: ${verifyUrl}`,
+        html: `<p>Account <strong>@${user.username}</strong>: <a href="${verifyUrl}">Verify Email</a></p>`,
+      }).catch(() => {});
+    }
     res.json({ message: GENERIC });
   } catch (err) {
     logger.error('Resend verify error', { error: err.message });
@@ -269,25 +306,28 @@ exports.forgotPassword = async (req, res) => {
     const email   = sanitizeString(req.body.email, 254)?.toLowerCase();
     if (!email) return res.status(400).json({ message: 'Email is required.' });
     const GENERIC = 'If this email exists, a password reset link has been sent.';
-    const user    = await User.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
-    if (!user) return res.json({ message: GENERIC });
 
-    const rawToken = user.createPasswordResetToken();
-    await user.save();
-    const resetUrl = `${buildAppUrl()}/reset-password?token=${rawToken}`;
+    const users = await User.find({ email, isDeleted: { $ne: true } })
+      .select('+passwordResetToken +passwordResetExpires');
+    if (!users.length) return res.json({ message: GENERIC });
 
-    enqueueEmail({
-      to:      user.email,
-      subject: 'Reset your ShayeriGram password',
-      text:    `Reset: ${resetUrl}`,
-      html:    `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="color:#9333ea">Password Reset ✦</h2>
-          <p>Click below to reset your password:</p>
-          <a href="${resetUrl}" style="display:inline-block;background:#9333ea;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;margin:16px 0">Reset Password</a>
-          <p style="color:#888;font-size:12px">Expires in 30 minutes.</p>
-        </div>`,
-    }).catch(err => logger.warn('Reset email failed', { error: err.message, resetUrl }));
+    for (const user of users) {
+      const rawToken = user.createPasswordResetToken();
+      await user.save();
+      const resetUrl = `${buildAppUrl()}/reset-password?token=${rawToken}`;
+      enqueueEmail({
+        to:      user.email,
+        subject: 'Reset your ShayeriGram password',
+        text:    `Reset: ${resetUrl}`,
+        html:    `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+            <h2 style="color:#9333ea">Password Reset ✦</h2>
+            <p>Account: <strong>@${user.username}</strong></p>
+            <a href="${resetUrl}" style="display:inline-block;background:#9333ea;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;margin:16px 0">Reset Password</a>
+            <p style="color:#888;font-size:12px">Expires in 30 minutes.</p>
+          </div>`,
+      }).catch(err => logger.warn('Reset email failed', { error: err.message }));
+    }
 
     res.json({ message: GENERIC });
   } catch (err) {

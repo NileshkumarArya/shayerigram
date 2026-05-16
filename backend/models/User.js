@@ -4,17 +4,19 @@ const crypto   = require('crypto');
 
 /**
  * User Model — Scalable Design
- * 
- * REMOVED (moved to separate collections):
- *   - followers[]    → Follow.followingId = userId
- *   - following[]    → Follow.followerId = userId
- *   - savedPosts[]   → Save.userId = userId
- * 
- * KEPT as counters (updated atomically via $inc):
+ *
+ * REMOVED from document (moved to separate collections):
+ *   - followers[]  → Follow collection
+ *   - following[]  → Follow collection
+ *   - savedPosts[] → Save collection
+ *
+ * Counters denormalized (updated via $inc):
  *   - followersCount, followingCount, savedCount, postsCount
- * 
- * Why: User doc was growing by adding IDs to arrays on every follow/save
- * MongoDB has a 16MB document limit — arrays kill large social accounts
+ *
+ * v7 changes:
+ *   - email: unique index removed → multiple accounts per email allowed (max 3, enforced in controller)
+ *   - isDeleted / deletedAt added for soft-delete
+ *   - knownIps / lastLoginAt / lastLoginIp added (were referenced but missing)
  */
 const userSchema = new mongoose.Schema(
   {
@@ -23,8 +25,9 @@ const userSchema = new mongoose.Schema(
       minlength: 3, maxlength: 30,
       match: [/^[a-zA-Z0-9_.]+$/, 'Invalid username'],
     },
+    // NOTE: unique removed — multiple accounts per email allowed (limit enforced in authController)
     email: {
-      type: String, required: true, unique: true, lowercase: true,
+      type: String, required: true, lowercase: true,
       match: [/^\S+@\S+\.\S+$/, 'Invalid email'],
     },
     password:       { type: String, required: true, minlength: 8, select: false },
@@ -35,20 +38,22 @@ const userSchema = new mongoose.Schema(
     website:        { type: String, maxlength: 200, default: '' },
     location:       { type: String, maxlength: 50, default: '' },
 
-    // ✅ Denormalized counters — never recount by scanning collections
+    // Denormalized counters
     followersCount: { type: Number, default: 0, min: 0 },
     followingCount: { type: Number, default: 0, min: 0 },
     postsCount:     { type: Number, default: 0, min: 0 },
     savedCount:     { type: Number, default: 0, min: 0 },
 
-    // Date of Birth — age gate 13+
     dateOfBirth: { type: Date, select: false },
 
-    // Roles & Status
     role:        { type: String, enum: ['user', 'admin'], default: 'user' },
-    isVerified:  { type: Boolean, default: false },   // Blue tick (manual grant)
+    isVerified:  { type: Boolean, default: false },
     isPrivate:   { type: Boolean, default: false },
     isSuspended: { type: Boolean, default: false },
+
+    // Soft delete
+    isDeleted:  { type: Boolean, default: false },
+    deletedAt:  { type: Date },
 
     // Email verification
     isEmailVerified:    { type: Boolean, default: false },
@@ -59,16 +64,22 @@ const userSchema = new mongoose.Schema(
     passwordResetToken:   { type: String, select: false },
     passwordResetExpires: { type: Date,   select: false },
 
-    // Account lockout (brute force protection)
+    // Account lockout
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil:           { type: Date },
+
+    // Login tracking
+    lastLoginAt:  { type: Date },
+    lastLoginIp:  { type: String },
+    knownIps:     { type: [String], default: [], select: false },
 
     // Policy acceptance
     termsAcceptedAt:       { type: Date },
     policyVersionAccepted: { type: String, maxlength: 20 },
-    // ─── Settings ─────────────────────────────────────────────────────────────
+
+    // Settings
     settings: {
-      profileVisibility: { type: String, enum: ["public", "private", "followers"], default: "public" },
+      profileVisibility: { type: String, enum: ['public', 'private', 'followers'], default: 'public' },
       hideFromGuests:    { type: Boolean, default: false },
       disableComments:   { type: Boolean, default: false },
       notifyLikes:       { type: Boolean, default: true },
@@ -76,7 +87,7 @@ const userSchema = new mongoose.Schema(
       notifyComments:    { type: Boolean, default: true },
       notifyDigest:      { type: Boolean, default: false },
       autosaveDrafts:    { type: Boolean, default: true },
-      defaultLicense:    { type: String, enum: ["all_rights", "cc_by", "cc_by_sa", "cc0"], default: "all_rights" },
+      defaultLicense:    { type: String, enum: ['all_rights', 'cc_by', 'cc_by_sa', 'cc0'], default: 'all_rights' },
       allowSharing:      { type: Boolean, default: true },
       poetMode:          { type: Boolean, default: false },
     },
@@ -84,14 +95,14 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ─── Indexes ───────────────────────────────────────────────────────────────
-// username + email already unique indexed by Mongoose
-// Additional for suggestions/search
-userSchema.index({ followersCount: -1 });     // Top creators discovery
-userSchema.index({ createdAt: -1 });          // New users list
-userSchema.index({ role: 1 });                // Admin queries
+// ─── Indexes ────────────────────────────────────────────────────────────────
+userSchema.index({ email: 1 });               // Non-unique — fast lookup by email
+userSchema.index({ followersCount: -1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ role: 1 });
+userSchema.index({ isDeleted: 1 });           // Fast filter for soft-deleted accounts
 
-// ─── Password hashing ──────────────────────────────────────────────────────
+// ─── Password hashing ───────────────────────────────────────────────────────
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
@@ -102,7 +113,7 @@ userSchema.methods.matchPassword = async function (entered) {
   return bcrypt.compare(entered, this.password);
 };
 
-// ─── Account lockout ──────────────────────────────────────────────────────
+// ─── Account lockout ────────────────────────────────────────────────────────
 userSchema.methods.isLocked = function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 };
@@ -110,7 +121,7 @@ userSchema.methods.isLocked = function () {
 userSchema.methods.incrementFailedLogin = async function () {
   this.failedLoginAttempts += 1;
   if (this.failedLoginAttempts >= 5) {
-    this.lockUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    this.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
   }
   await this.save();
 };
@@ -123,7 +134,7 @@ userSchema.methods.resetFailedLogin = async function () {
   }
 };
 
-// ─── Email verification token ──────────────────────────────────────────────
+// ─── Email verification token ───────────────────────────────────────────────
 userSchema.methods.createEmailVerifyToken = function () {
   const rawToken = crypto.randomBytes(32).toString('hex');
   this.emailVerifyToken   = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -131,7 +142,7 @@ userSchema.methods.createEmailVerifyToken = function () {
   return rawToken;
 };
 
-// ─── Password reset token ──────────────────────────────────────────────────
+// ─── Password reset token ───────────────────────────────────────────────────
 userSchema.methods.createPasswordResetToken = function () {
   const rawToken = crypto.randomBytes(32).toString('hex');
   this.passwordResetToken   = crypto.createHash('sha256').update(rawToken).digest('hex');

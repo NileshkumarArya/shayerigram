@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -17,10 +17,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) { setError('Please fill all fields'); return; }
+    if (!form.identifier || !form.password) { setError('Please fill all fields'); return; }
     setLoading(true);
     try {
-      await login(form.email, form.password);
+      await login(form.identifier, form.password);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
@@ -28,9 +28,8 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // Demo credentials
   const demoLogin = async () => {
-    setForm({ email: 'demo@shayerigram.com', password: 'demo1234' });
+    setForm({ identifier: 'demo@shayerigram.com', password: 'demo1234' });
     setLoading(true);
     try {
       await login('demo@shayerigram.com', 'demo1234');
@@ -46,7 +45,6 @@ export default function LoginPage() {
       {/* Left decorative panel — desktop only */}
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center relative overflow-hidden p-12"
         style={{ background: 'linear-gradient(135deg, #080810, #130a2e, #1a0533)' }}>
-        {/* Orbs */}
         <div className="absolute w-96 h-96 rounded-full -top-20 -left-20 opacity-20"
           style={{ background: 'radial-gradient(circle, #9333ea, transparent)', filter: 'blur(80px)' }} />
         <div className="absolute w-96 h-96 rounded-full -bottom-20 -right-20 opacity-15"
@@ -54,7 +52,6 @@ export default function LoginPage() {
         <div className="absolute w-64 h-64 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10"
           style={{ background: 'radial-gradient(circle, #c084fc, transparent)', filter: 'blur(60px)' }} />
 
-        {/* Content */}
         <div className="relative z-10 text-center max-w-md">
           <div className="text-6xl mb-6 animate-float">✦</div>
           <h1 className="text-5xl font-cinzel gradient-text mb-4 leading-tight">ShayeriGram</h1>
@@ -63,7 +60,6 @@ export default function LoginPage() {
             जहाँ दिल की बात होती है,<br />
             <span className="gradient-text-gold">जहाँ शायरी ज़िन्दा है।</span>
           </p>
-          {/* Feature pills */}
           <div className="flex flex-wrap gap-2 justify-center">
             {['Share Poetry', 'Follow Shayars', 'Explore Emotions', 'Connect Souls'].map(f => (
               <span key={f} className="text-xs px-3 py-1.5 rounded-full font-medium"
@@ -72,7 +68,6 @@ export default function LoginPage() {
               </span>
             ))}
           </div>
-          {/* Sample shayari card */}
           <div className="mt-10 p-6 rounded-2xl text-left glass animate-fade-in">
             <p className="font-shayari text-sm leading-loose" style={{ color: 'var(--text-secondary)' }}>
               "तेरे बिना जिंदगी से कोई<br />
@@ -108,10 +103,18 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>Email</label>
+                <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                  Email or Username
+                </label>
                 <input
-                  name="email" type="email" value={form.email} onChange={handleChange}
-                  placeholder="your@email.com" className="input-field" autoComplete="email"
+                  name="identifier"
+                  type="text"
+                  value={form.identifier}
+                  onChange={handleChange}
+                  placeholder="email@example.com or @username"
+                  className="input-field"
+                  autoComplete="username"
+                  autoCapitalize="none"
                 />
               </div>
 
@@ -146,7 +149,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo */}
             <div className="mt-3">
               <button onClick={demoLogin} disabled={loading} className="btn-ghost w-full py-3 text-sm">
                 🎭 Try Demo Account

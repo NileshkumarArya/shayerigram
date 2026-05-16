@@ -1,7 +1,7 @@
-const User        = require('../models/User');
+const User         = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
-const bcrypt      = require('bcryptjs');
-const logger      = require('../utils/logger');
+const bcrypt       = require('bcryptjs');
+const logger       = require('../utils/logger');
 
 const ALLOWED_SETTINGS = [
   'profileVisibility', 'hideFromGuests', 'disableComments',
@@ -56,7 +56,6 @@ exports.deactivateAccount = async (req, res) => {
     user.isSuspended = true;
     await user.save();
 
-    // Revoke all sessions
     await RefreshToken.updateMany(
       { userId: user._id, revokedAt: { $exists: false } },
       { revokedAt: new Date() }
@@ -65,6 +64,7 @@ exports.deactivateAccount = async (req, res) => {
     res.clearCookie('refreshToken');
     res.json({ message: 'Account deactivated. You can reactivate by logging in.' });
   } catch (err) {
+    logger.error('Deactivate account failed', { error: err.message, userId: req.user?._id });
     res.status(500).json({ message: 'Failed to deactivate account.' });
   }
 };
@@ -73,21 +73,31 @@ exports.deactivateAccount = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   try {
     const { password, confirmation } = req.body;
+
     if (confirmation !== 'DELETE') {
       return res.status(400).json({ message: 'Type DELETE to confirm.' });
     }
+
     const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ message: 'User not found.' });
 
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(400).json({ message: 'Incorrect password.' });
 
-    // Soft delete
+    const uid = user._id.toString();
+
+    // Soft delete — anonymize PII
+    // NOTE: d_ prefix = 2 chars + 24 char ObjectId = 26 chars total (maxlength 30 ✅)
     user.isDeleted   = true;
     user.deletedAt   = new Date();
     user.isSuspended = true;
-    user.email       = `deleted_${user._id}@deleted.shayerigram.com`;
-    user.username    = `deleted_${user._id}`;
+    user.username    = `d_${uid}`;                        // 26 chars — safe ✅
+    user.email       = `del_${uid}@deleted.shayerigram.com`;
+    user.fullName    = '';
+    user.bio         = '';
+    user.avatar      = '';
+    user.avatarPublicId = undefined;
+
     await user.save();
 
     await RefreshToken.updateMany(
@@ -96,9 +106,10 @@ exports.deleteAccount = async (req, res) => {
     );
 
     res.clearCookie('refreshToken');
-    logger.warn('Account deleted', { userId: user._id });
+    logger.warn('Account deleted', { userId: uid });
     res.json({ message: 'Account permanently deleted.' });
   } catch (err) {
+    logger.error('Delete account failed', { error: err.message, userId: req.user?._id });
     res.status(500).json({ message: 'Failed to delete account.' });
   }
 };
