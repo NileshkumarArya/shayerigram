@@ -216,15 +216,13 @@ function UserListModal({ title, userId, username, type, onClose }) {
   useEffect(() => {
     const load = async () => {
       try {
-        // ✅ Use dedicated followers/following endpoints
+        // ✅Followers/Following list — userAPI se fetch karta hai
        
         if (!username) return;
-        const endpoint = type === 'followers' ? 'followers' : 'following';
-        const { data } = await import('../services/api').then(m =>
-          m.default.get(`/users/${username}/${endpoint}`)
-        );
-        const list = data.users || [];
-        setUsers(list || []);
+       const { data } = type === 'followers'
+  ? await userAPI.getFollowers(username)
+  : await userAPI.getFollowing(username);
+setUsers(data.users || []);
       } catch {}
       setLoading(false);
     };
