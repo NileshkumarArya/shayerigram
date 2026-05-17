@@ -1,13 +1,12 @@
 /**
  * Notification Worker — BullMQ
  * Reads from notification queue → creates DB record → invalidates cache
- * Socket emit is handled separately (best-effort in request cycle)
  */
-const { Worker }        = require('bullmq');
-const Notification      = require('../../models/Notification');
-const logger            = require('../../utils/logger');
+const { Worker }          = require('bullmq');
+const Notification        = require('../../models/Notification');
+const logger              = require('../../utils/logger');
 const { invalidateCache } = require('../../utils/cache');
-const cacheKeys         = require('../../utils/cacheKeys');
+const cacheKeys           = require('../../utils/cacheKeys');
 
 if (!process.env.REDIS_URL) {
   logger.warn('REDIS_URL not set — notification worker not started');
@@ -20,18 +19,16 @@ const connection = { url: process.env.REDIS_URL };
 const notificationWorker = new Worker(
   'notifications',
   async (job) => {
-    const { recipientId, actorId, type, entityId, postId } = job.data;
+    const { recipientId, actorId, type, entityId } = job.data;
 
     const notification = await Notification.create({
-      recipient: recipientId,
-      actor:     actorId,
+      recipientId,
+      actorId,
       type,
-      entity:    entityId,
-      post:      postId,
-      read:      false,
+      entityId,
+      isRead: false,
     });
 
-    // Invalidate unread count cache so next fetch is fresh
     await invalidateCache([cacheKeys.unreadNotifications(recipientId)]);
 
     logger.info('Notification created via worker', {

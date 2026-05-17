@@ -14,10 +14,10 @@ if (connection) {
   notificationQueue = new Queue('notifications', {
     connection,
     defaultJobOptions: {
-      attempts:          3,
-      backoff:           { type: 'exponential', delay: 3000 },
-      removeOnComplete:  1000,
-      removeOnFail:      5000,
+      attempts:         3,
+      backoff:          { type: 'exponential', delay: 3000 },
+      removeOnComplete: 1000,
+      removeOnFail:     5000,
     },
   });
   logger.info('Notification queue initialized');
@@ -26,29 +26,26 @@ if (connection) {
 }
 
 const enqueueNotification = async (payload) => {
-  // Validate — only plain strings
   const safe = {
     recipientId: String(payload.recipientId),
     actorId:     String(payload.actorId),
     type:        String(payload.type),
     entityId:    payload.entityId ? String(payload.entityId) : undefined,
-    postId:      payload.postId   ? String(payload.postId)   : undefined,
   };
 
   if (notificationQueue) {
     return notificationQueue.add('create-notification', safe);
   }
 
-  // Fallback: direct DB write if Redis not available
+  // Fallback: Redis nahi hai to direct DB mein save karo
   try {
     const Notification = require('../../models/Notification');
     await Notification.create({
-      recipient: safe.recipientId,
-      actor:     safe.actorId,
-      type:      safe.type,
-      entity:    safe.entityId,
-      post:      safe.postId,
-      read:      false,
+      recipientId: safe.recipientId,
+      actorId:     safe.actorId,
+      type:        safe.type,
+      entityId:    safe.entityId,
+      isRead:      false,
     });
     logger.info('Notification created via direct fallback', { type: safe.type });
   } catch (e) {
