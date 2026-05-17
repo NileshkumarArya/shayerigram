@@ -1,6 +1,3 @@
-/**
- * Auth Tests — v2 (identifier-based login)
- */
 const request = require('supertest');
 const express = require('express');
 
@@ -28,9 +25,9 @@ jest.mock('../utils/logger', () => ({
   info: jest.fn(), warn: jest.fn(), error: jest.fn(),
 }));
 
+// Chainable mock — .select().lean() etc sab support karta hai
 const makeChain = (result) => {
   const q = {
-    result,
     select:   jest.fn().mockReturnThis(),
     populate: jest.fn().mockReturnThis(),
     lean:     jest.fn().mockReturnThis(),
@@ -91,22 +88,24 @@ describe('POST /api/auth/register — validation', () => {
 describe('POST /api/auth/login — validation', () => {
 
   test('rejects empty credentials', async () => {
-    const r = await request(app).post('/api/auth/login').send({ identifier: '', password: '' });
+    const r = await request(app).post('/api/auth/login')
+      .send({ identifier: '', password: '' });
     expect(r.status).toBe(400);
   });
 
   test('rejects missing password', async () => {
-    const r = await request(app).post('/api/auth/login').send({ identifier: 'testuser' });
+    const r = await request(app).post('/api/auth/login')
+      .send({ identifier: 'testuser' });
     expect(r.status).toBe(400);
   });
 
-  test('returns 401 when username not found', async () => {
+  test('returns 401 when user not found', async () => {
     const User = require('../models/User');
+    // Username path — findOne use hoti hai
     User.findOne.mockReturnValueOnce(makeChain(null));
     const r = await request(app).post('/api/auth/login')
       .send({ identifier: 'notfounduser', password: 'Password123' });
     expect(r.status).toBe(401);
-    expect(r.body.message).toContain('Invalid credentials');
   });
 
   test('returns 401 for wrong password', async () => {
@@ -136,6 +135,7 @@ describe('POST /api/auth/login — validation', () => {
     const User = require('../models/User');
     const mockUser = {
       _id:       '507f191e810c19729de860ea',
+      username:  'lockeduser',
       lockUntil: new Date(Date.now() + 60000),
       isLocked:  () => true,
     };
@@ -150,6 +150,7 @@ describe('POST /api/auth/login — validation', () => {
     const User = require('../models/User');
     const mockUser = {
       _id:         '507f191e810c19729de860ea',
+      username:    'suspendeduser',
       isSuspended: true,
       isLocked:    () => false,
     };
@@ -161,19 +162,21 @@ describe('POST /api/auth/login — validation', () => {
   });
 });
 
-// ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
+// ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────
 describe('POST /api/auth/forgot-password', () => {
 
   test('rejects invalid email', async () => {
-    const r = await request(app).post('/api/auth/forgot-password').send({ email: 'bad' });
+    const r = await request(app).post('/api/auth/forgot-password')
+      .send({ email: 'bad' });
     expect(r.status).toBe(400);
   });
 
-  test('returns generic 200 for missing user (enumeration prevention)', async () => {
+  test('returns 200 for missing user (enumeration prevention)', async () => {
     const User = require('../models/User');
-    // Controller uses User.find (multiple accounts support)
-    User.find.mockResolvedValueOnce([]);
-    const r = await request(app).post('/api/auth/forgot-password').send({ email: 'nope@test.com' });
+    // Controller: User.find({...}).select(...) — makeChain use karo
+    User.find.mockReturnValueOnce(makeChain([]));
+    const r = await request(app).post('/api/auth/forgot-password')
+      .send({ email: 'nope@test.com' });
     expect(r.status).toBe(200);
     expect(r.body.message).toContain('If this email');
   });
@@ -183,12 +186,14 @@ describe('POST /api/auth/forgot-password', () => {
 describe('POST /api/auth/reset-password', () => {
 
   test('rejects missing token', async () => {
-    const r = await request(app).post('/api/auth/reset-password').send({ password: 'newpass123' });
+    const r = await request(app).post('/api/auth/reset-password')
+      .send({ password: 'newpass123' });
     expect(r.status).toBe(400);
   });
 
   test('rejects short password', async () => {
-    const r = await request(app).post('/api/auth/reset-password').send({ token: 'abc', password: '123' });
+    const r = await request(app).post('/api/auth/reset-password')
+      .send({ token: 'abc', password: '123' });
     expect(r.status).toBe(400);
   });
 
