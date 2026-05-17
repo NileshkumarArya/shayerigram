@@ -149,11 +149,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-3">
-              <button onClick={demoLogin} disabled={loading} className="btn-ghost w-full py-3 text-sm">
-                🎭 Try Demo Account
-              </button>
-            </div>
+         
 
             <div className="mt-5 text-center">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

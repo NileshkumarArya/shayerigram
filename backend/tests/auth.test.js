@@ -101,18 +101,18 @@ describe('POST /api/auth/register — validation', () => {
 describe('POST /api/auth/login — validation', () => {
 
   test('rejects empty credentials', async () => {
-    const r = await request(app).post('/api/auth/login').send({ email: '', password: '' });
+    const r = await request(app).post('/api/auth/login').send({ identifier: '', password: '' });
     expect(r.status).toBe(400);
   });
 
   test('rejects invalid email format', async () => {
     const r = await request(app).post('/api/auth/login')
-      .send({ email: 'notanemail', password: 'somepass' });
+      .send({ identifier: 'notanemail', password: 'somepass' });
     expect(r.status).toBe(400);
   });
 
   test('rejects missing password', async () => {
-    const r = await request(app).post('/api/auth/login').send({ email: 'test@test.com' });
+    const r = await request(app).post('/api/auth/login').send({ identifier: 'test@test.com' });
     expect(r.status).toBe(400);
   });
 
@@ -120,7 +120,7 @@ describe('POST /api/auth/login — validation', () => {
     const User = require('../models/User');
     User.findOne.mockReturnValueOnce(makeChain(null)); // user not found
     const r = await request(app).post('/api/auth/login')
-      .send({ email: 'notfound@test.com', password: 'Password123' });
+      .send({ identifier: 'notfound@test.com', password: 'Password123' });
     expect(r.status).toBe(401);
     expect(r.body.message).toContain('Invalid email or password');
   });
@@ -146,7 +146,7 @@ describe('POST /api/auth/login — validation', () => {
     User.findByIdAndUpdate.mockResolvedValue({});
 
     const r = await request(app).post('/api/auth/login')
-      .send({ email: 'test@test.com', password: 'wrongpassword' });
+      .send({ identifier: 'test@test.com', password: 'wrongpassword' });
     expect(r.status).toBe(401);
     expect(r.body.message).toContain('Invalid email or password');
   });
@@ -161,7 +161,7 @@ describe('POST /api/auth/login — validation', () => {
     User.findOne.mockReturnValueOnce(makeChain(mockUser));
 
     const r = await request(app).post('/api/auth/login')
-      .send({ email: 'locked@test.com', password: 'Password123' });
+      .send({ identifier: 'locked@test.com', password: 'Password123' });
     expect(r.status).toBe(423);
   });
 
@@ -175,7 +175,7 @@ describe('POST /api/auth/login — validation', () => {
     User.findOne.mockReturnValueOnce(makeChain(mockUser));
 
     const r = await request(app).post('/api/auth/login')
-      .send({ email: 'suspended@test.com', password: 'Password123' });
+      .send({ identifier: 'suspended@test.com', password: 'Password123' });
     expect(r.status).toBe(403);
   });
 });
