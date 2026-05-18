@@ -1,5 +1,6 @@
 const User         = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
+const Follow       = require('../models/Follow');
 const bcrypt       = require('bcryptjs');
 const logger       = require('../utils/logger');
 
@@ -87,18 +88,42 @@ exports.deleteAccount = async (req, res) => {
     const uid = user._id.toString();
 
     // Soft delete — anonymize PII
-    // NOTE: d_ prefix = 2 chars + 24 char ObjectId = 26 chars total (maxlength 30 ✅)
-    user.isDeleted   = true;
-    user.deletedAt   = new Date();
-    user.isSuspended = true;
-    user.username    = `d_${uid}`;                        // 26 chars — safe ✅
-    user.email       = `del_${uid}@deleted.shayerigram.com`;
-    user.fullName    = '';
-    user.bio         = '';
-    user.avatar      = '';
+    user.isDeleted      = true;
+    user.deletedAt      = new Date();
+    user.isSuspended    = true;
+    user.username       = `d_${uid}`;
+    user.email          = `del_${uid}@deleted.shayerigram.com`;
+    user.fullName       = '';
+    user.bio            = '';
+    user.avatar         = '';
     user.avatarPublicId = undefined;
 
     await user.save();
+
+    // Jinko follow kiya tha unka followersCount kam karo
+    const following = await Follow.find({ followerId: user._id }).lean();
+    if (following.length > 0) {
+      const followingIds = following.map(f => f.followingId);
+      await User.updateMany(
+        { _id: { $in: followingIds } },
+        { $inc: { followersCount: -1 } }
+      );
+    }
+
+    // Jo follow karte the unka followingCount kam karo
+    const followers = await Follow.find({ followingId: user._id }).lean();
+    if (followers.length > 0) {
+      const followerIds = followers.map(f => f.followerId);
+      await User.updateMany(
+        { _id: { $in: followerIds } },
+        { $inc: { followingCount: -1 } }
+      );
+    }
+
+    // Saare follow records delete karo
+    await Follow.deleteMany({
+      $or: [{ followerId: user._id }, { followingId: user._id }]
+    });
 
     await RefreshToken.updateMany(
       { userId: user._id },

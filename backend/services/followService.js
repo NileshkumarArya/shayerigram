@@ -78,12 +78,12 @@ const getFollowers = async (userId, cursor, limit = 20) => {
   const follows = await Follow.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .limit(limit + 1)
-    .populate('followerId', '_id username avatar fullName followersCount isVerified');
+    .populate({ path: 'followerId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } });
 
-  const hasMore = follows.length > limit;
-  const items   = hasMore ? follows.slice(0, limit) : follows;
-  return {
-    users:      items.map(f => f.followerId),
+const hasMore = follows.length > limit;
+const items   = hasMore ? follows.slice(0, limit) : follows;
+return {
+  users:      items.map(f => f.followerId).filter(Boolean),
     hasMore,
     nextCursor: hasMore ? { createdAt: items[items.length - 1].createdAt, _id: items[items.length - 1]._id } : null,
   };
@@ -101,12 +101,12 @@ const getFollowing = async (userId, cursor, limit = 20) => {
   const follows = await Follow.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .limit(limit + 1)
-    .populate('followingId', '_id username avatar fullName followersCount isVerified');
+   .populate({ path: 'followingId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } });
 
-  const hasMore = follows.length > limit;
-  const items   = hasMore ? follows.slice(0, limit) : follows;
-  return {
-    users:      items.map(f => f.followingId),
+const hasMore = follows.length > limit;
+const items   = hasMore ? follows.slice(0, limit) : follows;
+return {
+  users:      items.map(f => f.followingId).filter(Boolean),
     hasMore,
     nextCursor: hasMore ? { createdAt: items[items.length - 1].createdAt, _id: items[items.length - 1]._id } : null,
   };

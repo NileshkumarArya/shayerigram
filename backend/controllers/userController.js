@@ -63,8 +63,15 @@ exports.getProfile = async (req, res) => {
     const user = await User.findById(userId).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
-    const profile   = safeProfileUser(user, postCount);
+const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
+// Live count use karo — denormalized counter sync issues se bachao
+const [followersCount, followingCount] = await Promise.all([
+  Follow.countDocuments({ followingId: user._id }),
+  Follow.countDocuments({ followerId: user._id }),
+]);
+user.followersCount = followersCount;
+user.followingCount = followingCount;
+const profile = safeProfileUser(user, postCount);
 
     if (req.user) {
       const isFollowing = await Follow.exists({ followerId: req.user._id, followingId: user._id });
