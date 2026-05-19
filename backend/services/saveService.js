@@ -8,6 +8,16 @@ const User = require('../models/User');
 const { invalidateCache } = require('../utils/cache');
 
 const toggleSave = async (userId, postId) => {
+  const targetPost = await Post.findOne({
+    _id: postId,
+    isDeleted: { $ne: true },
+    isTakenDown: { $ne: true },
+  }).select('_id');
+
+  if (!targetPost) {
+    throw Object.assign(new Error('Post not found'), { status: 404 });
+  }
+
   const existing = await Save.findOne({ userId, postId });
 
   if (existing) {

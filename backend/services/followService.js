@@ -21,6 +21,16 @@ const toggleFollow = async (followerId, followingId, io) => {
     new mongoose.Types.ObjectId(followingId),
   ];
 
+  const targetUser = await User.findOne({
+    _id: followingObjId,
+    isDeleted: { $ne: true },
+    isSuspended: { $ne: true },
+  }).select('_id');
+
+  if (!targetUser) {
+    throw Object.assign(new Error('User not found'), { status: 404 });
+  }
+
   // Check current follow state
   const existing = await Follow.findOne({ followerId: followerObjId, followingId: followingObjId });
 

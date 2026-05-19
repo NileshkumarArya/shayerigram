@@ -6,6 +6,16 @@ const { invalidateCache } = require('../utils/cache');
 const logger    = require('../utils/logger');
 
 const toggleLike = async (userId, postId, actorUsername, io) => {
+  const targetPost = await Post.findOne({
+    _id: postId,
+    isDeleted: { $ne: true },
+    isTakenDown: { $ne: true },
+  }).select('_id author likesCount');
+
+  if (!targetPost) {
+    throw Object.assign(new Error('Post not found'), { status: 404 });
+  }
+
   const existing = await Like.findOne({ userId, postId });
 
   if (existing) {
@@ -15,7 +25,11 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
     return { liked: false };
   } else {
     await Like.create({ userId, postId });
-    const post = await Post.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } }, { new: true }).select('author likesCount');
+        const post = await Post.findByIdAndUpdate(
+      postId,
+      { $inc: { likesCount: 1 } },
+      { new: true }
+    ).select('author likesCount');
     await invalidateCache([`post:${postId}`, 'trending:posts']);
 
     // Notification (don't notify yourself)
