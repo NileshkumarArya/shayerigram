@@ -2,10 +2,10 @@
  * Cloudflare Turnstile server-side verification middleware
  */
 
-const BYPASS_TOKENS = new Set([
+const DEV_BYPASS_TOKENS = new Set([
   'auto-verify',
   'dev-bypass',
-  'bypass-error', 
+  'bypass-error',
   'script-load-failed',
   'timeout-bypass',
 ]);
@@ -21,8 +21,10 @@ const verifyTurnstile = async (req, res, next) => {
     return res.status(400).json({ message: 'Captcha verification required.' });
   }
 
-  // Allow bypass tokens always for now
-  if (BYPASS_TOKENS.has(token)) return next();
+  // Dev-only bypass tokens. Never allow captcha bypass in production.
+  if (process.env.NODE_ENV !== 'production' && DEV_BYPASS_TOKENS.has(token)) {
+    return next();
+  }
 
   // Verify with Cloudflare — fail open if Cloudflare is down
   try {
@@ -37,8 +39,15 @@ const verifyTurnstile = async (req, res, next) => {
       return res.status(400).json({ message: 'Captcha failed. Please try again.' });
     }
     next();
-  } catch (err) {
-    console.warn('[TURNSTILE] Verification error — allowing:', err.message);
+    } catch (err) {
+    console.warn('[TURNSTILE] Verification error:', err.message);
+
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({
+        message: 'Captcha verification is temporarily unavailable. Please try again.',
+      });
+    }
+
     next();
   }
 };
