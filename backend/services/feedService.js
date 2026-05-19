@@ -31,10 +31,15 @@ const getFeed = async (userId, query = {}) => {
   const followedIds = follows.map(f => f.followingId);
   const authors = [...followedIds, userId]; // Include own posts
 
+  // Kisi ko follow nahi kiya — sab public posts dikhao (explore style)
+  const authorFilter = followedIds.length > 0
+    ? { author: { $in: authors } }
+    : {};
+
   // ── Fetch posts with cursor pagination ────────────────────────────────
   const posts = await Post
     .find({
-      author: { $in: authors },
+      ...authorFilter,
       isPublic: true,
       isTakenDown: { $ne: true },
       ...cursorFilter,

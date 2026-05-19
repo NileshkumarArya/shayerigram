@@ -176,7 +176,7 @@ export default function RightPanel() {
                     {s.username}
                   </Link>
                   <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                    {s.followers?.length || 0} followers
+                   {s.followersCount || 0} followers
                   </p>
                 </div>
                 <FollowBtn userId={s._id} initialFollowing={false} />

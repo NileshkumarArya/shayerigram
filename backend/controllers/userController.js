@@ -218,9 +218,10 @@ exports.getSuggestions = async (req, res) => {
     const excludeIds = [req.user._id, ...following.map(f => f.followingId)];
 
     const suggestions = await User.find({
-      _id: { $nin: excludeIds },
-      isSuspended: { $ne: true },
-    })
+  _id: { $nin: excludeIds },
+  isSuspended: { $ne: true },
+  isDeleted: { $ne: true },
+})
       .select('_id username avatar fullName followersCount isVerified')
       .sort({ followersCount: -1 })
       .limit(8)
