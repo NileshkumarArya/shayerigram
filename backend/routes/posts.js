@@ -16,10 +16,14 @@ router.get('/feed',     protect,      getFeed);
 router.get('/trending',               getTrending);
 
 router.post('/',
-  protect, createPostLimiter,
-  // ✅ uploadLimiter removed — createPostLimiter handles overall, quota for images
-  ...uploadPostImage, multerErrorHandler,
-  createPostValidation, createPost
+  protect,
+  createPostLimiter,
+  uploadLimiter,
+  checkUploadQuota,
+  ...uploadPostImage,
+  multerErrorHandler,
+  createPostValidation,
+  createPost
 );
 
 router.get('/:id',                   ...mongoIdValidation('id'), optionalAuth, getPost);
