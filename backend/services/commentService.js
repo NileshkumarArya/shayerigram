@@ -48,18 +48,20 @@ const addComment = async (postId, authorId, text, actorUsername, io, parentId = 
 };
 
 const deleteComment = async (commentId, userId, postId) => {
-  const comment = await Comment.findById(commentId);
+  const comment = await Comment.findOne({ _id: commentId, postId });
   if (!comment) throw Object.assign(new Error('Comment not found'), { status: 404 });
 
   // Only comment author or post author can delete
   const post = await Post.findById(postId).select('author');
+  if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
+
   const isOwner = String(comment.authorId) === String(userId);
-  const isPostOwner = post && String(post.author) === String(userId);
+  const isPostOwner = String(post.author) === String(userId);
 
   if (!isOwner && !isPostOwner)
     throw Object.assign(new Error('Not authorized'), { status: 403 });
 
-  await Comment.findByIdAndDelete(commentId);
+  await Comment.deleteOne({ _id: commentId, postId });
   await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: -1 } });
 
   return { message: 'Comment deleted' };
