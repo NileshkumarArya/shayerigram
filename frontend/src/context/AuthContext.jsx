@@ -24,11 +24,19 @@ export const AuthProvider = ({ children }) => {
 
   // Login — backend sets HttpOnly cookie, we just get user data
 const login = useCallback(async (identifier, password) => {
-    const { data } = await authAPI.login({ identifier, password });
-    setUser(data.user);
-    return data.user;
-  }, []);
+    await authAPI.login({ identifier, password });
 
+    try {
+      const { data } = await authAPI.me();
+      setUser(data);
+      return data;
+    } catch {
+      setUser(null);
+      throw new Error(
+        'Login successful, but your browser is blocking cookies. Please allow cookies or try normal Chrome.'
+      );
+    }
+  }, []);
   // Register — backend sets HttpOnly cookie + records ToS acceptance
   const register = useCallback(async (formData) => {
     const { data } = await authAPI.register(formData);

@@ -22,8 +22,12 @@ export default function LoginPage() {
     try {
       await login(form.identifier, form.password);
       navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+        } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Login failed. Please check your credentials.'
+      );
     }
     setLoading(false);
   };
