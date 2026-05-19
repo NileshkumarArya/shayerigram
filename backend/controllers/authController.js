@@ -158,12 +158,20 @@ exports.login = async (req, res) => {
       const candidates = await User.find({ email: identifier, isDeleted: { $ne: true } })
         .select('+password +failedLoginAttempts +lockUntil +knownIps');
 
-      // Pehle non-suspended, non-locked user dhundho jiska password match kare
+            // Pehle non-suspended, non-locked user dhundho jiska password match kare
       for (const candidate of candidates) {
         if (candidate.isSuspended) continue;
         if (candidate.isLocked?.()) continue;
+
         const match = await candidate.matchPassword(password);
-        if (match) { user = candidate; break; }
+        if (match) {
+          user = candidate;
+          break;
+        }
+
+        if (candidate.incrementFailedLogin) {
+          candidate.incrementFailedLogin().catch(() => {});
+        }
       }
 
       // Agar koi match nahi — locked ya suspended check karo for specific error
@@ -196,8 +204,13 @@ exports.login = async (req, res) => {
       if (user?.isSuspended)
         return res.status(403).json({ message: 'This account has been suspended.' });
 
-      const passwordMatch = user ? await user.matchPassword(password) : false;
-      if (!passwordMatch) user = null;
+            const passwordMatch = user ? await user.matchPassword(password) : false;
+      if (!passwordMatch) {
+        if (user?.incrementFailedLogin) {
+          user.incrementFailedLogin().catch(() => {});
+        }
+        user = null;
+      }
     }
 
     if (!user) {
