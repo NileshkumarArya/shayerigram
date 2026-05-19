@@ -1,7 +1,10 @@
+const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 const { deleteCache } = require('../utils/cache');
 const logger = require('../utils/logger');
+
+const POST_NOTIFICATION_TYPES = new Set(['like', 'comment', 'reply', 'mention', 'save']);
 
 // @GET /api/notifications
 exports.getNotifications = async (req, res) => {
@@ -15,14 +18,35 @@ exports.getNotifications = async (req, res) => {
       .sort(sort)
       .limit(limit + 1)
       .populate('actorId', '_id username avatar')
-      .populate('entityId')
       .lean();
 
     const hasMore = notifications.length > limit;
     const items   = hasMore ? notifications.slice(0, limit) : notifications;
 
+    const postIds = items
+      .filter(n => POST_NOTIFICATION_TYPES.has(n.type) && n.entityId)
+      .map(n => n.entityId);
+
+    const posts = postIds.length
+      ? await Post.find({ _id: { $in: postIds }, isTakenDown: { $ne: true } })
+          .select('_id type image content')
+          .lean()
+      : [];
+
+    const postMap = new Map(posts.map(p => [String(p._id), p]));
+
+    const normalized = items.map(n => ({
+      ...n,
+      sender: n.actorId,
+      actor:  n.actorId,
+      read:   n.isRead,
+      post:   POST_NOTIFICATION_TYPES.has(n.type) && n.entityId
+                ? postMap.get(String(n.entityId)) || null
+                : null,
+    }));
+
     res.json({
-      notifications: items,
+      notifications: normalized,
       hasMore,
       nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
     });

@@ -64,6 +64,14 @@ body { background-color:var(--bg-primary); color:var(--text-primary); font-famil
 .input-field::placeholder { color:var(--text-muted); }
 .input-field:focus { border-color:var(--purple-primary); background:rgba(147,51,234,0.08); box-shadow:0 0 0 3px rgba(147,51,234,0.1); }
 
+/* ✅ FIX: Input text color force — dark theme pe text black dikhne ka bug fix */
+.input-field,
+.input-field:focus,
+.input-field:active {
+  color: var(--text-primary) !important;
+  caret-color: var(--purple-light);
+}
+
 /* ✅ Dark theme for native select dropdowns */
 select option {
   background: #1a1628 !important;
@@ -76,8 +84,8 @@ select {
 /* ✅ Anti-banding — prevents gradient lines on glass elements */
 .glass,
 .glass-strong {
-  transform: translateZ(0);           /* Force GPU layer — prevents banding */
-  isolation: isolate;                 /* Stacking context — prevents bleed-through */
+  transform: translateZ(0);
+  isolation: isolate;
   -webkit-transform: translateZ(0);
 }
 

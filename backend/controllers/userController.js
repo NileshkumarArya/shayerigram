@@ -37,8 +37,6 @@ exports.getProfile = async (req, res) => {
   try {
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
 
-    // ✅ FIX: Resolve username → userId first, then use id-based cache key
-    // This ensures follow/unfollow invalidation works correctly
     const userIdCache = await getCache(`user:username:${username}`);
     let userId = userIdCache;
 
@@ -46,13 +44,12 @@ exports.getProfile = async (req, res) => {
       const found = await User.findOne({ username, isSuspended: { $ne: true } }).select('_id').lean();
       if (!found) return res.status(404).json({ message: 'User not found' });
       userId = String(found._id);
-      await setCache(`user:username:${username}`, userId, 300); // username→id TTL 5min
+      await setCache(`user:username:${username}`, userId, 300);
     }
 
     const cacheKey = `user:profile:id:${userId}`;
     let cached = await getCache(cacheKey);
     if (cached) {
-      // Attach live isFollowing (not cached — user-specific)
       if (req.user) {
         const isFollowing = await Follow.exists({ followerId: req.user._id, followingId: userId });
         cached.isFollowing = !!isFollowing;
@@ -63,22 +60,21 @@ exports.getProfile = async (req, res) => {
     const user = await User.findById(userId).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
-// Live count use karo — denormalized counter sync issues se bachao
-const [followersCount, followingCount] = await Promise.all([
-  Follow.countDocuments({ followingId: user._id }),
-  Follow.countDocuments({ followerId: user._id }),
-]);
-user.followersCount = followersCount;
-user.followingCount = followingCount;
-const profile = safeProfileUser(user, postCount);
+    const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
+    const [followersCount, followingCount] = await Promise.all([
+      Follow.countDocuments({ followingId: user._id }),
+      Follow.countDocuments({ followerId: user._id }),
+    ]);
+    user.followersCount = followersCount;
+    user.followingCount = followingCount;
+    const profile = safeProfileUser(user, postCount);
 
     if (req.user) {
       const isFollowing = await Follow.exists({ followerId: req.user._id, followingId: user._id });
       profile.isFollowing = !!isFollowing;
     }
 
-    await setCache(cacheKey, profile, 60); // 60s TTL — safe for follower count drift
+    await setCache(cacheKey, profile, 60);
     res.json({ user: profile });
   } catch (err) {
     logger.error('Get profile failed', { error: err.message });
@@ -144,7 +140,7 @@ exports.updateProfile = async (req, res) => {
     await user.save();
     await invalidateCache([
       `user:profile:id:${user._id}`,
-      `user:username:${user.username}`,  // username→id mapping
+      `user:username:${user.username}`,
     ]);
     res.json({ user: safeProfileUser(user) });
   } catch (err) {
@@ -171,13 +167,20 @@ exports.getFollowers = async (req, res) => {
 
     const follows = await Follow.find({ followingId: user._id, ...cursorFilter })
       .sort(sort).limit(limit + 1)
-      .populate('followerId', '_id username avatar fullName isVerified followersCount')
+      .populate({
+        path: 'followerId',
+        select: '_id username avatar fullName isVerified followersCount',
+        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+      })
       .lean();
 
     const hasMore = follows.length > limit;
     const items   = hasMore ? follows.slice(0, limit) : follows;
+    // ✅ FIX: filter(Boolean) — deleted users ke liye populate null return karta hai
+    const users   = items.map(f => f.followerId).filter(Boolean);
+
     res.json({
-      users:      items.map(f => f.followerId),
+      users,
       hasMore,
       nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
     });
@@ -195,13 +198,20 @@ exports.getFollowing = async (req, res) => {
 
     const follows = await Follow.find({ followerId: user._id, ...cursorFilter })
       .sort(sort).limit(limit + 1)
-      .populate('followingId', '_id username avatar fullName isVerified followersCount')
+      .populate({
+        path: 'followingId',
+        select: '_id username avatar fullName isVerified followersCount',
+        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+      })
       .lean();
 
     const hasMore = follows.length > limit;
     const items   = hasMore ? follows.slice(0, limit) : follows;
+    // ✅ FIX: filter(Boolean) — deleted users ke liye populate null return karta hai
+    const users   = items.map(f => f.followingId).filter(Boolean);
+
     res.json({
-      users:      items.map(f => f.followingId),
+      users,
       hasMore,
       nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
     });
@@ -213,15 +223,14 @@ exports.getFollowing = async (req, res) => {
 // ─── Get Suggestions ──────────────────────────────────────────────────────────
 exports.getSuggestions = async (req, res) => {
   try {
-    // Get IDs already followed by user
     const following = await Follow.find({ followerId: req.user._id }).select('followingId').lean();
     const excludeIds = [req.user._id, ...following.map(f => f.followingId)];
 
     const suggestions = await User.find({
-  _id: { $nin: excludeIds },
-  isSuspended: { $ne: true },
-  isDeleted: { $ne: true },
-})
+      _id: { $nin: excludeIds },
+      isSuspended: { $ne: true },
+      isDeleted: { $ne: true },
+    })
       .select('_id username avatar fullName followersCount isVerified')
       .sort({ followersCount: -1 })
       .limit(8)

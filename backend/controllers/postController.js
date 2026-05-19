@@ -1,274 +1,255 @@
 /**
- * Post Controller — Thin controller, delegates to services
- * No business logic here — all in service layer
+ * User Controller — thin, delegates to services
+ * All follow/save/profile logic uses separate collections
  */
-const Post            = require('../models/Post');
-const User            = require('../models/User');
-const Report          = require('../models/Report');
+const User         = require('../models/User');
+const Post         = require('../models/Post');
+const Follow       = require('../models/Follow');
+const Like         = require('../models/Like');
+const Save         = require('../models/Save');
+const followService = require('../services/followService');
+const saveService   = require('../services/saveService');
 const { getCache, setCache, invalidateCache } = require('../utils/cache');
-const { encodeCursor, buildCursorPagination } = require('../utils/pagination');
-const likeService     = require('../services/likeService');
-const saveService     = require('../services/saveService');
-const commentService  = require('../services/commentService');
-const feedService     = require('../services/feedService');
-const logger          = require('../utils/logger');
-const cloudinary      = require('cloudinary').v2;
+const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
+const { sanitizeString } = require('../middleware/security');
+const cloudinary   = require('cloudinary').v2;
+const logger       = require('../utils/logger');
 
-// ─── Get Feed (cursor-paginated) ────────────────────────────────────────────
-exports.getFeed = async (req, res) => {
-  try {
-    const result = await feedService.getFeed(req.user._id, req.query);
-    res.json(result);
-  } catch (err) {
-    logger.error('Get feed failed', { error: err.message, userId: req.user._id });
-    res.status(500).json({ message: 'Failed to load feed.' });
-  }
-};
+// ─── Safe public profile shape — no private fields ───────────────────────────
+const safeProfileUser = (user, postCount) => ({
+  _id:            user._id,
+  username:       user.username,
+  fullName:       user.fullName,
+  avatar:         user.avatar,
+  bio:            user.bio,
+  website:        user.website,
+  location:       user.location,
+  followersCount: user.followersCount || 0,
+  followingCount: user.followingCount || 0,
+  isVerified:     user.isVerified,
+  isPrivate:      user.isPrivate,
+  postCount:      postCount || 0,
+  createdAt:      user.createdAt,
+});
 
-// ─── Create Post ────────────────────────────────────────────────────────────
-exports.createPost = async (req, res) => {
+// ─── Get Profile ─────────────────────────────────────────────────────────────
+exports.getProfile = async (req, res) => {
   try {
-    const { title, content, language, writtenIn, type } = req.body;
-    // ✅ FormData sends arrays as 'categories[]' — handle both formats
-    let categories = req.body['categories[]'] || req.body.categories;
-    if (typeof categories === 'string') categories = [categories];
-    if (!Array.isArray(categories)) categories = ['Other'];
-    // ✅ Content optional for image posts — image alone is valid
-    const postType = type || (req.safeUpload ? 'image' : 'text');
-    if (postType === 'text' && !content?.trim()) {
-      return res.status(400).json({ message: 'Please write your shayari' });
+    const username = sanitizeString(req.params.username, 30)?.toLowerCase();
+
+    const userIdCache = await getCache(`user:username:${username}`);
+    let userId = userIdCache;
+
+    if (!userId) {
+      const found = await User.findOne({ username, isSuspended: { $ne: true } }).select('_id').lean();
+      if (!found) return res.status(404).json({ message: 'User not found' });
+      userId = String(found._id);
+      await setCache(`user:username:${username}`, userId, 300);
     }
 
-    // Also accept theme and fontStyle from frontend
-    const { theme, fontStyle } = req.body;
-
-    const postData = {
-      author:    req.user._id,
-      title,
-      content,
-      categories: Array.isArray(categories) ? categories : (categories ? [categories] : ['Other']),
-      writtenIn: writtenIn || language || 'Hindi', // accept both field names
-      type:      type || 'text',
-      theme:     theme     || 'classic',
-      fontStyle: fontStyle || 'shayari',
-    };
-
-    if (req.safeUpload) {
-      postData.image         = req.safeUpload.url;
-      postData.imagePublicId = req.safeUpload.publicId;
-      postData.type          = 'image';
-    }
-
-    const post = await Post.create(postData);
-
-    // ✅ FIX: Increment postsCount on the User document
-    User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: 1 } }).catch(() => {});
-
-    // ─── Extract @mentions and notify ────────────────────────────────────
-    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
-    const safeContent = content || ''; // ✅ Guard: content undefined for image-only posts
-    const mentionedUsernames = [...new Set(
-      [...safeContent.matchAll(mentionRegex)].map(m => m[1])
-    )];
-    if (mentionedUsernames.length > 0) {
-      const mentionedUsers = await require('../models/User')
-        .find({ username: { $in: mentionedUsernames } })
-        .select('_id username')
-        .lean();
-      const mentionNotifs = mentionedUsers
-        .filter(u => String(u._id) !== String(req.user._id))
-        .map(u => ({
-          recipient:  u._id,
-          sender:     req.user._id,
-          type:       'mention',
-          post:       post._id,
-          message:    `@${req.user.username} mentioned you in a post`,
-        }));
-      if (mentionNotifs.length > 0) {
-        await require('../models/Notification').insertMany(mentionNotifs);
+    const cacheKey = `user:profile:id:${userId}`;
+    let cached = await getCache(cacheKey);
+    if (cached) {
+      if (req.user) {
+        const isFollowing = await Follow.exists({ followerId: req.user._id, followingId: userId });
+        cached.isFollowing = !!isFollowing;
       }
+      return res.json({ user: cached });
     }
 
-    // Invalidate feed caches for this user's followers
-    await invalidateCache([`feed:first:${req.user._id}`, 'trending:posts', 'explore:all:first']);
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const populated = await Post.findById(post._id)
-      .populate('author', '_id username avatar fullName isVerified');
+    const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
+    const [followersCount, followingCount] = await Promise.all([
+      Follow.countDocuments({ followingId: user._id }),
+      Follow.countDocuments({ followerId: user._id }),
+    ]);
+    user.followersCount = followersCount;
+    user.followingCount = followingCount;
+    const profile = safeProfileUser(user, postCount);
 
-    logger.info('Post created', { postId: post._id, userId: req.user._id });
-    res.status(201).json({ post: populated });
-  } catch (err) {
-    logger.error('Create post failed', {
-      error:   err.message,
-      code:    err.code,
-      name:    err.name,
-      stack:   err.stack?.split('\n')[1],
-      userId:  req.user?._id,
-      content: req.body?.content?.slice(0, 50),
-    });
-    const msg = process.env.NODE_ENV !== 'production'
-      ? `Failed to create post: ${err.message}`
-      : 'Failed to create post.';
-    res.status(500).json({ message: msg });
-  }
-};
-
-// ─── Get Single Post (with like/save state) ─────────────────────────────────
-exports.getPost = async (req, res) => {
-  try {
-    const cacheKey = `post:${req.params.id}`;
-    let post = await getCache(cacheKey);
-
-    if (!post) {
-      post = await Post.findById(req.params.id)
-        .populate('author', '_id username avatar fullName isVerified followersCount')
-        .lean();
-
-      if (!post || post.isTakenDown) return res.status(404).json({ message: 'Post not found' });
-      await setCache(cacheKey, post, 60);
-    }
-
-    // Increment views (fire-and-forget)
-    Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }).catch(() => {});
-
-    // Attach like/save state if user is logged in
-    let liked = false, saved = false;
     if (req.user) {
-      [liked, saved] = await Promise.all([
-        likeService.isLiked(req.user._id, req.params.id),
-        saveService.isSaved(req.user._id, req.params.id),
-      ]);
+      const isFollowing = await Follow.exists({ followerId: req.user._id, followingId: user._id });
+      profile.isFollowing = !!isFollowing;
     }
 
-    res.json({ post: { ...post, liked, saved } });
+    await setCache(cacheKey, profile, 60);
+    res.json({ user: profile });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to load post.' });
+    logger.error('Get profile failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load profile.' });
   }
 };
 
-// ─── Delete Post ─────────────────────────────────────────────────────────────
-exports.deletePost = async (req, res) => {
+// ─── Get User Posts (cursor-paginated) ───────────────────────────────────────
+exports.getUserPosts = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    if (String(post.author) !== String(req.user._id))
-      return res.status(403).json({ message: 'Not authorized' });
+    const username = sanitizeString(req.params.username, 30)?.toLowerCase();
+    const user = await User.findOne({ username }).select('_id').lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // ✅ Soft delete — post is recoverable by admin
-    await Post.findByIdAndUpdate(req.params.id, {
-      $set: {
-        isDeleted:  true,
-        deletedAt:  new Date(),
-        deletedBy:  req.user._id,
-        isTakenDown: true,
-      },
-    });
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
 
-    // ✅ FIX: Decrement postsCount on the User document
-    User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: -1 } }).catch(() => {});
-
-    await invalidateCache([`post:${req.params.id}`, `feed:first:${req.user._id}`, 'trending:posts']);
-
-    res.json({ message: 'Post deleted' });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to delete post.' });
-  }
-};
-
-// ─── Like (uses service) ─────────────────────────────────────────────────────
-exports.toggleLike = async (req, res) => {
-  try {
-    const result = await likeService.toggleLike(
-      req.user._id, req.params.id, req.user.username, req.app.get('io')
-    );
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle like.' });
-  }
-};
-
-// ─── Comments (use service + cursor pagination) ──────────────────────────────
-exports.addComment = async (req, res) => {
-  try {
-    // ✅ FIX: Pass parentId from request to service — reply support
-    const parentId = req.params.commentId || req.body.parentId || null;
-    const result = await commentService.addComment(
-      req.params.id, req.user._id, req.body.text, req.user.username, req.app.get('io'), parentId
-    );
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to add comment.' });
-  }
-};
-
-exports.deleteComment = async (req, res) => {
-  try {
-    const result = await commentService.deleteComment(req.params.commentId, req.user._id, req.params.id);
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to delete comment.' });
-  }
-};
-
-exports.getComments = async (req, res) => {
-  try {
-    const result = await commentService.getComments(req.params.id, req.query);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to load comments.' });
-  }
-};
-
-// ─── Save (uses service) ─────────────────────────────────────────────────────
-exports.toggleSave = async (req, res) => {
-  try {
-    const result = await saveService.toggleSave(req.user._id, req.params.id);
-    res.json(result);
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle save.' });
-  }
-};
-
-// ─── Trending ─────────────────────────────────────────────────────────────────
-exports.getTrending = async (req, res) => {
-  try {
-    const cached = await getCache('trending:posts');
-    if (cached) return res.json({ posts: cached, cached: true });
-
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const posts  = await Post.find({
-      isPublic: true, isTakenDown: { $ne: true }, createdAt: { $gte: since },
+    const posts = await Post.find({
+      author: user._id,
+      isPublic: true,
+      isTakenDown: { $ne: true },
+      ...cursorFilter,
     })
-      .sort({ likesCount: -1, commentsCount: -1, views: -1, createdAt: -1 })
-      .limit(20)
-      .populate('author', '_id username avatar isVerified')
+      .sort(sort)
+      .limit(limit + 1)
+      .populate('author', '_id username avatar fullName isVerified')
       .lean();
 
-    await setCache('trending:posts', posts, 120);
-    res.json({ posts });
+    const hasMore = posts.length > limit;
+    const items   = hasMore ? posts.slice(0, limit) : posts;
+
+    res.json({
+      posts:      items,
+      hasMore,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to load trending.' });
+    res.status(500).json({ message: 'Failed to load posts.' });
   }
 };
 
-// ─── Report Post ──────────────────────────────────────────────────────────────
-exports.reportPost = async (req, res) => {
+// ─── Update Profile ───────────────────────────────────────────────────────────
+exports.updateProfile = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found.' });
+    const { fullName, bio, website, location } = req.body;
+    const user = await User.findById(req.user._id);
 
-    const validReasons = ['spam', 'harassment', 'hate_speech', 'inappropriate', 'copyright', 'other'];
-    const reason  = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
-    const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
+    if (fullName  !== undefined) user.fullName = sanitizeString(fullName,  50) || '';
+    if (bio       !== undefined) user.bio      = sanitizeString(bio,     300) || '';
+    if (location  !== undefined) user.location = sanitizeString(location,  50) || '';
+    if (website   !== undefined) {
+      const w = sanitizeString(website, 200) || '';
+      user.website = (!w || w.startsWith('http://') || w.startsWith('https://')) ? w : '';
+    }
 
-    const alreadyReported = await Report.findOne({ targetId: post._id, reportedBy: req.user._id });
-    if (alreadyReported) return res.status(400).json({ message: 'You have already reported this post.' });
+    if (req.safeUpload) {
+      if (user.avatarPublicId) {
+        cloudinary.uploader.destroy(user.avatarPublicId).catch(() => {});
+      }
+      user.avatar         = req.safeUpload.url;
+      user.avatarPublicId = req.safeUpload.publicId;
+    }
 
-    await Report.create({ targetType: 'post', targetId: post._id, reason, details, reportedBy: req.user._id });
-    await Post.findByIdAndUpdate(post._id, { $inc: { reportCount: 1 }, $set: { isReported: true } });
-
-    res.json({ message: 'Post reported. Our team will review it.' });
+    await user.save();
+    await invalidateCache([
+      `user:profile:id:${user._id}`,
+      `user:username:${user.username}`,
+    ]);
+    res.json({ user: safeProfileUser(user) });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to report post.' });
+    res.status(500).json({ message: 'Profile update failed.' });
+  }
+};
+
+// ─── Toggle Follow (uses service) ────────────────────────────────────────────
+exports.toggleFollow = async (req, res) => {
+  try {
+    const result = await followService.toggleFollow(req.user._id, req.params.id, req.app.get('io'));
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message || 'Follow action failed.' });
+  }
+};
+
+// ─── Get Followers list (cursor-paginated) ────────────────────────────────────
+exports.getFollowers = async (req, res) => {
+  try {
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+    const user = await User.findOne({ username: req.params.username }).select('_id').lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const follows = await Follow.find({ followingId: user._id, ...cursorFilter })
+      .sort(sort).limit(limit + 1)
+      // ✅ FIX: deleted/suspended users filter
+      .populate({
+        path: 'followerId',
+        select: '_id username avatar fullName isVerified followersCount',
+        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+      })
+      .lean();
+
+    const hasMore = follows.length > limit;
+    const items   = hasMore ? follows.slice(0, limit) : follows;
+    // ✅ FIX: filter(Boolean) — populate match null return karta hai deleted users ke liye
+    const users   = items.map(f => f.followerId).filter(Boolean);
+
+    res.json({
+      users,
+      hasMore,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load followers.' });
+  }
+};
+
+// ─── Get Following list (cursor-paginated) ────────────────────────────────────
+exports.getFollowing = async (req, res) => {
+  try {
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+    const user = await User.findOne({ username: req.params.username }).select('_id').lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const follows = await Follow.find({ followerId: user._id, ...cursorFilter })
+      .sort(sort).limit(limit + 1)
+      // ✅ FIX: deleted/suspended users filter
+      .populate({
+        path: 'followingId',
+        select: '_id username avatar fullName isVerified followersCount',
+        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+      })
+      .lean();
+
+    const hasMore = follows.length > limit;
+    const items   = hasMore ? follows.slice(0, limit) : follows;
+    // ✅ FIX: filter(Boolean) — populate match null return karta hai deleted users ke liye
+    const users   = items.map(f => f.followingId).filter(Boolean);
+
+    res.json({
+      users,
+      hasMore,
+      nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load following.' });
+  }
+};
+
+// ─── Get Suggestions ──────────────────────────────────────────────────────────
+exports.getSuggestions = async (req, res) => {
+  try {
+    const following = await Follow.find({ followerId: req.user._id }).select('followingId').lean();
+    const excludeIds = [req.user._id, ...following.map(f => f.followingId)];
+
+    const suggestions = await User.find({
+      _id: { $nin: excludeIds },
+      isSuspended: { $ne: true },
+      isDeleted: { $ne: true },
+    })
+      .select('_id username avatar fullName followersCount isVerified')
+      .sort({ followersCount: -1 })
+      .limit(8)
+      .lean();
+
+    res.json({ users: suggestions });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load suggestions.' });
+  }
+};
+
+// ─── Get Saved Posts (cursor-paginated via service) ───────────────────────────
+exports.getSavedPosts = async (req, res) => {
+  try {
+    const result = await saveService.getUserSavedPosts(req.user._id, req.query);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load saved posts.' });
   }
 };
