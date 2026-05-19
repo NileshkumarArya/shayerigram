@@ -14,7 +14,10 @@ const TYPE_CONFIG = {
 };
 
 function NotifItem({ notif }) {
+  // ✅ FIX: actorId (populated user object) — pehle 'sender' tha jo undefined tha
+  const actor = notif.actorId;
   const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.like;
+
   const timeAgo = (date) => {
     const diff = Date.now() - new Date(date).getTime();
     const m = Math.floor(diff / 60000);
@@ -25,38 +28,63 @@ function NotifItem({ notif }) {
     return `${Math.floor(h / 24)}d`;
   };
 
+  // entityId is populated — for like/comment/save it's a Post object
+  const post = ['like', 'comment', 'save', 'mention'].includes(notif.type)
+    ? notif.entityId
+    : null;
+
   return (
-    <div className={`flex items-center gap-3 p-4 rounded-xl transition-all glass-hover animate-fade-in ${!notif.read ? 'border-l-2' : ''}`}
-      style={!notif.read ? { borderLeftColor: '#9333ea', background: 'rgba(147,51,234,0.05)' } : { border: '1px solid var(--border)' }}>
+    <div
+      className={`flex items-center gap-3 p-4 rounded-xl transition-all glass-hover animate-fade-in ${
+        // ✅ FIX: isRead — pehle 'read' tha
+        !notif.isRead ? 'border-l-2' : ''
+      }`}
+      style={
+        !notif.isRead
+          ? { borderLeftColor: '#9333ea', background: 'rgba(147,51,234,0.05)' }
+          : { border: '1px solid var(--border)' }
+      }
+    >
       {/* Avatar with emoji badge */}
       <div className="relative shrink-0">
-        <Avatar user={notif.sender} size="md" />
+        <Avatar user={actor} size="md" />
         <span className="absolute -bottom-1 -right-1 text-sm">{cfg.emoji}</span>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-          <Link to={`/profile/${notif.sender?.username}`}
-            className="font-semibold hover:text-purple-300 transition-colors">
-            {notif.sender?.username}
+          <Link
+            to={`/profile/${actor?.username}`}
+            className="font-semibold hover:text-purple-300 transition-colors"
+          >
+            {actor?.username}
           </Link>{' '}
           <span style={{ color: 'var(--text-secondary)' }}>{cfg.label}</span>
         </p>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{timeAgo(notif.createdAt)}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          {timeAgo(notif.createdAt)}
+        </p>
       </div>
 
-      {/* Post thumbnail */}
-      {notif.post && (
-        <Link to={`/post/${notif.post._id}`} className="shrink-0">
-          {notif.post.type === 'image' && notif.post.image ? (
-            <img src={notif.post.image} alt="" className="w-12 h-12 object-cover rounded-lg" />
+      {/* Post thumbnail — ✅ FIX: entityId use karo, post nahi */}
+      {post && post._id && (
+        <Link to={`/post/${post._id}`} className="shrink-0">
+          {post.type === 'image' && post.image ? (
+            <img src={post.image} alt="" className="w-12 h-12 object-cover rounded-lg" />
           ) : (
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center p-1"
-              style={{ background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.2)' }}>
-              <span className="text-[9px] font-shayari text-center line-clamp-3"
-                style={{ color: 'var(--text-muted)' }}>
-                {notif.post.content?.slice(0, 40)}
+            <div
+              className="w-12 h-12 rounded-lg flex items-center justify-center p-1"
+              style={{
+                background: 'rgba(147,51,234,0.1)',
+                border: '1px solid rgba(147,51,234,0.2)',
+              }}
+            >
+              <span
+                className="text-[9px] font-shayari text-center line-clamp-3"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {post.content?.slice(0, 40)}
               </span>
             </div>
           )}
@@ -65,6 +93,12 @@ function NotifItem({ notif }) {
     </div>
   );
 }
+
+
+
+
+
+
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);

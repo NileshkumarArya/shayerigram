@@ -11,7 +11,6 @@ export const useSocket = (onNotification) => {
 
   useEffect(() => {
     if (!user) {
-      // Disconnect if user logs out
       if (socketInstance) {
         socketInstance.disconnect();
         socketInstance = null;
@@ -19,11 +18,14 @@ export const useSocket = (onNotification) => {
       return;
     }
 
-    // Only create one socket instance
     if (!socketInstance) {
-      socketInstance = io(import.meta.env.VITE_SOCKET_URL || '/', {
+      const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+
+      socketInstance = io(SOCKET_URL, {
         withCredentials: true,
-        transports: ['websocket', 'polling'],
+        // ✅ FIX: polling pehle — cross-domain cookies polling mein kaam karte hain
+        // WebSocket upgrade baad mein hoti hai automatically
+        transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1500,
@@ -38,7 +40,6 @@ export const useSocket = (onNotification) => {
       console.log('[Socket] Connected:', socket.id);
     });
 
-    // ✅ Listen for real-time notifications
     socket.on('notification', (data) => {
       window.dispatchEvent(new CustomEvent('sg:notification', { detail: data }));
       callbackRef.current?.(data);
@@ -60,6 +61,7 @@ export const useSocket = (onNotification) => {
       socket.off('notification');
       socket.off('reconnect');
       socket.off('disconnect');
+      socket.off('connect_error');
     };
   }, [user?._id]);
 
