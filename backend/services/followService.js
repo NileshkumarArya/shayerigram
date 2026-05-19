@@ -2,6 +2,7 @@ const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const mongoose  = require('mongoose');
 const Follow    = require('../models/Follow');
 const User      = require('../models/User');
+const Block     = require('../models/Block');
 const Notification = require('../models/Notification');
 const { invalidateCache } = require('../utils/cache');
 const logger    = require('../utils/logger');
@@ -21,7 +22,7 @@ const toggleFollow = async (followerId, followingId, io) => {
     new mongoose.Types.ObjectId(followingId),
   ];
 
-  const targetUser = await User.findOne({
+    const targetUser = await User.findOne({
     _id: followingObjId,
     isDeleted: { $ne: true },
     isSuspended: { $ne: true },
@@ -29,6 +30,17 @@ const toggleFollow = async (followerId, followingId, io) => {
 
   if (!targetUser) {
     throw Object.assign(new Error('User not found'), { status: 404 });
+  }
+
+  const blocked = await Block.exists({
+    $or: [
+      { blockerId: followerObjId, blockeeId: followingObjId },
+      { blockerId: followingObjId, blockeeId: followerObjId },
+    ],
+  });
+
+  if (blocked) {
+    throw Object.assign(new Error('You cannot follow this user.'), { status: 403 });
   }
 
   // Check current follow state

@@ -7,6 +7,7 @@ const Post         = require('../models/Post');
 const Follow       = require('../models/Follow');
 const Like         = require('../models/Like');
 const Save         = require('../models/Save');
+const Block        = require('../models/Block');
 const followService = require('../services/followService');
 const saveService   = require('../services/saveService');
 const { getCache, setCache, invalidateCache } = require('../utils/cache');
@@ -47,6 +48,19 @@ exports.getProfile = async (req, res) => {
       if (!found) return res.status(404).json({ message: 'User not found' });
       userId = String(found._id);
       await setCache(`user:username:${username}`, userId, 300);
+    }
+
+        if (req.user && String(req.user._id) !== String(userId)) {
+      const blocked = await Block.exists({
+        $or: [
+          { blockerId: req.user._id, blockeeId: userId },
+          { blockerId: userId, blockeeId: req.user._id },
+        ],
+      });
+
+      if (blocked) {
+        return res.status(404).json({ message: 'User not found' });
+      }
     }
 
     const cacheKey = `user:profile:id:${userId}`;
