@@ -15,7 +15,6 @@ const { sanitizeString } = require('../middleware/security');
 const cloudinary   = require('cloudinary').v2;
 const logger       = require('../utils/logger');
 
-// ─── Safe public profile shape — no private fields ───────────────────────────
 const safeProfileUser = (user, postCount) => ({
   _id:            user._id,
   username:       user.username,
@@ -32,7 +31,6 @@ const safeProfileUser = (user, postCount) => ({
   createdAt:      user.createdAt,
 });
 
-// ─── Get Profile ─────────────────────────────────────────────────────────────
 exports.getProfile = async (req, res) => {
   try {
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
@@ -41,7 +39,12 @@ exports.getProfile = async (req, res) => {
     let userId = userIdCache;
 
     if (!userId) {
-      const found = await User.findOne({ username, isSuspended: { $ne: true } }).select('_id').lean();
+      // ✅ FIX: deleted users bhi filter karo
+      const found = await User.findOne({
+        username,
+        isSuspended: { $ne: true },
+        isDeleted:   { $ne: true },
+      }).select('_id').lean();
       if (!found) return res.status(404).json({ message: 'User not found' });
       userId = String(found._id);
       await setCache(`user:username:${username}`, userId, 300);
@@ -57,7 +60,12 @@ exports.getProfile = async (req, res) => {
       return res.json({ user: cached });
     }
 
-    const user = await User.findById(userId).lean();
+    // ✅ FIX: deleted/suspended user direct ID se bhi na mile
+    const user = await User.findOne({
+      _id:         userId,
+      isSuspended: { $ne: true },
+      isDeleted:   { $ne: true },
+    }).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
@@ -82,15 +90,18 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// ─── Get User Posts (cursor-paginated) ───────────────────────────────────────
 exports.getUserPosts = async (req, res) => {
   try {
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
-    const user = await User.findOne({ username }).select('_id').lean();
+    // ✅ FIX: deleted users ke posts nahi dikhne chahiye
+    const user = await User.findOne({
+      username,
+      isSuspended: { $ne: true },
+      isDeleted:   { $ne: true },
+    }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
-
     const posts = await Post.find({
       author: user._id,
       isPublic: true,
@@ -104,7 +115,6 @@ exports.getUserPosts = async (req, res) => {
 
     const hasMore = posts.length > limit;
     const items   = hasMore ? posts.slice(0, limit) : posts;
-
     res.json({
       posts:      items,
       hasMore,
@@ -115,12 +125,10 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
-// ─── Update Profile ───────────────────────────────────────────────────────────
 exports.updateProfile = async (req, res) => {
   try {
     const { fullName, bio, website, location } = req.body;
     const user = await User.findById(req.user._id);
-
     if (fullName  !== undefined) user.fullName = sanitizeString(fullName,  50) || '';
     if (bio       !== undefined) user.bio      = sanitizeString(bio,     300) || '';
     if (location  !== undefined) user.location = sanitizeString(location,  50) || '';
@@ -128,7 +136,6 @@ exports.updateProfile = async (req, res) => {
       const w = sanitizeString(website, 200) || '';
       user.website = (!w || w.startsWith('http://') || w.startsWith('https://')) ? w : '';
     }
-
     if (req.safeUpload) {
       if (user.avatarPublicId) {
         cloudinary.uploader.destroy(user.avatarPublicId).catch(() => {});
@@ -136,7 +143,6 @@ exports.updateProfile = async (req, res) => {
       user.avatar         = req.safeUpload.url;
       user.avatarPublicId = req.safeUpload.publicId;
     }
-
     await user.save();
     await invalidateCache([
       `user:profile:id:${user._id}`,
@@ -148,7 +154,6 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// ─── Toggle Follow (uses service) ────────────────────────────────────────────
 exports.toggleFollow = async (req, res) => {
   try {
     const result = await followService.toggleFollow(req.user._id, req.params.id, req.app.get('io'));
@@ -158,11 +163,16 @@ exports.toggleFollow = async (req, res) => {
   }
 };
 
-// ─── Get Followers list (cursor-paginated) ────────────────────────────────────
 exports.getFollowers = async (req, res) => {
   try {
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
-    const user = await User.findOne({ username: req.params.username }).select('_id').lean();
+    // ✅ FIX: sanitize + deleted filter
+    const username = sanitizeString(req.params.username, 30)?.toLowerCase();
+    const user = await User.findOne({
+      username,
+      isSuspended: { $ne: true },
+      isDeleted:   { $ne: true },
+    }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const follows = await Follow.find({ followingId: user._id, ...cursorFilter })
@@ -176,9 +186,7 @@ exports.getFollowers = async (req, res) => {
 
     const hasMore = follows.length > limit;
     const items   = hasMore ? follows.slice(0, limit) : follows;
-    // ✅ FIX: filter(Boolean) — deleted users ke liye populate null return karta hai
     const users   = items.map(f => f.followerId).filter(Boolean);
-
     res.json({
       users,
       hasMore,
@@ -189,11 +197,16 @@ exports.getFollowers = async (req, res) => {
   }
 };
 
-// ─── Get Following list (cursor-paginated) ────────────────────────────────────
 exports.getFollowing = async (req, res) => {
   try {
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
-    const user = await User.findOne({ username: req.params.username }).select('_id').lean();
+    // ✅ FIX: sanitize + deleted filter
+    const username = sanitizeString(req.params.username, 30)?.toLowerCase();
+    const user = await User.findOne({
+      username,
+      isSuspended: { $ne: true },
+      isDeleted:   { $ne: true },
+    }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const follows = await Follow.find({ followerId: user._id, ...cursorFilter })
@@ -207,9 +220,7 @@ exports.getFollowing = async (req, res) => {
 
     const hasMore = follows.length > limit;
     const items   = hasMore ? follows.slice(0, limit) : follows;
-    // ✅ FIX: filter(Boolean) — deleted users ke liye populate null return karta hai
     const users   = items.map(f => f.followingId).filter(Boolean);
-
     res.json({
       users,
       hasMore,
@@ -220,29 +231,25 @@ exports.getFollowing = async (req, res) => {
   }
 };
 
-// ─── Get Suggestions ──────────────────────────────────────────────────────────
 exports.getSuggestions = async (req, res) => {
   try {
     const following = await Follow.find({ followerId: req.user._id }).select('followingId').lean();
     const excludeIds = [req.user._id, ...following.map(f => f.followingId)];
-
     const suggestions = await User.find({
       _id: { $nin: excludeIds },
       isSuspended: { $ne: true },
-      isDeleted: { $ne: true },
+      isDeleted:   { $ne: true },
     })
       .select('_id username avatar fullName followersCount isVerified')
       .sort({ followersCount: -1 })
       .limit(8)
       .lean();
-
     res.json({ users: suggestions });
   } catch (err) {
     res.status(500).json({ message: 'Failed to load suggestions.' });
   }
 };
 
-// ─── Get Saved Posts (cursor-paginated via service) ───────────────────────────
 exports.getSavedPosts = async (req, res) => {
   try {
     const result = await saveService.getUserSavedPosts(req.user._id, req.query);
