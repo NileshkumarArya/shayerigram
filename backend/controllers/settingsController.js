@@ -3,6 +3,7 @@ const RefreshToken = require('../models/RefreshToken');
 const Follow       = require('../models/Follow');
 const bcrypt       = require('bcryptjs');
 const logger       = require('../utils/logger');
+const { invalidateCache } = require('../utils/cache');
 
 const ALLOWED_SETTINGS = [
   'profileVisibility', 'hideFromGuests', 'disableComments',
@@ -85,7 +86,8 @@ exports.deleteAccount = async (req, res) => {
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(400).json({ message: 'Incorrect password.' });
 
-    const uid = user._id.toString();
+    const uid         = user._id.toString();
+    const oldUsername = user.username;
 
     // Soft delete — anonymize PII
     user.isDeleted      = true;
@@ -124,6 +126,14 @@ exports.deleteAccount = async (req, res) => {
     await Follow.deleteMany({
       $or: [{ followerId: user._id }, { followingId: user._id }]
     });
+
+    // ✅ FIX: Cache clear karo — purana profile cache stale na rahe
+    await invalidateCache([
+      `user:profile:id:${user._id}`,
+      `user:username:${oldUsername}`,
+      ...following.map(f => `user:profile:id:${f.followingId}`),
+      ...followers.map(f => `user:profile:id:${f.followerId}`),
+    ]);
 
     await RefreshToken.updateMany(
       { userId: user._id },

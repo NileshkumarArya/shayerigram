@@ -33,11 +33,13 @@ const enqueueNotification = async (payload) => {
     entityId:    payload.entityId ? String(payload.entityId) : undefined,
   };
 
-  if (notificationQueue) {
+  // ✅ FIX: Render par separate worker run nahi hota
+  // Queue tabhi use karo jab ENABLE_NOTIFICATION_QUEUE=true ho
+  if (process.env.ENABLE_NOTIFICATION_QUEUE === 'true' && notificationQueue) {
     return notificationQueue.add('create-notification', safe);
   }
 
-  // Fallback: Redis nahi hai to direct DB mein save karo
+  // Default: direct DB save
   try {
     const Notification = require('../../models/Notification');
     await Notification.create({
@@ -47,9 +49,9 @@ const enqueueNotification = async (payload) => {
       entityId:    safe.entityId,
       isRead:      false,
     });
-    logger.info('Notification created via direct fallback', { type: safe.type });
+    logger.info('Notification created directly', { type: safe.type });
   } catch (e) {
-    logger.error('Notification fallback failed', { error: e.message });
+    logger.error('Notification create failed', { error: e.message });
   }
 };
 

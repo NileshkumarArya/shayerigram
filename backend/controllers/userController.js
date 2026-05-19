@@ -39,7 +39,6 @@ exports.getProfile = async (req, res) => {
     let userId = userIdCache;
 
     if (!userId) {
-      // ✅ FIX: deleted users bhi filter karo
       const found = await User.findOne({
         username,
         isSuspended: { $ne: true },
@@ -60,7 +59,6 @@ exports.getProfile = async (req, res) => {
       return res.json({ user: cached });
     }
 
-    // ✅ FIX: deleted/suspended user direct ID se bhi na mile
     const user = await User.findOne({
       _id:         userId,
       isSuspended: { $ne: true },
@@ -68,13 +66,33 @@ exports.getProfile = async (req, res) => {
     }).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const postCount = await Post.countDocuments({ author: user._id, isPublic: true, isTakenDown: { $ne: true } });
-    const [followersCount, followingCount] = await Promise.all([
-      Follow.countDocuments({ followingId: user._id }),
-      Follow.countDocuments({ followerId: user._id }),
+    const postCount = await Post.countDocuments({
+      author: user._id,
+      isPublic: true,
+      isTakenDown: { $ne: true },
+    });
+
+    // ✅ FIX: deleted/suspended users ko count se bahar rakho
+    const [followers, following] = await Promise.all([
+      Follow.find({ followingId: user._id })
+        .populate({
+          path: 'followerId',
+          select: '_id',
+          match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+        })
+        .lean(),
+      Follow.find({ followerId: user._id })
+        .populate({
+          path: 'followingId',
+          select: '_id',
+          match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+        })
+        .lean(),
     ]);
-    user.followersCount = followersCount;
-    user.followingCount = followingCount;
+
+    user.followersCount = followers.filter(f => f.followerId).length;
+    user.followingCount = following.filter(f => f.followingId).length;
+
     const profile = safeProfileUser(user, postCount);
 
     if (req.user) {
@@ -93,7 +111,6 @@ exports.getProfile = async (req, res) => {
 exports.getUserPosts = async (req, res) => {
   try {
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
-    // ✅ FIX: deleted users ke posts nahi dikhne chahiye
     const user = await User.findOne({
       username,
       isSuspended: { $ne: true },
@@ -166,7 +183,6 @@ exports.toggleFollow = async (req, res) => {
 exports.getFollowers = async (req, res) => {
   try {
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
-    // ✅ FIX: sanitize + deleted filter
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
     const user = await User.findOne({
       username,
@@ -200,7 +216,6 @@ exports.getFollowers = async (req, res) => {
 exports.getFollowing = async (req, res) => {
   try {
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
-    // ✅ FIX: sanitize + deleted filter
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
     const user = await User.findOne({
       username,

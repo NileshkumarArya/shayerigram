@@ -15,11 +15,14 @@ exports.getNotifications = async (req, res) => {
       recipientId: req.user._id,
       ...cursorFilter,
     })
-      .sort(sort)
+           .sort(sort)
       .limit(limit + 1)
-      .populate('actorId', '_id username avatar')
+      .populate({
+        path: 'actorId',
+        select: '_id username avatar',
+        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+      })
       .lean();
-
     const hasMore = notifications.length > limit;
     const items   = hasMore ? notifications.slice(0, limit) : notifications;
 
@@ -35,14 +38,14 @@ exports.getNotifications = async (req, res) => {
 
     const postMap = new Map(posts.map(p => [String(p._id), p]));
 
-    const normalized = items.map(n => ({
+        const normalized = items.map(n => ({
       ...n,
-      sender: n.actorId,
-      actor:  n.actorId,
+      sender: n.actorId || null,
+      actor:  n.actorId || null,
       read:   n.isRead,
       post:   POST_NOTIFICATION_TYPES.has(n.type) && n.entityId
-                ? postMap.get(String(n.entityId)) || null
-                : null,
+        ? postMap.get(String(n.entityId)) || null
+        : null,
     }));
 
     res.json({
