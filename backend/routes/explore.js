@@ -18,7 +18,7 @@ try {
   console.error('[explore routes] auth import failed:', err.message);
 }
 
-router.get('/search',             searchLimiter, searchValidation, search);
+router.get('/search',             optionalAuth, searchLimiter, searchValidation, search);
 router.get('/trending',                          getTrending);
 router.get('/all',                optionalAuth,  getAllPosts);
 router.get('/category/:category', optionalAuth,  getByCategory);

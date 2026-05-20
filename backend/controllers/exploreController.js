@@ -19,6 +19,7 @@ async function attachUserStatus(posts, userId) {
 }
 
 const Post          = require('../models/Post');
+const Block         = require('../models/Block');
 const searchService = require('../services/searchService');
 const User = require('../models/User');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
@@ -27,6 +28,18 @@ const logger = require('../utils/logger');
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function getBlockedUserIds(userId) {
+  if (!userId) return [];
+
+  const blocks = await Block.find({
+    $or: [{ blockerId: userId }, { blockeeId: userId }],
+  }).select('blockerId blockeeId').lean();
+
+  return blocks.map(b =>
+    String(b.blockerId) === String(userId) ? b.blockeeId : b.blockerId
+  );
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
@@ -62,12 +75,15 @@ exports.search = async (req, res) => {
 
 exports.getAllPosts = async (req, res) => {
   try {
-    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+       const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+    const userId = req.user?._id;
+    const blockedUserIds = await getBlockedUserIds(userId);
 
     const posts = await Post.find({
       isPublic:    true,
       isDeleted:   { $ne: true },
       isTakenDown: { $ne: true },
+      ...(blockedUserIds.length ? { author: { $nin: blockedUserIds } } : {}),
       ...cursorFilter,
     })
       .sort(sort)
@@ -78,8 +94,7 @@ exports.getAllPosts = async (req, res) => {
     const hasMore = posts.length > limit;
     const items   = hasMore ? posts.slice(0, limit) : posts;
 
-    const userId = req.user?._id;
-    const enriched = await attachUserStatus(items, userId);
+        const enriched = await attachUserStatus(items, userId);
 
     res.json({
       posts:      enriched,

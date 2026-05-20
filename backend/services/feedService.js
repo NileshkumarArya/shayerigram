@@ -7,6 +7,7 @@ const Post   = require('../models/Post');
 const Follow = require('../models/Follow');
 const Like   = require('../models/Like');
 const Save   = require('../models/Save');
+const Block  = require('../models/Block');
 const { getCache, setCache } = require('../utils/cache');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 
@@ -27,14 +28,24 @@ const getFeed = async (userId, query = {}) => {
   }
 
   // ── Get followed user IDs ─────────────────────────────────────────────
-  const follows = await Follow.find({ followerId: userId }).select('followingId').lean();
+   const [follows, blocks] = await Promise.all([
+    Follow.find({ followerId: userId }).select('followingId').lean(),
+    Block.find({
+      $or: [{ blockerId: userId }, { blockeeId: userId }],
+    }).select('blockerId blockeeId').lean(),
+  ]);
+
   const followedIds = follows.map(f => f.followingId);
+  const blockedUserIds = blocks.map(b =>
+    String(b.blockerId) === String(userId) ? b.blockeeId : b.blockerId
+  );
+
   const authors = [...followedIds, userId]; // Include own posts
 
-  // Kisi ko follow nahi kiya — sab public posts dikhao (explore style)
+  // Kisi ko follow nahi kiya — sab public posts dikhao, blocked users ko hata ke
   const authorFilter = followedIds.length > 0
-    ? { author: { $in: authors } }
-    : {};
+    ? { author: { $in: authors, ...(blockedUserIds.length ? { $nin: blockedUserIds } : {}) } }
+    : (blockedUserIds.length ? { author: { $nin: blockedUserIds } } : {});
 
   // ── Fetch posts with cursor pagination ────────────────────────────────
   const posts = await Post
