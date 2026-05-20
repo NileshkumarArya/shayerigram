@@ -32,6 +32,16 @@ const safeProfileUser = (user, postCount) => ({
   createdAt:      user.createdAt,
 });
 
+const getBlockedUserIds = async (userId) => {
+  if (!userId) return [];
+  const blocks = await Block.find({
+    $or: [{ blockerId: userId }, { blockeeId: userId }],
+  }).select('blockerId blockeeId').lean();
+  return blocks.map(b =>
+    String(b.blockerId) === String(userId) ? b.blockeeId : b.blockerId
+  );
+};
+
 exports.getProfile = async (req, res) => {
   try {
     const username = sanitizeString(req.params.username, 30)?.toLowerCase();
@@ -50,17 +60,14 @@ exports.getProfile = async (req, res) => {
       await setCache(`user:username:${username}`, userId, 300);
     }
 
-        if (req.user && String(req.user._id) !== String(userId)) {
+    if (req.user && String(req.user._id) !== String(userId)) {
       const blocked = await Block.exists({
         $or: [
           { blockerId: req.user._id, blockeeId: userId },
           { blockerId: userId, blockeeId: req.user._id },
         ],
       });
-
-      if (blocked) {
-        return res.status(404).json({ message: 'User not found' });
-      }
+      if (blocked) return res.status(404).json({ message: 'User not found' });
     }
 
     const cacheKey = `user:profile:id:${userId}`;
@@ -83,10 +90,10 @@ exports.getProfile = async (req, res) => {
     const postCount = await Post.countDocuments({
       author: user._id,
       isPublic: true,
+      isDeleted: { $ne: true },
       isTakenDown: { $ne: true },
     });
 
-    // ✅ FIX: deleted/suspended users ko count se bahar rakho
     const [followers, following] = await Promise.all([
       Follow.find({ followingId: user._id })
         .populate({
@@ -139,10 +146,7 @@ exports.getUserPosts = async (req, res) => {
           { blockerId: user._id, blockeeId: req.user._id },
         ],
       });
-
-      if (blocked) {
-        return res.status(404).json({ message: 'User not found' });
-      }
+      if (blocked) return res.status(404).json({ message: 'User not found' });
     }
 
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
@@ -219,12 +223,24 @@ exports.getFollowers = async (req, res) => {
     }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const blockedUserIds = await getBlockedUserIds(req.user?._id);
+
+    if (req.user && String(req.user._id) !== String(user._id)) {
+      const blocked = blockedUserIds.some(id => String(id) === String(user._id));
+      if (blocked) return res.status(404).json({ message: 'User not found' });
+    }
+
     const follows = await Follow.find({ followingId: user._id, ...cursorFilter })
       .sort(sort).limit(limit + 1)
       .populate({
         path: 'followerId',
         select: '_id username avatar fullName isVerified followersCount',
-        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+        match: {
+          isDeleted:   { $ne: true },
+          isSuspended: { $ne: true },
+          // ✅ FIX: blocked users followers list se hide honge
+          ...(blockedUserIds.length ? { _id: { $nin: blockedUserIds } } : {}),
+        },
       })
       .lean();
 
@@ -252,12 +268,24 @@ exports.getFollowing = async (req, res) => {
     }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    const blockedUserIds = await getBlockedUserIds(req.user?._id);
+
+    if (req.user && String(req.user._id) !== String(user._id)) {
+      const blocked = blockedUserIds.some(id => String(id) === String(user._id));
+      if (blocked) return res.status(404).json({ message: 'User not found' });
+    }
+
     const follows = await Follow.find({ followerId: user._id, ...cursorFilter })
       .sort(sort).limit(limit + 1)
       .populate({
         path: 'followingId',
         select: '_id username avatar fullName isVerified followersCount',
-        match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+        match: {
+          isDeleted:   { $ne: true },
+          isSuspended: { $ne: true },
+          // ✅ FIX: blocked users following list se hide honge
+          ...(blockedUserIds.length ? { _id: { $nin: blockedUserIds } } : {}),
+        },
       })
       .lean();
 
@@ -276,8 +304,11 @@ exports.getFollowing = async (req, res) => {
 
 exports.getSuggestions = async (req, res) => {
   try {
-    const following = await Follow.find({ followerId: req.user._id }).select('followingId').lean();
-    const excludeIds = [req.user._id, ...following.map(f => f.followingId)];
+    const [following, blockedUserIds] = await Promise.all([
+      Follow.find({ followerId: req.user._id }).select('followingId').lean(),
+      getBlockedUserIds(req.user._id),
+    ]);
+    const excludeIds = [req.user._id, ...following.map(f => f.followingId), ...blockedUserIds];
     const suggestions = await User.find({
       _id: { $nin: excludeIds },
       isSuspended: { $ne: true },
