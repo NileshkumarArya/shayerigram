@@ -5,6 +5,7 @@
 const Post            = require('../models/Post');
 const User            = require('../models/User');
 const Report          = require('../models/Report');
+const Block           = require('../models/Block');
 const { getCache, setCache, invalidateCache } = require('../utils/cache');
 const { encodeCursor, buildCursorPagination } = require('../utils/pagination');
 const likeService     = require('../services/likeService');
@@ -118,9 +119,21 @@ exports.getPost = async (req, res) => {
       post = await Post.findById(req.params.id)
         .populate('author', '_id username avatar fullName isVerified followersCount')
         .lean();
-      if (!post || post.isTakenDown) return res.status(404).json({ message: 'Post not found' });
+      if (!post || post.isTakenDown || post.isDeleted) return res.status(404).json({ message: 'Post not found' });
       await setCache(cacheKey, post, 60);
     }
+
+    if (req.user && post.author?._id && String(post.author._id) !== String(req.user._id)) {
+      const isBlocked = await Block.exists({
+        $or: [
+          { blockerId: req.user._id, blockeeId: post.author._id },
+          { blockerId: post.author._id, blockeeId: req.user._id },
+        ],
+      });
+
+      if (isBlocked) return res.status(404).json({ message: 'Post not found' });
+    }
+
     Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }).catch(() => {});
     let liked = false, saved = false;
     if (req.user) {

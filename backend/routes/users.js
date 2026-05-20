@@ -21,7 +21,7 @@ router.put('/profile',
 
 router.post('/:id/follow',       protect, followLimiter, checkAbuse('follow'), ...mongoIdValidation('id'), toggleFollow);
 router.get('/:username',         optionalAuth, getProfile);
-router.get('/:username/posts',   getUserPosts);
+router.get('/:username/posts',   optionalAuth, getUserPosts);
 router.get('/:username/followers', getFollowers);
 router.get('/:username/following', getFollowing);
 

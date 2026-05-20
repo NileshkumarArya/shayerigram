@@ -132,10 +132,24 @@ exports.getUserPosts = async (req, res) => {
     }).select('_id').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    if (req.user && String(req.user._id) !== String(user._id)) {
+      const blocked = await Block.exists({
+        $or: [
+          { blockerId: req.user._id, blockeeId: user._id },
+          { blockerId: user._id, blockeeId: req.user._id },
+        ],
+      });
+
+      if (blocked) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+    }
+
     const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
     const posts = await Post.find({
       author: user._id,
       isPublic: true,
+      isDeleted: { $ne: true },
       isTakenDown: { $ne: true },
       ...cursorFilter,
     })
