@@ -45,24 +45,25 @@ async function getBlockedUserIds(userId) {
 // ─── Search ───────────────────────────────────────────────────────────────────
 exports.search = async (req, res) => {
   try {
-    const { q, type = 'all', cursor } = req.query;
+        const { q, type = 'all', cursor } = req.query;
     if (!q?.trim()) return res.json({ posts: [], users: [], hashtags: [] });
     const query   = String(q).trim().slice(0, 50);
+    const blockedUserIds = await getBlockedUserIds(req.user?._id);
     const results = {};
 
     // ✅ Use abstracted searchService — swap provider via SEARCH_PROVIDER env
     if (type === 'all' || type === 'posts') {
-      const r = await searchService.searchPosts(query, { cursor });
+            const r = await searchService.searchPosts(query, { cursor, excludeUserIds: blockedUserIds });
       results.posts      = r.posts;
       results.nextCursor = r.nextCursor;
       results.hasMore    = r.hasMore;
     }
     if (type === 'all' || type === 'users') {
-      const r = await searchService.searchUsers(query);
+      const r = await searchService.searchUsers(query, { excludeUserIds: blockedUserIds });
       results.users = r.users;
     }
     if (type === 'all' || type === 'hashtags') {
-      const r = await searchService.searchHashtags(query);
+       const r = await searchService.searchHashtags(query, { excludeUserIds: blockedUserIds });
       results.hashtags = r.hashtags;
     }
 

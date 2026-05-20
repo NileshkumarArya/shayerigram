@@ -16,14 +16,16 @@ const PROVIDER = process.env.SEARCH_PROVIDER || 'mongo'; // 'mongo' | 'atlas' | 
 
 // ─── Mongo Regex Provider (Phase 1) ──────────────────────────────────────────
 const mongoSearch = {
-  async searchPosts(query, { limit = 20, cursor = null } = {}) {
+  async searchPosts(query, { limit = 20, cursor = null, excludeUserIds = [] } = {}) {
     // ✅ Escape regex special chars — prevent ReDoS
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex   = new RegExp(escaped, 'i');
 
-    const filter = {
+      const filter = {
       isPublic:    true,
+      isDeleted:   { $ne: true },
       isTakenDown: { $ne: true },
+      ...(excludeUserIds.length ? { author: { $nin: excludeUserIds } } : {}),
       $or: [
         { content: regex },
         { title:   regex },
@@ -57,13 +59,14 @@ const mongoSearch = {
     return { posts: items, hasMore, nextCursor };
   },
 
-  async searchUsers(query, { limit = 20 } = {}) {
+  async searchUsers(query, { limit = 20, excludeUserIds = [] } = {}) {
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex   = new RegExp(`^${escaped}`, 'i'); // Prefix match — faster than contains
 
     const users = await User.find({
       isSuspended: { $ne: true },
       isDeleted:   { $ne: true },
+      ...(excludeUserIds.length ? { _id: { $nin: excludeUserIds } } : {}),
       $or: [{ username: regex }, { fullName: new RegExp(escaped, 'i') }],
     })
       .select('_id username fullName avatar isVerified followersCount')
@@ -74,11 +77,19 @@ const mongoSearch = {
     return { users };
   },
 
-  async searchHashtags(query, { limit = 10 } = {}) {
+  async searchHashtags(query, { limit = 10, excludeUserIds = [] } = {}) {
     // Group posts by hashtag — find trending tags matching query
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const tags = await Post.aggregate([
-      { $match: { isPublic: true, hashtags: { $regex: new RegExp(`^${escaped}`, 'i') } } },
+      {
+        $match: {
+          isPublic: true,
+          isDeleted: { $ne: true },
+          isTakenDown: { $ne: true },
+          ...(excludeUserIds.length ? { author: { $nin: excludeUserIds } } : {}),
+          hashtags: { $regex: new RegExp(`^${escaped}`, 'i') },
+        },
+      },
       { $unwind: '$hashtags' },
       { $match: { hashtags: { $regex: new RegExp(`^${escaped}`, 'i') } } },
       { $group: { _id: '$hashtags', count: { $sum: 1 } } },
