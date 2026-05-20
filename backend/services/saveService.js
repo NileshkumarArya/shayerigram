@@ -5,6 +5,7 @@
 const Save = require('../models/Save');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Block = require('../models/Block');
 const { invalidateCache } = require('../utils/cache');
 
 const toggleSave = async (userId, postId) => {
@@ -72,22 +73,49 @@ const isSaved = async (userId, postId) => {
 };
 
 const getUserSavedPosts = async (userId, query = {}) => {
-  const { filter: cursorFilter, sort, limit } = require('../utils/pagination').buildCursorPagination(query);
+  const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
+  const { filter: cursorFilter, sort, limit } = buildCursorPagination(query);
+
+  const blocks = await Block.find({
+    $or: [{ blockerId: userId }, { blockeeId: userId }],
+  }).select('blockerId blockeeId').lean();
+
+  const blockedUserIds = blocks.map(b =>
+    String(b.blockerId) === String(userId) ? b.blockeeId : b.blockerId
+  );
+
   const saves = await Save.find({ userId, ...cursorFilter })
-    .sort(sort).limit(limit + 1).lean();
+    .sort(sort)
+    .limit(limit + 1)
+    .lean();
+
   const hasMore = saves.length > limit;
   const items = hasMore ? saves.slice(0, limit) : saves;
   const postIds = items.map(s => s.postId);
-  const posts = await require('../models/Post').find({ _id: { $in: postIds }, isTakenDown: { $ne: true } })
-    .populate('author', '_id username avatar isVerified')
+
+  const posts = await Post.find({
+    _id: { $in: postIds },
+    isDeleted: { $ne: true },
+    isTakenDown: { $ne: true },
+    ...(blockedUserIds.length ? { author: { $nin: blockedUserIds } } : {}),
+  })
+    .populate({
+      path: 'author',
+      select: '_id username avatar isVerified',
+      match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+    })
     .lean();
-  // ✅ FIX: Preserve ordering — $in does not guarantee order
-  const postMap = new Map(posts.map(p => [String(p._id), p]));
+
+  const postMap = new Map(
+    posts.filter(p => p.author).map(p => [String(p._id), p])
+  );
+
   const orderedPosts = postIds.map(id => postMap.get(String(id))).filter(Boolean);
+
   return {
     posts: orderedPosts,
     hasMore,
-    nextCursor: hasMore ? require('../utils/pagination').encodeCursor(items[items.length - 1]) : null,
+    nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
   };
 };
 
