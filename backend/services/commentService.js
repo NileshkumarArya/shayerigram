@@ -5,14 +5,31 @@ const { enqueueNotification } = require('../jobs/queues/notificationQueue');
  */
 const Comment      = require('../models/Comment');
 const Post         = require('../models/Post');
+const Block        = require('../models/Block');
 const Notification = require('../models/Notification');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 const logger = require('../utils/logger');
 
 // ✅ FIX: Accept parentId as explicit parameter — req was never in scope here
 const addComment = async (postId, authorId, text, actorUsername, io, parentId = null) => {
-  const post = await Post.findById(postId).select('author commentsCount');
+  const post = await Post.findOne({
+    _id: postId,
+    isDeleted: { $ne: true },
+    isTakenDown: { $ne: true },
+  }).select('author commentsCount');
+
   if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
+
+  if (String(post.author) !== String(authorId)) {
+    const blocked = await Block.exists({
+      $or: [
+        { blockerId: authorId, blockeeId: post.author },
+        { blockerId: post.author, blockeeId: authorId },
+      ],
+    });
+
+    if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
+  }
 
   // Create in Comment collection
   const comment = await Comment.create({ postId, authorId, text, parentId: parentId || null });

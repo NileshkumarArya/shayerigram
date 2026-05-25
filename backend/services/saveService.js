@@ -30,6 +30,25 @@ const toggleSave = async (userId, postId) => {
     await invalidateCache([`post:${postId}`, `saved:${userId}`]);
     return { saved: false };
   } else {
+    const post = await Post.findOne({
+      _id: postId,
+      isDeleted: { $ne: true },
+      isTakenDown: { $ne: true },
+    }).select('author');
+
+    if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
+
+    if (String(post.author) !== String(userId)) {
+      const blocked = await Block.exists({
+        $or: [
+          { blockerId: userId, blockeeId: post.author },
+          { blockerId: post.author, blockeeId: userId },
+        ],
+      });
+
+      if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
+    }
+
     await Save.create({ userId, postId });
     await Promise.all([
       Post.findByIdAndUpdate(postId, { $inc: { savesCount: 1 } }),
