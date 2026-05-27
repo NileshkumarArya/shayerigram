@@ -79,7 +79,10 @@ const deleteComment = async (commentId, userId, postId) => {
     throw Object.assign(new Error('Not authorized'), { status: 403 });
 
   await Comment.deleteOne({ _id: commentId, postId });
-  await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: -1 } });
+  await Post.findOneAndUpdate(
+    { _id: postId, commentsCount: { $gt: 0 } },
+    { $inc: { commentsCount: -1 } }
+  );
 
   return { message: 'Comment deleted' };
 };

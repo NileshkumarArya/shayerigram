@@ -18,29 +18,37 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
   if (String(targetPost.author) !== String(userId)) {
     const blocked = await Block.exists({
       $or: [
-        { blockerId: userId,             blockeeId: targetPost.author },
-        { blockerId: targetPost.author,  blockeeId: userId },
+        { blockerId: userId,            blockeeId: targetPost.author },
+        { blockerId: targetPost.author, blockeeId: userId },
       ],
     });
-    if (blocked) {
-      throw Object.assign(new Error('Post not found'), { status: 404 });
-    }
+    if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
   }
 
-  const existing = await Like.findOne({ userId, postId });
+  // ✅ FIX: findOne + deleteOne ki jagah seedha deleteOne — race condition safe
+  const removed = await Like.deleteOne({ userId, postId });
 
-  if (existing) {
-    await Like.deleteOne({ _id: existing._id });
-    const updatedPost = await Post.findByIdAndUpdate(
-      postId,
+  if (removed.deletedCount > 0) {
+    const updatedPost = await Post.findOneAndUpdate(
+      { _id: postId, likesCount: { $gt: 0 } },
       { $inc: { likesCount: -1 } },
       { new: true }
     ).select('likesCount');
     await invalidateCache([`post:${postId}`, 'trending:posts']);
-    return { liked: false, likesCount: updatedPost?.likesCount || 0 };
+    return { liked: false, likesCount: Math.max(updatedPost?.likesCount || 0, 0) };
   }
 
-  await Like.create({ userId, postId });
+  // ✅ FIX: duplicate like race condition handle karo
+  try {
+    await Like.create({ userId, postId });
+  } catch (err) {
+    if (err.code === 11000) {
+      const currentPost = await Post.findById(postId).select('likesCount');
+      return { liked: true, likesCount: currentPost?.likesCount || 0 };
+    }
+    throw err;
+  }
+
   const updatedPost = await Post.findByIdAndUpdate(
     postId,
     { $inc: { likesCount: 1 } },
@@ -63,7 +71,7 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
     }
   }
 
-  return { liked: true, likesCount: updatedPost?.likesCount };
+  return { liked: true, likesCount: updatedPost?.likesCount || 0 };
 };
 
 const isLiked = async (userId, postId) => {
