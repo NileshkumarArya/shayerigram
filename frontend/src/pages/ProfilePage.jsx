@@ -1,3 +1,4 @@
+import { optimizeImageUrl } from '../utils/image';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +24,13 @@ function PostGrid({ posts }) {
           className={`relative aspect-square overflow-hidden group animate-fade-in animate-stagger-${Math.min(i % 5 + 1, 5)}`}
           style={{ borderRadius: '8px' }}>
           {post.type === 'image' && post.image ? (
-            <img src={post.image} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+           <img
+  src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
+  alt=""
+  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+  loading="lazy"
+  decoding="async"
+/>
           ) : (
             <div className="w-full h-full flex items-center justify-center p-2 transition-all duration-300 group-hover:scale-105"
               style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)', border: '1px solid rgba(147,51,234,0.15)' }}>

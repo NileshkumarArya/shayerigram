@@ -9,83 +9,51 @@ const Block = require('../models/Block');
 const { invalidateCache } = require('../utils/cache');
 
 const toggleSave = async (userId, postId) => {
-  const targetPost = await Post.findOne({
+  const post = await Post.findOne({
     _id: postId,
-    isDeleted: { $ne: true },
+    isDeleted:   { $ne: true },
     isTakenDown: { $ne: true },
-  }).select('_id');
+  }).select('author');
 
-  if (!targetPost) {
-    throw Object.assign(new Error('Post not found'), { status: 404 });
+  if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
+
+  if (String(post.author) !== String(userId)) {
+    const blocked = await Block.exists({
+      $or: [
+        { blockerId: userId,      blockeeId: post.author },
+        { blockerId: post.author, blockeeId: userId },
+      ],
+    });
+    if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
   }
 
-  const existing = await Save.findOne({ userId, postId });
+  // ✅ FIX: seedha deleteOne — race condition safe
+  const removed = await Save.deleteOne({ userId, postId });
 
-  if (existing) {
-    await Save.deleteOne({ _id: existing._id });
+  if (removed.deletedCount > 0) {
     await Promise.all([
-      Post.findByIdAndUpdate(postId, { $inc: { savesCount: -1 } }),
-      User.findByIdAndUpdate(userId, { $inc: { savedCount: -1 } }),
+      Post.findOneAndUpdate({ _id: postId, savesCount: { $gt: 0 } }, { $inc: { savesCount: -1 } }),
+      User.findOneAndUpdate({ _id: userId, savedCount: { $gt: 0 } }, { $inc: { savedCount: -1 } }),
     ]);
     await invalidateCache([`post:${postId}`, `saved:${userId}`]);
     return { saved: false };
-  } else {
-    const post = await Post.findOne({
-      _id: postId,
-      isDeleted: { $ne: true },
-      isTakenDown: { $ne: true },
-    }).select('author');
-
-    if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
-
-    if (String(post.author) !== String(userId)) {
-      const blocked = await Block.exists({
-        $or: [
-          { blockerId: userId, blockeeId: post.author },
-          { blockerId: post.author, blockeeId: userId },
-        ],
-      });
-
-      if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
-    }
-
-    await Save.create({ userId, postId });
-    await Promise.all([
-      Post.findByIdAndUpdate(postId, { $inc: { savesCount: 1 } }),
-      User.findByIdAndUpdate(userId, { $inc: { savedCount: 1 } }),
-    ]);
-    await invalidateCache([`post:${postId}`, `saved:${userId}`]);
-    return { saved: true };
   }
+
+  // ✅ FIX: duplicate save race condition handle karo
+  try {
+    await Save.create({ userId, postId });
+  } catch (err) {
+    if (err.code === 11000) return { saved: true };
+    throw err;
+  }
+
+  await Promise.all([
+    Post.findByIdAndUpdate(postId, { $inc: { savesCount: 1 } }),
+    User.findByIdAndUpdate(userId, { $inc: { savedCount: 1 } }),
+  ]);
+  await invalidateCache([`post:${postId}`, `saved:${userId}`]);
+  return { saved: true };
 };
-
-const getSavedPosts = async (userId, query = {}) => {
-  const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
-  const { filter: cursorFilter, sort, limit } = buildCursorPagination(query);
-
-  const saves = await Save
-    .find({ userId, ...cursorFilter })
-    .sort(sort)
-    .limit(limit + 1)
-    .populate({
-      path: 'postId',
-      match: { isTakenDown: { $ne: true } },
-      populate: { path: 'author', select: '_id username avatar isVerified' },
-    })
-    .lean();
-
-  const hasMore = saves.length > limit;
-  const items   = hasMore ? saves.slice(0, limit) : saves;
-  const posts   = items.map(s => s.postId).filter(Boolean);
-
-  return {
-    posts,
-    hasMore,
-    nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null,
-  };
-};
-
-
 
 const isSaved = async (userId, postId) => {
   return !!(await Save.exists({ userId, postId }));
@@ -109,12 +77,12 @@ const getUserSavedPosts = async (userId, query = {}) => {
     .lean();
 
   const hasMore = saves.length > limit;
-  const items = hasMore ? saves.slice(0, limit) : saves;
+  const items   = hasMore ? saves.slice(0, limit) : saves;
   const postIds = items.map(s => s.postId);
 
   const posts = await Post.find({
     _id: { $in: postIds },
-    isDeleted: { $ne: true },
+    isDeleted:   { $ne: true },
     isTakenDown: { $ne: true },
     ...(blockedUserIds.length ? { author: { $nin: blockedUserIds } } : {}),
   })

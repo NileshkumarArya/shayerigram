@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { optimizeImageUrl } from '../../utils/image';
 
 // Theme + Font rendering helpers
 const THEME_MAP = {
@@ -249,7 +250,13 @@ export default function PostCard({ post: initialPost, onDelete }) {
       <div onClick={handleDoubleTap} className="cursor-pointer relative">
         {post.type === 'image' && post.image ? (
           <div className="relative">
-            <img src={post.image} alt={post.title || 'Shayari'} className="w-full object-cover max-h-[500px]" />
+            <img
+  src={optimizeImageUrl(post.image, { width: 900 })}
+  alt={post.title || 'Shayari'}
+  className="w-full object-cover max-h-[500px]"
+  loading="lazy"
+  decoding="async"
+/>
             {/* Overlay text on image */}
             <div className="absolute inset-0 flex items-end p-5" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)' }}>
               {/* ✅ FIX: Use writtenIn (not language) for RTL direction */}

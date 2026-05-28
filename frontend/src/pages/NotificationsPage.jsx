@@ -1,3 +1,4 @@
+import { optimizeImageUrl } from '../utils/image';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { notifAPI } from '../services/api';
@@ -14,9 +15,14 @@ const TYPE_CONFIG = {
 };
 
 function NotifItem({ notif }) {
-  // ✅ FIX: actorId (populated user object) — pehle 'sender' tha jo undefined tha
-  const actor = notif.actorId;
+  // ✅ FIX: actorId, actor, sender — teeno try karo
+  const actor = notif.actorId || notif.actor || notif.sender;
+  if (!actor) return null;
+
   const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.like;
+  // ✅ FIX: backend notif.post bhejta hai (normalized), fallback entityId object
+  const post = notif.post || (typeof notif.entityId === 'object' ? notif.entityId : null);
+  const isUnread = notif.isRead === false || notif.read === false;
 
   const timeAgo = (date) => {
     const diff = Date.now() - new Date(date).getTime();
@@ -28,37 +34,27 @@ function NotifItem({ notif }) {
     return `${Math.floor(h / 24)}d`;
   };
 
-  // entityId is populated — for like/comment/save it's a Post object
-  const post = ['like', 'comment', 'save', 'mention'].includes(notif.type)
-    ? notif.entityId
-    : null;
-
   return (
     <div
-      className={`flex items-center gap-3 p-4 rounded-xl transition-all glass-hover animate-fade-in ${
-        // ✅ FIX: isRead — pehle 'read' tha
-        !notif.isRead ? 'border-l-2' : ''
-      }`}
+      className={`flex items-center gap-3 p-4 rounded-xl transition-all glass-hover animate-fade-in ${isUnread ? 'border-l-2' : ''}`}
       style={
-        !notif.isRead
+        isUnread
           ? { borderLeftColor: '#9333ea', background: 'rgba(147,51,234,0.05)' }
           : { border: '1px solid var(--border)' }
       }
     >
-      {/* Avatar with emoji badge */}
       <div className="relative shrink-0">
         <Avatar user={actor} size="md" />
         <span className="absolute -bottom-1 -right-1 text-sm">{cfg.emoji}</span>
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
           <Link
-            to={`/profile/${actor?.username}`}
+            to={`/profile/${actor.username}`}
             className="font-semibold hover:text-purple-300 transition-colors"
           >
-            {actor?.username}
+            {actor.username}
           </Link>{' '}
           <span style={{ color: 'var(--text-secondary)' }}>{cfg.label}</span>
         </p>
@@ -67,11 +63,16 @@ function NotifItem({ notif }) {
         </p>
       </div>
 
-      {/* Post thumbnail — ✅ FIX: entityId use karo, post nahi */}
-      {post && post._id && (
+      {post?._id && (
         <Link to={`/post/${post._id}`} className="shrink-0">
           {post.type === 'image' && post.image ? (
-            <img src={post.image} alt="" className="w-12 h-12 object-cover rounded-lg" />
+            <img
+              src={optimizeImageUrl(post.image, { width: 96, height: 96, crop: 'fill' })}
+              alt=""
+              className="w-12 h-12 object-cover rounded-lg"
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div
               className="w-12 h-12 rounded-lg flex items-center justify-center p-1"
@@ -94,12 +95,6 @@ function NotifItem({ notif }) {
   );
 }
 
-
-
-
-
-
-
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +105,6 @@ export default function NotificationsPage() {
       try {
         const { data } = await notifAPI.getAll();
         setNotifications(data.notifications || []);
-        // Mark all as read + update local state so UI reflects immediately
         await notifAPI.markRead();
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       } catch {}
@@ -121,7 +115,6 @@ export default function NotificationsPage() {
 
   const FILTERS = ['all', 'like', 'comment', 'follow', 'save'];
   const filtered = filter === 'all' ? notifications : notifications.filter(n => n.type === filter);
-
   const unread = notifications.filter(n => !n.isRead).length;
 
   if (loading) {
@@ -131,8 +124,7 @@ export default function NotificationsPage() {
   }
 
   return (
-  <div className="animate-fade-in w-full min-w-0">
-      {/* Header */}
+    <div className="animate-fade-in w-full min-w-0">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-cinzel gradient-text">Notifications</h1>
@@ -144,7 +136,6 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-2 mb-5 overflow-x-auto hide-scrollbar pb-1 w-full">
         {FILTERS.map(f => (
           <button key={f} onClick={() => setFilter(f)}
@@ -162,7 +153,6 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {/* Notifications list */}
       {filtered.length === 0 ? (
         <div className="text-center py-20 animate-fade-in">
           <div className="text-6xl mb-4 animate-float">🔔</div>
@@ -175,7 +165,6 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Today */}
           {filtered.some(n => new Date(n.createdAt).toDateString() === new Date().toDateString()) && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest mb-2 px-1"
@@ -188,7 +177,6 @@ export default function NotificationsPage() {
             </div>
           )}
 
-          {/* Earlier */}
           {filtered.some(n => new Date(n.createdAt).toDateString() !== new Date().toDateString()) && (
             <div className="mt-4">
               <p className="text-xs font-semibold uppercase tracking-widest mb-2 px-1"

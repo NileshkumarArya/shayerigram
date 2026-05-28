@@ -1,3 +1,4 @@
+import { optimizeImageUrl } from '../utils/image';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { userAPI } from '../services/api';
@@ -16,7 +17,13 @@ function SavedPostCard({ post }) {
       style={{ border: '1px solid var(--border)' }}>
       {post.type === 'image' && post.image ? (
         <>
-          <img src={post.image} alt="" className="w-full h-full object-cover transition-transform duration-400 group-hover:scale-105" />
+         <img
+  src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
+  alt=""
+  className="w-full h-full object-cover transition-transform duration-400 group-hover:scale-105"
+  loading="lazy"
+  decoding="async"
+/>
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3"
             style={{ background: 'rgba(0,0,0,0.7)' }}>
             <p className="text-white text-xs font-shayari text-center line-clamp-4 leading-relaxed">{post.content}</p>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { optimizeAvatarUrl } from '../../utils/image';
 
 export default function Avatar({
   user,
@@ -25,7 +26,7 @@ export default function Avatar({
 
   const initials = user?.username?.[0]?.toUpperCase() || '?';
 
-  const imgSrc = !imgError && user?.avatar ? user.avatar : null;
+  const imgSrc = !imgError && user?.avatar ? optimizeAvatarUrl(user.avatar, size) : null;
 
   const avatarContent = (
     <div className={`relative inline-flex shrink-0 ${className}`}>
@@ -34,8 +35,15 @@ export default function Avatar({
           <div className={`${s.img} rounded-full overflow-hidden`} style={{ background: 'var(--bg-primary)' }}>
             <div className="w-full h-full p-0.5 rounded-full overflow-hidden">
               {imgSrc ? (
-                <img src={imgSrc} alt={user?.username} className="w-full h-full object-cover rounded-full"
-                  onError={() => setImgError(true)} />
+<img
+  src={imgSrc}
+  alt={user?.username || 'avatar'}
+  className="w-full h-full object-cover rounded-full"
+  loading="lazy"
+  decoding="async"
+  referrerPolicy="no-referrer"
+  onError={() => setImgError(true)}
+/>
               ) : (
                 <div className={`w-full h-full rounded-full flex items-center justify-center ${s.text} font-semibold`}
                   style={{ background: 'linear-gradient(135deg, #9333ea, #7c3aed)', color: 'white' }}>
@@ -48,8 +56,15 @@ export default function Avatar({
       ) : (
         <div className={`${s.img} rounded-full overflow-hidden border`} style={{ borderColor: 'var(--border)' }}>
           {imgSrc ? (
-            <img src={imgSrc} alt={user?.username} className="w-full h-full object-cover"
-              onError={() => setImgError(true)} />
+           <img
+  src={imgSrc}
+  alt={user?.username || 'avatar'}
+  className="w-full h-full object-cover"
+  loading="lazy"
+  decoding="async"
+  referrerPolicy="no-referrer"
+  onError={() => setImgError(true)}
+/>
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${s.text} font-semibold`}
               style={{ background: 'linear-gradient(135deg, #9333ea, #7c3aed)', color: 'white' }}>

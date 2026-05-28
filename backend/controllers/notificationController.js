@@ -31,7 +31,7 @@ exports.getNotifications = async (req, res) => {
       .map(n => n.entityId);
 
     const posts = postIds.length
-      ? await Post.find({ _id: { $in: postIds }, isTakenDown: { $ne: true } })
+      ? await Post.find({ _id: { $in: postIds }, isDeleted: { $ne: true }, isTakenDown: { $ne: true } })
           .select('_id type image content')
           .lean()
       : [];

@@ -1,3 +1,4 @@
+import { optimizeImageUrl } from '../utils/image';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { postAPI } from '../services/api';
@@ -153,7 +154,13 @@ export default function PostPage() {
         {/* Content */}
         {post.type === 'image' && post.image ? (
           <div className="relative">
-            <img src={post.image} alt={post.title} className="w-full object-cover max-h-[600px]" />
+            <img
+  src={optimizeImageUrl(post.image, { width: 1100 })}
+  alt={post.title || 'Shayari'}
+  className="w-full object-cover max-h-[600px]"
+  loading="eager"
+  decoding="async"
+/>
             <div className="absolute inset-0 flex items-end p-6"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%)' }}>
               <p className={`font-shayari text-white text-xl leading-loose ${post.writtenIn === 'Urdu' ? 'text-right w-full font-urdu' : ''}`}>
