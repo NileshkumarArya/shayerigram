@@ -55,10 +55,8 @@ function TimeAgo({ date }) {
   return <span>{new Date(date).toLocaleDateString()}</span>;
 }
 
-// Themed text post renderer
 function ThemedContent({ post }) {
   const th  = getT(post.theme);
-  // ✅ FIX: Backend returns writtenIn, not language
   const dir = post.writtenIn === 'Urdu' ? 'rtl' : 'ltr';
   return (
     <div className="mx-4 mb-3 rounded-xl overflow-hidden"
@@ -81,25 +79,26 @@ export default function PostCard({ post: initialPost, onDelete }) {
   const [post, setPost] = useState(initialPost);
   const [likedOverride, setLikedOverride] = useState(null);
   const [savedOverride, setSavedOverride] = useState(null);
-  const liked     = likedOverride !== null ? likedOverride : (post.liked ?? false);
-  const saved     = savedOverride !== null ? savedOverride : (post.saved ?? false);
+  const liked  = likedOverride !== null ? likedOverride : (post.liked ?? false);
+  const saved  = savedOverride !== null ? savedOverride : (post.saved ?? false);
   const [likeCount, setLikeCount] = useState(post.likesCount ?? 0);
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
   const [commentsCount, setCommentsCount] = useState(post.commentsCount ?? 0);
-  // ✅ FIX: Comments state — fetch from API when showComments opens
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsFetched, setCommentsFetched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [heartAnim, setHeartAnim] = useState(false);
+  // ✅ FIX: loading locks — double click se duplicate requests nahi jayenge
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const lastTap = useRef(0);
 
   const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.Other;
   const isOwner = user?._id === post.author?._id;
 
-  // ✅ FIX: Load comments when section is toggled open (lazy load)
   useEffect(() => {
     if (!showComments || commentsFetched) return;
     const load = async () => {
@@ -114,13 +113,30 @@ export default function PostCard({ post: initialPost, onDelete }) {
     load();
   }, [showComments, post._id, commentsFetched]);
 
+  // ✅ FIX: lock + backend response sync
   const handleLike = async () => {
+    if (likeLoading) return;
+    setLikeLoading(true);
     const wasLiked = liked;
+    const previousCount = likeCount;
     setLikedOverride(!wasLiked);
-    setLikeCount(wasLiked ? likeCount - 1 : likeCount + 1);
-    if (!wasLiked) { setHeartAnim(true); setTimeout(() => setHeartAnim(false), 600); }
-    try { await postAPI.toggleLike(post._id); }
-    catch { setLikedOverride(wasLiked); setLikeCount(wasLiked ? likeCount : likeCount - 1); }
+    setLikeCount(prev => Math.max((prev || 0) + (wasLiked ? -1 : 1), 0));
+    if (!wasLiked) {
+      setHeartAnim(true);
+      setTimeout(() => setHeartAnim(false), 600);
+    }
+    try {
+      const { data } = await postAPI.toggleLike(post._id);
+      setLikedOverride(!!data.liked);
+      if (typeof data.likesCount === 'number') {
+        setLikeCount(Math.max(data.likesCount, 0));
+      }
+    } catch {
+      setLikedOverride(wasLiked);
+      setLikeCount(previousCount);
+    } finally {
+      setLikeLoading(false);
+    }
   };
 
   const handleDoubleTap = () => {
@@ -129,10 +145,20 @@ export default function PostCard({ post: initialPost, onDelete }) {
     lastTap.current = now;
   };
 
+  // ✅ FIX: lock + backend response sync
   const handleSave = async () => {
-    setSavedOverride(!saved);
-    try { await postAPI.toggleSave(post._id); }
-    catch { setSavedOverride(saved); }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    const wasSaved = saved;
+    setSavedOverride(!wasSaved);
+    try {
+      const { data } = await postAPI.toggleSave(post._id);
+      setSavedOverride(!!data.saved);
+    } catch {
+      setSavedOverride(wasSaved);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const handleComment = async (e) => {
@@ -141,7 +167,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
     setSubmitting(true);
     try {
       const { data } = await postAPI.addComment(post._id, comment.trim());
-      // ✅ FIX: Add the new comment to the list instead of replacing with undefined
       if (data.comment) {
         setComments(prev => [...prev, data.comment]);
         setCommentsFetched(true);
@@ -193,7 +218,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}><TimeAgo date={post.createdAt} /></span>
               <span style={{ color: 'var(--border)' }}>·</span>
-              {/* ✅ Multi-category badges */}
               {(post.categories || [post.category]).filter(Boolean).map(catName => {
                 const c = CATEGORY_STYLES[catName] || CATEGORY_STYLES.Other;
                 return (
@@ -251,15 +275,14 @@ export default function PostCard({ post: initialPost, onDelete }) {
         {post.type === 'image' && post.image ? (
           <div className="relative">
             <img
-  src={optimizeImageUrl(post.image, { width: 900 })}
-  alt={post.title || 'Shayari'}
-  className="w-full object-cover max-h-[500px]"
-  loading="lazy"
-  decoding="async"
-/>
-            {/* Overlay text on image */}
-            <div className="absolute inset-0 flex items-end p-5" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)' }}>
-              {/* ✅ FIX: Use writtenIn (not language) for RTL direction */}
+              src={optimizeImageUrl(post.image, { width: 900 })}
+              alt={post.title || 'Shayari'}
+              className="w-full object-cover max-h-[500px]"
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="absolute inset-0 flex items-end p-5"
+              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)' }}>
               <p className={`font-shayari text-white text-lg leading-relaxed ${post.writtenIn === 'Urdu' ? 'font-urdu text-right w-full' : ''}`}>
                 {post.content}
               </p>
@@ -268,8 +291,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
         ) : (
           <ThemedContent post={post} />
         )}
-
-        {/* Double-tap heart animation */}
         {heartAnim && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-6xl heart-animate">❤️</span>
@@ -293,8 +314,9 @@ export default function PostCard({ post: initialPost, onDelete }) {
       {/* Actions */}
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="flex items-center gap-4">
-          {/* Like */}
-          <button onClick={handleLike} className="flex items-center gap-1.5 group transition-all hover:scale-110">
+          <button onClick={handleLike}
+            disabled={likeLoading}
+            className="flex items-center gap-1.5 group transition-all hover:scale-110 disabled:opacity-70">
             <span className={`text-xl transition-all ${liked ? 'scale-110' : 'opacity-60 group-hover:opacity-100'}`}>
               {liked ? '❤️' : '🤍'}
             </span>
@@ -303,7 +325,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
             </span>
           </button>
 
-          {/* Comment */}
           <button onClick={() => setShowComments(!showComments)}
             className="flex items-center gap-1.5 group transition-all hover:scale-110">
             <span className="text-xl opacity-60 group-hover:opacity-100">💬</span>
@@ -312,14 +333,14 @@ export default function PostCard({ post: initialPost, onDelete }) {
             </span>
           </button>
 
-          {/* Share */}
           <button onClick={handleShare} className="flex items-center gap-1.5 group transition-all hover:scale-110">
             <span className="text-xl opacity-60 group-hover:opacity-100">🔗</span>
           </button>
         </div>
 
-        {/* Save */}
-        <button onClick={handleSave} className="transition-all hover:scale-110">
+        <button onClick={handleSave}
+          disabled={saveLoading}
+          className="transition-all hover:scale-110 disabled:opacity-70">
           <span className={`text-xl ${saved ? '' : 'opacity-60 hover:opacity-100'}`}>
             {saved ? '🔖' : '🏷️'}
           </span>
@@ -346,7 +367,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
                 Be the first to comment ✨
               </p>
             ) : (
-              // ✅ FIX: Render actual fetched comments
               comments.map((c, i) => (
                 <div key={c._id || i} className="flex gap-2 animate-fade-in">
                   <Avatar user={c.user} size="xs" />
@@ -361,7 +381,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
             )}
           </div>
 
-          {/* Comment input */}
           <form onSubmit={handleComment} className="flex gap-2 items-center">
             <Avatar user={user} size="xs" clickable={false} />
             <input
