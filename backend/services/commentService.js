@@ -3,18 +3,17 @@ const { enqueueNotification } = require('../jobs/queues/notificationQueue');
  * Comment Service — uses separate Comment collection
  * No embedded arrays in Post document
  */
-const Comment      = require('../models/Comment');
-const Post         = require('../models/Post');
-const Block        = require('../models/Block');
-const Notification = require('../models/Notification');
+const Comment = require('../models/Comment');
+const Post    = require('../models/Post');
+const Block   = require('../models/Block');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
-const logger = require('../utils/logger');
+const logger  = require('../utils/logger');
 
 // ✅ FIX: Accept parentId as explicit parameter — req was never in scope here
 const addComment = async (postId, authorId, text, actorUsername, io, parentId = null) => {
   const post = await Post.findOne({
     _id: postId,
-    isDeleted: { $ne: true },
+    isDeleted:   { $ne: true },
     isTakenDown: { $ne: true },
   }).select('author commentsCount');
 
@@ -23,24 +22,19 @@ const addComment = async (postId, authorId, text, actorUsername, io, parentId = 
   if (String(post.author) !== String(authorId)) {
     const blocked = await Block.exists({
       $or: [
-        { blockerId: authorId, blockeeId: post.author },
+        { blockerId: authorId,   blockeeId: post.author },
         { blockerId: post.author, blockeeId: authorId },
       ],
     });
-
     if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
   }
 
-  // Create in Comment collection
   const comment = await Comment.create({ postId, authorId, text, parentId: parentId || null });
   await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
 
-  // Populate author for response
   const populated = await comment.populate('authorId', '_id username avatar');
 
-  // Notification (not yourself)
   if (String(post.author) !== String(authorId)) {
-    // ✅ Queue notification
     enqueueNotification({
       recipientId: post.author,
       actorId:     authorId,
@@ -52,7 +46,6 @@ const addComment = async (postId, authorId, text, actorUsername, io, parentId = 
     });
   }
 
-  // Backward compat: return shape frontend expects
   return {
     comment: {
       _id:       comment._id,
@@ -68,17 +61,17 @@ const deleteComment = async (commentId, userId, postId) => {
   const comment = await Comment.findOne({ _id: commentId, postId });
   if (!comment) throw Object.assign(new Error('Comment not found'), { status: 404 });
 
-  // Only comment author or post author can delete
   const post = await Post.findById(postId).select('author');
   if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
 
-  const isOwner = String(comment.authorId) === String(userId);
-  const isPostOwner = String(post.author) === String(userId);
+  const isOwner     = String(comment.authorId) === String(userId);
+  const isPostOwner = String(post.author)       === String(userId);
 
   if (!isOwner && !isPostOwner)
     throw Object.assign(new Error('Not authorized'), { status: 403 });
 
   await Comment.deleteOne({ _id: commentId, postId });
+  // ✅ FIX: negative counter prevent karo
   await Post.findOneAndUpdate(
     { _id: postId, commentsCount: { $gt: 0 } },
     { $inc: { commentsCount: -1 } }
@@ -87,21 +80,54 @@ const deleteComment = async (commentId, userId, postId) => {
   return { message: 'Comment deleted' };
 };
 
-const getComments = async (postId, query = {}) => {
+// ✅ FIX: userId param added — blocked users ke comments hide honge
+const getComments = async (postId, query = {}, userId = null) => {
   const { filter: cursorFilter, sort, limit } = buildCursorPagination(query);
 
+  const post = await Post.findOne({
+    _id: postId,
+    isDeleted:   { $ne: true },
+    isTakenDown: { $ne: true },
+  }).select('author').lean();
+  if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
+
+  let blockedUserIds = [];
+  if (userId) {
+    const blocks = await Block.find({
+      $or: [{ blockerId: userId }, { blockeeId: userId }],
+    }).select('blockerId blockeeId').lean();
+    blockedUserIds = blocks.map(b =>
+      String(b.blockerId) === String(userId) ? b.blockeeId : b.blockerId
+    );
+    if (
+      String(post.author) !== String(userId) &&
+      blockedUserIds.some(id => String(id) === String(post.author))
+    ) {
+      throw Object.assign(new Error('Post not found'), { status: 404 });
+    }
+  }
+
   const comments = await Comment
-    .find({ postId, ...cursorFilter })
+    .find({
+      postId,
+      ...(blockedUserIds.length ? { authorId: { $nin: blockedUserIds } } : {}),
+      ...cursorFilter,
+    })
     .sort(sort)
     .limit(limit + 1)
-    .populate('authorId', '_id username avatar isVerified')
+    .populate({
+      path: 'authorId',
+      select: '_id username avatar isVerified',
+      match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
+    })
     .lean();
 
   const hasMore = comments.length > limit;
   const items   = hasMore ? comments.slice(0, limit) : comments;
+  // ✅ FIX: deleted/suspended author wale comments filter karo
+  const visibleItems = items.filter(c => c.authorId);
 
-  // Map to frontend-compatible shape (user instead of authorId)
-  const mapped = items.map(c => ({
+  const mapped = visibleItems.map(c => ({
     _id:       c._id,
     text:      c.text,
     user:      c.authorId,

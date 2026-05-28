@@ -33,7 +33,7 @@ router.post('/:id/comment',                    protect, commentLimiter, checkAbu
 router.post('/:id/comment/:commentId/reply',   protect, commentLimiter, checkAbuse('comment'), ...mongoIdValidation('id'), commentValidation, addComment); // parentId sent in body
 router.delete('/:id/comment/:commentId', protect,
   ...mongoIdValidation('id'), ...mongoIdValidation('commentId'), deleteComment);
-router.get('/:id/comments',          ...mongoIdValidation('id'), getComments);
+router.get('/:id/comments',          ...mongoIdValidation('id'), optionalAuth, getComments);
 router.post('/:id/save',   protect,  ...mongoIdValidation('id'), toggleSave);
 router.post('/:id/report', protect,  ...mongoIdValidation('id'), reportPost);
 

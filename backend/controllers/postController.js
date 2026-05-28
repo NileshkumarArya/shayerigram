@@ -204,10 +204,10 @@ exports.deleteComment = async (req, res) => {
 
 exports.getComments = async (req, res) => {
   try {
-    const result = await commentService.getComments(req.params.id, req.query);
+    const result = await commentService.getComments(req.params.id, req.query, req.user?._id);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to load comments.' });
+    res.status(err.status || 500).json({ message: err.message || 'Failed to load comments.' });
   }
 };
 
