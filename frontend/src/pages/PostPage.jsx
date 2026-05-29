@@ -5,6 +5,7 @@ import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/common/Avatar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { PostPageSkeleton } from '../components/common/Skeleton';
 
 const CATEGORY_STYLES = {
   Love:         { bg:'rgba(239,68,68,0.15)',  color:'#f87171', emoji:'❤️' },
@@ -130,7 +131,7 @@ export default function PostPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>;
+  if (loading) return <PostPageSkeleton />;
   if (!post) return null;
 
   const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.Other;

@@ -118,3 +118,63 @@ export function NotificationSkeleton({ count = 6 }) {
     </div>
   );
 }
+export function PostPageSkeleton() {
+  return (
+    <div className="max-w-xl mx-auto animate-fade-in">
+      <SkeletonBlock className="h-5 w-20 mb-4" />
+
+      <article className="card">
+        <div className="flex items-center justify-between p-5">
+          <div className="flex items-center gap-3">
+            <SkeletonBlock className="w-11 h-11 rounded-full shrink-0" />
+            <div>
+              <SkeletonBlock className="h-4 w-32 mb-2" />
+              <SkeletonBlock className="h-3 w-24" />
+            </div>
+          </div>
+          <SkeletonBlock className="h-7 w-20 rounded-full" />
+        </div>
+
+        <div className="px-5 pb-3">
+          <SkeletonBlock className="h-6 w-48" />
+        </div>
+
+        <SkeletonBlock className="w-full" style={{ aspectRatio: '4 / 3' }} />
+
+        <div className="px-5 py-4 flex gap-3">
+          <SkeletonBlock className="h-6 w-20 rounded-full" />
+          <SkeletonBlock className="h-6 w-16 rounded-full" />
+          <SkeletonBlock className="h-6 w-16 rounded-full" />
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-4"
+          style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div className="flex gap-5">
+            <SkeletonBlock className="h-7 w-14" />
+            <SkeletonBlock className="h-7 w-14" />
+            <SkeletonBlock className="h-7 w-8" />
+          </div>
+          <SkeletonBlock className="h-7 w-8" />
+        </div>
+
+        <div className="p-5">
+          <SkeletonBlock className="h-4 w-28 mb-4" />
+          <div className="flex gap-3 mb-6">
+            <SkeletonBlock className="w-9 h-9 rounded-full shrink-0" />
+            <SkeletonBlock className="h-11 flex-1 rounded-xl" />
+          </div>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex gap-3">
+                <SkeletonBlock className="w-9 h-9 rounded-full shrink-0" />
+                <div className="flex-1">
+                  <SkeletonBlock className="h-16 w-full rounded-xl" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+}
