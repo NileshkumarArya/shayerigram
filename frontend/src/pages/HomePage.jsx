@@ -13,11 +13,17 @@ export default function HomePage() {
   const [hasMore,    setHasMore]    = useState(true);
   const [nextCursor, setNextCursor] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [error,      setError]      = useState('');
   const observerRef = useRef(null);
   const bottomRef   = useRef(null);
 
   const loadPosts = useCallback(async (cursor = null, reset = false) => {
-    if (reset) setLoading(true); else setLoadingMore(true);
+    if (reset) {
+      setLoading(true);
+      setError('');
+    } else {
+      setLoadingMore(true);
+    }
     try {
       const params = { limit: 10 };
       if (cursor) params.cursor = cursor;
@@ -27,14 +33,14 @@ export default function HomePage() {
       setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
-    } catch {}
+    } catch {
+      if (reset) setError('Feed load nahi ho paaya. Please try again.');
+    }
     if (reset) setLoading(false); else setLoadingMore(false);
   }, []);
 
-  // Initial load
   useEffect(() => { loadPosts(null, true); }, [loadPosts]);
 
-  // Infinite scroll — observe bottom element
   useEffect(() => {
     if (!bottomRef.current) return;
     observerRef.current = new IntersectionObserver(
@@ -54,10 +60,23 @@ export default function HomePage() {
 
   if (loading) return <FeedSkeleton count={4} />;
 
+  if (error) {
+    return (
+      <div className="card text-center py-16 px-6 animate-fade-in">
+        <div className="text-5xl mb-4">📜</div>
+        <h2 className="text-xl font-shayari mb-2 gradient-text">Feed unavailable</h2>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+          {error}
+        </p>
+        <button onClick={() => loadPosts(null, true)} className="btn-primary py-3 px-6">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in">
-
-
       {/* Posts */}
       {posts.length === 0 ? (
         <div className="text-center py-20">
@@ -74,7 +93,6 @@ export default function HomePage() {
               ? <AdCard key={item._id} ad={item} />
               : <PostCard key={item._id} post={item} />
           )}
-          {/* Infinite scroll sentinel */}
           <div ref={bottomRef} className="h-4" />
           {loadingMore && <div className="flex justify-center py-4"><LoadingSpinner /></div>}
           {!hasMore && posts.length > 0 && (
