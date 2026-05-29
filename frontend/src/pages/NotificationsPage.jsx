@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { notifAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { NotificationSkeleton } from '../components/common/Skeleton';
 
 const TYPE_CONFIG = {
   like:    { emoji: '❤️', color: '#f87171', label: 'liked your shayari' },
@@ -117,11 +118,7 @@ export default function NotificationsPage() {
   const filtered = filter === 'all' ? notifications : notifications.filter(n => n.type === filter);
   const unread = notifications.filter(n => !n.isRead).length;
 
-  if (loading) {
-    return (
-      <div className="flex justify-center pt-20"><LoadingSpinner size="lg" /></div>
-    );
-  }
+  if (loading) return <NotificationSkeleton count={6} />;
 
   return (
     <div className="animate-fade-in w-full min-w-0">

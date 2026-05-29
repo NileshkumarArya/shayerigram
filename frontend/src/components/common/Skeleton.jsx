@@ -92,3 +92,29 @@ export function ProfileSkeleton() {
     </div>
   );
 }
+export function GridSkeleton({ count = 9 }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 animate-fade-in">
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonBlock key={i} className="aspect-square rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
+export function NotificationSkeleton({ count = 6 }) {
+  return (
+    <div className="space-y-2 animate-fade-in">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 p-4 rounded-xl" style={{ border: '1px solid var(--border)' }}>
+          <SkeletonBlock className="w-11 h-11 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0">
+            <SkeletonBlock className="h-4 w-48 mb-2" />
+            <SkeletonBlock className="h-3 w-16" />
+          </div>
+          <SkeletonBlock className="w-12 h-12 rounded-lg shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}

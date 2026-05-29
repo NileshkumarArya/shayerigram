@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { userAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { GridSkeleton } from '../components/common/Skeleton';
 
 const CATEGORY_COLORS = {
   Love:'#f87171', Sad:'#60a5fa', Motivational:'#fbbf24', Funny:'#fb923c',
@@ -79,7 +80,7 @@ export default function SavedPage() {
   const categories = ['All', ...new Set(posts.map(p => p.category))];
   const filtered = filter === 'All' ? posts : posts.filter(p => p.category === filter);
 
-  if (loading) return <div className="flex justify-center pt-20"><LoadingSpinner size="lg" /></div>;
+  if (loading) return <GridSkeleton count={12} />;
 
   return (
     <div className="animate-fade-in">
