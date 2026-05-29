@@ -150,20 +150,39 @@ exports.getPost = async (req, res) => {
 
 exports.deletePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    if (String(post.author) !== String(req.user._id))
-      return res.status(403).json({ message: 'Not authorized' });
-    await Post.findByIdAndUpdate(req.params.id, {
-      $set: {
-        isDeleted:   true,
-        deletedAt:   new Date(),
-        deletedBy:   req.user._id,
-        isTakenDown: true,
+    const post = await Post.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        author: req.user._id,
+        isDeleted: { $ne: true },
       },
-    });
-    User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: -1 } }).catch(() => {});
-    await invalidateCache([`post:${req.params.id}`, `feed:first:${req.user._id}`, 'trending:posts']);
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: req.user._id,
+          isTakenDown: true,
+        },
+      },
+      { new: true }
+    );
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    User.findOneAndUpdate(
+      { _id: req.user._id, postsCount: { $gt: 0 } },
+      { $inc: { postsCount: -1 } }
+    ).catch(() => {});
+
+    await invalidateCache([
+      `post:${req.params.id}`,
+      `feed:first:${req.user._id}`,
+      'trending:posts',
+      'explore:all:first',
+    ]);
+
     res.json({ message: 'Post deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete post.' });
