@@ -9,7 +9,6 @@ const Block   = require('../models/Block');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 const logger  = require('../utils/logger');
 
-// ✅ FIX: Accept parentId as explicit parameter — req was never in scope here
 const addComment = async (postId, authorId, text, actorUsername, io, parentId = null) => {
   const post = await Post.findOne({
     _id: postId,
@@ -61,17 +60,25 @@ const deleteComment = async (commentId, userId, postId) => {
   const comment = await Comment.findOne({ _id: commentId, postId });
   if (!comment) throw Object.assign(new Error('Comment not found'), { status: 404 });
 
-  const post = await Post.findById(postId).select('author');
+  const post = await Post.findOne({
+    _id: postId,
+    isDeleted: { $ne: true },
+  }).select('author');
   if (!post) throw Object.assign(new Error('Post not found'), { status: 404 });
 
   const isOwner     = String(comment.authorId) === String(userId);
   const isPostOwner = String(post.author)       === String(userId);
 
-  if (!isOwner && !isPostOwner)
+  if (!isOwner && !isPostOwner) {
     throw Object.assign(new Error('Not authorized'), { status: 403 });
+  }
 
-  await Comment.deleteOne({ _id: commentId, postId });
-  // ✅ FIX: negative counter prevent karo
+  // ✅ FIX: atomic delete — agar already deleted hai to counter decrement nahi hoga
+  const deleted = await Comment.findOneAndDelete({ _id: commentId, postId });
+  if (!deleted) {
+    throw Object.assign(new Error('Comment not found'), { status: 404 });
+  }
+
   await Post.findOneAndUpdate(
     { _id: postId, commentsCount: { $gt: 0 } },
     { $inc: { commentsCount: -1 } }
@@ -80,7 +87,6 @@ const deleteComment = async (commentId, userId, postId) => {
   return { message: 'Comment deleted' };
 };
 
-// ✅ FIX: userId param added — blocked users ke comments hide honge
 const getComments = async (postId, query = {}, userId = null) => {
   const { filter: cursorFilter, sort, limit } = buildCursorPagination(query);
 
@@ -124,7 +130,6 @@ const getComments = async (postId, query = {}, userId = null) => {
 
   const hasMore = comments.length > limit;
   const items   = hasMore ? comments.slice(0, limit) : comments;
-  // ✅ FIX: deleted/suspended author wale comments filter karo
   const visibleItems = items.filter(c => c.authorId);
 
   const mapped = visibleItems.map(c => ({
