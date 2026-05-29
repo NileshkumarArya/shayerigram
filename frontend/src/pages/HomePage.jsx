@@ -4,6 +4,7 @@ import { postAPI } from '../services/api';
 import PostCard from '../components/feed/PostCard';
 import CreatePostModal from '../components/feed/CreatePostModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { FeedSkeleton } from '../components/common/Skeleton';
 
 export default function HomePage() {
   const [posts,      setPosts]      = useState([]);
@@ -51,7 +52,7 @@ export default function HomePage() {
     setShowCreate(false);
   };
 
-  if (loading) return <div className="flex justify-center pt-20"><LoadingSpinner size="lg" /></div>;
+  if (loading) return <FeedSkeleton count={4} />;
 
   return (
     <div className="animate-fade-in">
