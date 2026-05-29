@@ -6,6 +6,7 @@ import { userAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
 import PostCard from '../components/feed/PostCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { ProfileSkeleton } from '../components/common/Skeleton';
 
 function StatItem({ label, value, onClick }) {
   return (
@@ -94,9 +95,7 @@ export default function ProfilePage() {
     setFollowLoading(false);
   };
 
-  if (loading) return (
-    <div className="flex justify-center py-20"><LoadingSpinner size="lg" /></div>
-  );
+  if (loading) return <ProfileSkeleton />;
 
   if (!profile) return (
     <div className="text-center py-20">
