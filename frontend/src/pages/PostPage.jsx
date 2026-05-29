@@ -35,6 +35,7 @@ export default function PostPage() {
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [saved, setSaved] = useState(false);
@@ -55,7 +56,10 @@ export default function PostPage() {
         setSaved(data.post.saved ?? false);
         const commentsRes = await postAPI.getComments(id);
         setComments(commentsRes.data.comments || []);
-      } catch { navigate('/'); }
+      } catch {
+        setError('This shayari is unavailable.');
+        setPost(null);
+      }
       setLoading(false);
     };
     load();
@@ -132,6 +136,29 @@ export default function PostPage() {
   };
 
   if (loading) return <PostPageSkeleton />;
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto animate-fade-in">
+        <button onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm mb-4 hover:text-purple-300 transition-colors"
+          style={{ color: 'var(--text-muted)' }}>
+          ← Back
+        </button>
+        <div className="card text-center py-16 px-6">
+          <div className="text-5xl mb-4">📜</div>
+          <h1 className="text-xl font-shayari mb-2 gradient-text">Post unavailable</h1>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+            {error}
+          </p>
+          <Link to="/" className="btn-primary inline-block py-3 px-6">
+            Go to Feed
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!post) return null;
 
   const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.Other;
