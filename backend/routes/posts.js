@@ -30,7 +30,7 @@ router.get('/:id',                   ...mongoIdValidation('id'), optionalAuth, g
 router.delete('/:id', protect,       ...mongoIdValidation('id'), deletePost);
 router.post('/:id/like',    protect, likeLimiter, checkAbuse('like'),    ...mongoIdValidation('id'), toggleLike);
 router.post('/:id/comment',                    protect, commentLimiter, checkAbuse('comment'), ...mongoIdValidation('id'), commentValidation, addComment);
-router.post('/:id/comment/:commentId/reply',   protect, commentLimiter, checkAbuse('comment'), ...mongoIdValidation('id'), commentValidation, addComment); // parentId sent in body
+router.post('/:id/comment/:commentId/reply',   protect, commentLimiter, checkAbuse('comment'), ...mongoIdValidation('id'), commentValidation, addComment);
 router.delete('/:id/comment/:commentId', protect,
   ...mongoIdValidation('id'), ...mongoIdValidation('commentId'), deleteComment);
 router.get('/:id/comments',          ...mongoIdValidation('id'), optionalAuth, getComments);
