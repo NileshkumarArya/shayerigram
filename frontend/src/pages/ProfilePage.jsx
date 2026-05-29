@@ -25,13 +25,13 @@ function PostGrid({ posts }) {
           className={`relative aspect-square overflow-hidden group animate-fade-in animate-stagger-${Math.min(i % 5 + 1, 5)}`}
           style={{ borderRadius: '8px' }}>
           {post.type === 'image' && post.image ? (
-           <img
-  src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
-  alt=""
-  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-  loading="lazy"
-  decoding="async"
-/>
+            <img
+              src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
+              alt=""
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center p-2 transition-all duration-300 group-hover:scale-105"
               style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)', border: '1px solid rgba(147,51,234,0.15)' }}>
@@ -56,6 +56,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [view, setView] = useState('grid');
@@ -67,6 +68,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setError('');
       try {
         const [p, postsRes] = await Promise.all([
           userAPI.getProfile(username),
@@ -74,8 +76,12 @@ export default function ProfilePage() {
         ]);
         setProfile(p.data.user);
         setPosts(postsRes.data.posts || []);
-        setFollowing(p.data.user.isFollowing ?? false); // ✅ backend sends isFollowing
-      } catch {}
+        setFollowing(p.data.user.isFollowing ?? false);
+      } catch {
+        setProfile(null);
+        setPosts([]);
+        setError('Profile load nahi ho paaya. Please try again.');
+      }
       setLoading(false);
     };
     load();
@@ -96,6 +102,21 @@ export default function ProfilePage() {
   };
 
   if (loading) return <ProfileSkeleton />;
+
+  if (error) {
+    return (
+      <div className="card text-center py-16 px-6 animate-fade-in">
+        <div className="text-5xl mb-4">👤</div>
+        <h2 className="text-xl font-shayari mb-2 gradient-text">Profile unavailable</h2>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+          {error}
+        </p>
+        <button onClick={() => window.location.reload()} className="btn-primary py-3 px-6">
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   if (!profile) return (
     <div className="text-center py-20">
@@ -142,7 +163,6 @@ export default function ProfilePage() {
                   className={following ? 'btn-ghost text-sm py-2 px-5' : 'btn-primary text-sm py-2 px-5'}>
                   {followLoading ? '...' : following ? 'Following' : 'Follow'}
                 </button>
-               
               </div>
             )}
           </div>
@@ -202,13 +222,13 @@ export default function ProfilePage() {
       )}
 
       {/* Followers/Following modals */}
-    {(showFollowers || showFollowing) && (
-  <UserListModal
-    title={showFollowers ? 'Followers' : 'Following'}
-    userId={profile?._id}
-    username={profile?.username}
-    type={showFollowers ? 'followers' : 'following'}
-    onClose={() => { setShowFollowers(false); setShowFollowing(false); }}
+      {(showFollowers || showFollowing) && (
+        <UserListModal
+          title={showFollowers ? 'Followers' : 'Following'}
+          userId={profile?._id}
+          username={profile?.username}
+          type={showFollowers ? 'followers' : 'following'}
+          onClose={() => { setShowFollowers(false); setShowFollowing(false); }}
         />
       )}
     </div>
@@ -222,13 +242,11 @@ function UserListModal({ title, userId, username, type, onClose }) {
   useEffect(() => {
     const load = async () => {
       try {
-        // ✅Followers/Following list — userAPI se fetch karta hai
-       
         if (!username) return;
-       const { data } = type === 'followers'
-  ? await userAPI.getFollowers(username)
-  : await userAPI.getFollowing(username);
-setUsers(data.users || []);
+        const { data } = type === 'followers'
+          ? await userAPI.getFollowers(username)
+          : await userAPI.getFollowing(username);
+        setUsers(data.users || []);
       } catch {}
       setLoading(false);
     };
