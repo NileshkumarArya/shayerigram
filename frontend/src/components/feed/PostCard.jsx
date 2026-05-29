@@ -91,7 +91,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
   const [submitting, setSubmitting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [heartAnim, setHeartAnim] = useState(false);
-  // ✅ FIX: loading locks — double click se duplicate requests nahi jayenge
   const [likeLoading, setLikeLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const lastTap = useRef(0);
@@ -113,7 +112,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
     load();
   }, [showComments, post._id, commentsFetched]);
 
-  // ✅ FIX: lock + backend response sync
   const handleLike = async () => {
     if (likeLoading) return;
     setLikeLoading(true);
@@ -145,7 +143,6 @@ export default function PostCard({ post: initialPost, onDelete }) {
     lastTap.current = now;
   };
 
-  // ✅ FIX: lock + backend response sync
   const handleSave = async () => {
     if (saveLoading) return;
     setSaveLoading(true);
@@ -163,18 +160,24 @@ export default function PostCard({ post: initialPost, onDelete }) {
 
   const handleComment = async (e) => {
     e.preventDefault();
-    if (!comment.trim() || submitting) return;
+    const text = comment.trim();
+    if (!text || submitting) return;
     setSubmitting(true);
     try {
-      const { data } = await postAPI.addComment(post._id, comment.trim());
+      const { data } = await postAPI.addComment(post._id, text);
       if (data.comment) {
-        setComments(prev => [...prev, data.comment]);
+        setComments(prev => {
+          if (prev.some(c => c._id === data.comment._id)) return prev;
+          return [...prev, data.comment];
+        });
         setCommentsFetched(true);
       }
-      setCommentsCount(prev => prev + 1);
+      setCommentsCount(prev => Math.max((prev || 0) + 1, 0));
       setComment('');
-    } catch {}
-    setSubmitting(false);
+    } catch {
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReport = async () => {

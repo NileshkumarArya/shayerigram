@@ -98,14 +98,22 @@ export default function PostPage() {
 
   const handleComment = async (e) => {
     e.preventDefault();
-    if (!comment.trim() || submitting) return;
+    const text = comment.trim();
+    if (!text || submitting) return;
     setSubmitting(true);
     try {
-      const { data } = await postAPI.addComment(id, comment.trim());
-      if (data.comment) setComments(prev => [...prev, data.comment]);
+      const { data } = await postAPI.addComment(id, text);
+      if (data.comment) {
+        setComments(prev => {
+          if (prev.some(c => c._id === data.comment._id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
       setComment('');
-    } catch {}
-    setSubmitting(false);
+    } catch {
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = async () => {
