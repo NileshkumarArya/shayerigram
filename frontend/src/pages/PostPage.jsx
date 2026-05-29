@@ -40,6 +40,8 @@ export default function PostPage() {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [comments, setComments] = useState([]);
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -47,30 +49,51 @@ export default function PostPage() {
       try {
         const { data } = await postAPI.getPost(id);
         setPost(data.post);
-        setLiked(data.post.liked ?? false); // ✅ backend sends liked field
-        setLikeCount(data.post.likesCount ?? 0); // ✅ denormalized counter
-        setSaved(data.post.saved ?? false); // ✅ backend sends saved field
-        // ✅ FIX: Load comments on mount
+        setLiked(data.post.liked ?? false);
+        setLikeCount(data.post.likesCount ?? 0);
+        setSaved(data.post.saved ?? false);
         const commentsRes = await postAPI.getComments(id);
         setComments(commentsRes.data.comments || []);
       } catch { navigate('/'); }
       setLoading(false);
     };
     load();
-  }, [id, user?._id]); // ✅ FIX: user._id dependency so liked/saved update when user loads
+  }, [id, user?._id]);
 
   const handleLike = async () => {
-    const was = liked;
-    setLiked(!was);
-    setLikeCount(was ? likeCount - 1 : likeCount + 1);
-    try { await postAPI.toggleLike(id); }
-    catch { setLiked(was); setLikeCount(was ? likeCount : likeCount - 1); }
+    if (likeLoading) return;
+    setLikeLoading(true);
+    const wasLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!wasLiked);
+    setLikeCount(prev => Math.max((prev || 0) + (wasLiked ? -1 : 1), 0));
+    try {
+      const { data } = await postAPI.toggleLike(id);
+      setLiked(!!data.liked);
+      if (typeof data.likesCount === 'number') {
+        setLikeCount(Math.max(data.likesCount, 0));
+      }
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
+    } finally {
+      setLikeLoading(false);
+    }
   };
 
   const handleSave = async () => {
-    setSaved(!saved);
-    try { await postAPI.toggleSave(id); }
-    catch { setSaved(saved); }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    try {
+      const { data } = await postAPI.toggleSave(id);
+      setSaved(!!data.saved);
+    } catch {
+      setSaved(wasSaved);
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const handleComment = async (e) => {
@@ -155,12 +178,12 @@ export default function PostPage() {
         {post.type === 'image' && post.image ? (
           <div className="relative">
             <img
-  src={optimizeImageUrl(post.image, { width: 1100 })}
-  alt={post.title || 'Shayari'}
-  className="w-full object-cover max-h-[600px]"
-  loading="eager"
-  decoding="async"
-/>
+              src={optimizeImageUrl(post.image, { width: 1100 })}
+              alt={post.title || 'Shayari'}
+              className="w-full object-cover max-h-[600px]"
+              loading="eager"
+              decoding="async"
+            />
             <div className="absolute inset-0 flex items-end p-6"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 50%)' }}>
               <p className={`font-shayari text-white text-xl leading-loose ${post.writtenIn === 'Urdu' ? 'text-right w-full font-urdu' : ''}`}>
@@ -212,8 +235,8 @@ export default function PostPage() {
         <div className="flex items-center justify-between px-5 py-4"
           style={{ borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)' }}>
           <div className="flex items-center gap-5">
-            <button onClick={handleLike}
-              className="flex items-center gap-2 transition-all hover:scale-110 group">
+            <button onClick={handleLike} disabled={likeLoading}
+              className="flex items-center gap-2 transition-all hover:scale-110 group disabled:opacity-60">
               <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
               <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : 'var(--text-muted)' }}>
                 {likeCount}
@@ -227,7 +250,8 @@ export default function PostPage() {
             </div>
             <button onClick={handleShare} className="text-2xl transition-all hover:scale-110">🔗</button>
           </div>
-          <button onClick={handleSave} className="text-2xl transition-all hover:scale-110">
+          <button onClick={handleSave} disabled={saveLoading}
+            className="text-2xl transition-all hover:scale-110 disabled:opacity-60">
             {saved ? '🔖' : '🏷️'}
           </button>
         </div>
