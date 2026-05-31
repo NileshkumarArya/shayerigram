@@ -1,5 +1,5 @@
 import CategorySelect from '../components/common/CategorySelect';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { postAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -14,45 +14,89 @@ const TEMPLATES = [
   { id: 'night',   label: 'Night',   bg: 'linear-gradient(135deg,#0d0d1a,#1a1a35)', color: '#c4b5fd' },
 ];
 
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 export default function CreatePostPage() {
   const navigate = useNavigate();
   const [type, setType] = useState('text');
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
-  const [categories, setCategories] = useState(['Love']); // ✅ Multi-select
+  const [categories, setCategories] = useState(['Love']);
   const [language, setLanguage] = useState('Hindi');
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [template, setTemplate] = useState(TEMPLATES[0]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleImageSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImage(null);
+      setImagePreview(null);
+      setError('Only JPG, PNG, or WebP images are allowed.');
+      toast.error('Only JPG, PNG, or WebP images are allowed.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImage(null);
+      setImagePreview(null);
+      setError('Image size must be under 8MB.');
+      toast.error('Image size must be under 8MB.');
+      return;
+    }
+    setError('');
     setImage(file);
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
+    setImagePreview(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   };
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const handleSubmit = async () => {
-    if (!content.trim()) { toast.error('Please write your shayari'); return; }
+    if (loading) return;
+    const text = content.trim();
+    if (type === 'text' && !text) {
+      setError('Please write your shayari');
+      toast.error('Please write your shayari');
+      return;
+    }
+    if (type === 'image' && !image && !text) {
+      setError('Please add an image or write your shayari');
+      toast.error('Please add an image or write your shayari');
+      return;
+    }
     setLoading(true);
+    setError('');
     try {
       const fd = new FormData();
-      fd.append('content', content.trim());
+      if (text) fd.append('content', text);
       fd.append('title', title.trim());
       categories.forEach(c => fd.append('categories[]', c));
       fd.append('language', language);
       fd.append('type', type);
+      fd.append('theme', template.id);
+      fd.append('fontStyle', 'shayari');
       if (type === 'image' && image) fd.append('image', image);
       await postAPI.createPost(fd);
-      toast.success('Shayari shared! ✨');
+      toast.success('Shayari shared!');
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to post');
+      const message = err.response?.data?.message || 'Failed to post';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -65,7 +109,8 @@ export default function CreatePostPage() {
             style={{ color: 'var(--text-muted)' }}>←</button>
           <h1 className="text-xl font-cinzel gradient-text">New Shayari</h1>
         </div>
-        <button onClick={handleSubmit} disabled={loading || !content.trim()}
+        <button onClick={handleSubmit}
+          disabled={loading || (type === 'text' && !content.trim()) || (type === 'image' && !image && !content.trim())}
           className="btn-primary py-2 px-5 text-sm">
           {loading ? '...' : 'Share ✦'}
         </button>
@@ -93,7 +138,7 @@ export default function CreatePostPage() {
               <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                 <div className="text-4xl">🖼️</div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Click to upload background image</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP up to 10MB</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP up to 8MB</p>
               </div>
             )}
             <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
@@ -158,8 +203,18 @@ export default function CreatePostPage() {
         </div>
       </div>
 
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 rounded-xl text-sm text-center"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}>
+          {error}
+        </div>
+      )}
+
       {/* Submit */}
-      <button onClick={handleSubmit} disabled={loading || !content.trim()} className="btn-primary w-full py-4 text-base">
+      <button onClick={handleSubmit}
+        disabled={loading || (type === 'text' && !content.trim()) || (type === 'image' && !image && !content.trim())}
+        className="btn-primary w-full py-4 text-base">
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <span className="w-5 h-5 rounded-full border-2 border-white/20 inline-block"

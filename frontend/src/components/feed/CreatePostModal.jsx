@@ -5,6 +5,9 @@ import { postAPI } from '../../services/api';
 
 const LANGUAGES = ['Hindi', 'Urdu', 'English', 'Mixed'];
 
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 const THEMES = [
   { id: 'classic',  label: 'Classic',  bg: '#0e0e1a',                                        text: '#f1f0ff', accent: '#9333ea' },
   { id: 'purple',   label: 'Purple',   bg: 'linear-gradient(135deg,#3b0764,#6b21a8)',         text: '#f3e8ff', accent: '#e879f9' },
@@ -47,42 +50,79 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
   const fileRef = useRef();
 
   const handleImageSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImage(null);
+      setImgPreview(null);
+      setError('Only JPG, PNG, or WebP images are allowed.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImage(null);
+      setImgPreview(null);
+      setError('Image size must be under 8MB.');
+      return;
+    }
+    setError('');
     setImage(file);
-    const reader = new FileReader();
-    reader.onload = () => setImgPreview(reader.result);
-    reader.readAsDataURL(file);
+    setImgPreview(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   };
 
+  useEffect(() => {
+    return () => {
+      if (imgPreview) URL.revokeObjectURL(imgPreview);
+    };
+  }, [imgPreview]);
+
   const handleSubmit = async () => {
-    // ✅ For image posts, caption is optional — text posts still require content
-    if (type === 'text' && !content.trim()) { setError('Please write your shayari'); return; }
-    if (type === 'image' && !image && !content.trim()) { setError('Please add an image or write your shayari'); return; }
-    setLoading(true); setError('');
+    if (loading) return;
+    const text = content.trim();
+    if (type === 'text' && !text) {
+      setError('Please write your shayari');
+      return;
+    }
+    if (type === 'image' && !image && !text) {
+      setError('Please add an image or write your shayari');
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
       const fd = new FormData();
-      if (content.trim()) fd.append('content', content.trim()); // optional for image posts
-      fd.append('title',     title.trim());
-      fd.append('writtenIn', language); // backend field is writtenIn (avoids MongoDB conflict)
-      fd.append('type',      type);
-      fd.append('theme',     theme.id);
+      if (text) fd.append('content', text);
+      fd.append('title', title.trim());
+      fd.append('writtenIn', language);
+      fd.append('type', type);
+      fd.append('theme', theme.id);
       fd.append('fontStyle', font.id);
       categories.forEach(c => fd.append('categories[]', c));
       if (type === 'image' && image) fd.append('image', image);
-
       const { data } = await postAPI.createPost(fd);
+      clearDraft();
       onCreated?.(data.post);
       onPostCreated?.(data.post);
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create post.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const goNext = () => {
-    // ✅ Caption optional for image posts — image alone is fine
+    if (type === 'text' && !content.trim()) {
+      setError('Please write your shayari');
+      return;
+    }
+    if (type === 'image' && !image && !content.trim()) {
+      setError('Please add an image or write your shayari');
+      return;
+    }
     setError('');
     setStep(3);
   };
@@ -94,7 +134,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
         style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
           maxHeight: '96vh', display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0"
           style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-3">
@@ -120,10 +160,10 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
           </div>
         </div>
 
-        {/* ── Scrollable Content ── */}
+        {/* Scrollable Content */}
         <div className="overflow-y-auto px-5 py-4" style={{ flex: 1 }}>
 
-          {/* ── STEP 1: Choose type ── */}
+          {/* STEP 1: Choose type */}
           {step === 1 && (
             <div className="space-y-4 animate-fade-in">
               <p className="text-sm text-center py-2" style={{ color: 'var(--text-muted)' }}>
@@ -147,11 +187,11 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
             </div>
           )}
 
-          {/* ── STEP 2: Write + Theme + Font ── */}
+          {/* STEP 2: Text post */}
           {step === 2 && type === 'text' && (
             <div className="space-y-5 animate-fade-in">
 
-              {/* ── Theme row ── */}
+              {/* Theme row */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-2"
                   style={{ color: 'var(--text-muted)' }}>Theme</p>
@@ -175,7 +215,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
                 </div>
               </div>
 
-              {/* ── Font row ── */}
+              {/* Font row */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-2"
                   style={{ color: 'var(--text-muted)' }}>Font Style</p>
@@ -200,7 +240,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
                 </div>
               </div>
 
-              {/* ── Writing canvas ── */}
+              {/* Writing canvas */}
               <div className="rounded-2xl overflow-hidden relative"
                 style={{ background: theme.bg, border: `1.5px solid ${theme.accent}50` }}>
                 <div className="pt-4 pb-0 text-center text-2xl select-none"
@@ -230,7 +270,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
             </div>
           )}
 
-          {/* ── STEP 2: Image post ── */}
+          {/* STEP 2: Image post */}
           {step === 2 && type === 'image' && (
             <div className="space-y-4 animate-fade-in">
               <div onClick={() => fileRef.current.click()}
@@ -242,7 +282,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
                   : <div className="text-center p-8">
                       <div className="text-5xl mb-3">🖼️</div>
                       <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Click to upload</p>
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>JPG, PNG · Max 8MB</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>JPG, PNG, WebP - Max 8MB</p>
                     </div>
                 }
               </div>
@@ -258,7 +298,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
             </div>
           )}
 
-          {/* ── STEP 3: Details ── */}
+          {/* STEP 3: Details */}
           {step === 3 && (
             <div className="space-y-4 animate-fade-in">
 
