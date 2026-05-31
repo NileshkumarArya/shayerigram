@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { optimizeImageUrl } from '../../utils/image';
 
-// Theme + Font rendering helpers
 const THEME_MAP = {
   classic: { bg:'#0e0e1a', text:'#f1f0ff', accent:'#9333ea' },
   purple:  { bg:'linear-gradient(135deg,#1a0533,#2d1058)', text:'#e9d5ff', accent:'#c084fc' },
@@ -93,6 +92,8 @@ export default function PostCard({ post: initialPost, onDelete }) {
   const [heartAnim, setHeartAnim] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const lastTap = useRef(0);
 
   const cat = CATEGORY_STYLES[post.category] || CATEGORY_STYLES.Other;
@@ -181,21 +182,33 @@ export default function PostCard({ post: initialPost, onDelete }) {
   };
 
   const handleReport = async () => {
+    if (reporting) return;
     if (!confirm('Report this shayari as inappropriate?')) return;
+    setReporting(true);
     try {
       await postAPI.reportPost(post._id);
-      alert('✅ Reported. Our team will review it.');
-    } catch {}
-    setShowMenu(false);
+      alert('Reported. Our team will review it.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to report this shayari.');
+    } finally {
+      setReporting(false);
+      setShowMenu(false);
+    }
   };
 
   const handleDelete = async () => {
+    if (deleting) return;
     if (!confirm('Delete this shayari?')) return;
+    setDeleting(true);
     try {
       await postAPI.deletePost(post._id);
       onDelete?.(post._id);
-    } catch {}
-    setShowMenu(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete this shayari.');
+    } finally {
+      setDeleting(false);
+      setShowMenu(false);
+    }
   };
 
   const handleShare = () => {
@@ -248,15 +261,19 @@ export default function PostCard({ post: initialPost, onDelete }) {
                 className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors"
                 style={{ color: 'var(--text-secondary)' }}>Share</button>
               {!isOwner && (
-                <button onClick={handleReport}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-yellow-500/10 transition-colors text-yellow-400">
-                  Report
+                <button
+                  onClick={handleReport}
+                  disabled={reporting}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-yellow-500/10 transition-colors text-yellow-400 disabled:opacity-50">
+                  {reporting ? 'Reporting...' : 'Report'}
                 </button>
               )}
               {isOwner && (
-                <button onClick={handleDelete}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/10 transition-colors text-red-400">
-                  Delete
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/10 transition-colors text-red-400 disabled:opacity-50">
+                  {deleting ? 'Deleting...' : 'Delete'}
                 </button>
               )}
             </div>
