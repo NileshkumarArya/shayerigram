@@ -58,35 +58,59 @@ exports.createPost = async (req, res) => {
     const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
     const safeContent = content || '';
     const mentionedUsernames = [...new Set(
-      [...safeContent.matchAll(mentionRegex)].map(m => m[1])
+      [...safeContent.matchAll(mentionRegex)].map(m => m[1].toLowerCase())
     )];
+
     if (mentionedUsernames.length > 0) {
-      const mentionedUsers = await require('../models/User')
-        .find({ username: { $in: mentionedUsernames } })
-        .select('_id username')
-        .lean();
-      await Promise.all(
-        mentionedUsers
-          .filter(u => String(u._id) !== String(req.user._id))
-          .map(u => enqueueNotification({
-            recipientId: u._id,
-            actorId:     req.user._id,
-            type:        'mention',
-            entityId:    post._id,
-          }).catch(() => {}))
+      const [mentionedUsers, blocks] = await Promise.all([
+        User.find({
+          username: { $in: mentionedUsernames },
+          isDeleted: { $ne: true },
+          isSuspended: { $ne: true },
+        })
+          .select('_id username')
+          .lean(),
+        Block.find({
+          $or: [
+            { blockerId: req.user._id },
+            { blockeeId: req.user._id },
+          ],
+        })
+          .select('blockerId blockeeId')
+          .lean(),
+      ]);
+
+      const blockedUserIds = new Set(
+        blocks.map(b =>
+          String(b.blockerId) === String(req.user._id)
+            ? String(b.blockeeId)
+            : String(b.blockerId)
+        )
       );
-      // ✅ Live socket emit for mention notifications
+
+      const notifyUsers = mentionedUsers.filter(u =>
+        String(u._id) !== String(req.user._id) &&
+        !blockedUserIds.has(String(u._id))
+      );
+
+      await Promise.all(
+        notifyUsers.map(u => enqueueNotification({
+          recipientId: u._id,
+          actorId:     req.user._id,
+          type:        'mention',
+          entityId:    post._id,
+        }).catch(() => {}))
+      );
+
       const io = req.app.get('io');
       if (io) {
-        mentionedUsers
-          .filter(u => String(u._id) !== String(req.user._id))
-          .forEach(u => {
-            io.to(`notification_${u._id}`).emit('notification', {
-              type:    'mention',
-              postId:  post._id,
-              actorId: req.user._id,
-            });
+        notifyUsers.forEach(u => {
+          io.to(`notification_${u._id}`).emit('notification', {
+            type:    'mention',
+            postId:  post._id,
+            actorId: req.user._id,
           });
+        });
       }
     }
 
