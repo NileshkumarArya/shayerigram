@@ -4,6 +4,7 @@ import { exploreAPI, userAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
 import PostCard from '../components/feed/PostCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { ExploreSkeleton, FeedSkeleton } from '../components/common/Skeleton';
 
 const CATEGORIES = [
   { name: 'All',          emoji: '✨', color: '#9333ea' },
@@ -22,29 +23,34 @@ export default function ExplorePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get('category') || 'All';
 
-  const [query,       setQuery]       = useState('');
-  const [searchType,  setSearchType]  = useState('all');
-  const [results,     setResults]     = useState({ posts: [], users: [] });
-  const [posts,       setPosts]       = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore,     setHasMore]     = useState(false);
-  const [nextCursor,  setNextCursor]  = useState(null);
-  const [searched,    setSearched]    = useState(false);
+  const [query,         setQuery]         = useState('');
+  const [searchType,    setSearchType]    = useState('all');
+  const [results,       setResults]       = useState({ posts: [], users: [] });
+  const [posts,         setPosts]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadingMore,   setLoadingMore]   = useState(false);
+  const [hasMore,       setHasMore]       = useState(false);
+  const [nextCursor,    setNextCursor]    = useState(null);
+  const [searched,      setSearched]      = useState(false);
+  const [error,         setError]         = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
   const debounceRef = useRef(null);
   const bottomRef   = useRef(null);
   const observerRef = useRef(null);
 
-  // ── Load posts when category changes ──────────────────────────────────────
   const loadPosts = useCallback(async (cursor = null, reset = false) => {
-    if (reset) setLoading(true); else setLoadingMore(true);
+    if (reset) {
+      setLoading(true);
+      setError('');
+    } else {
+      setLoadingMore(true);
+    }
     try {
       const params = { limit: 15 };
       if (cursor) params.cursor = cursor;
 
       let data;
       if (activeCategory === 'All') {
-        // ✅ FIX: "All" now fetches ALL recent posts, not just trending
         const res = await exploreAPI.getAllPosts(params);
         data = res.data;
       } else {
@@ -56,11 +62,12 @@ export default function ExplorePage() {
       setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
-    } catch {}
+    } catch {
+      if (reset) setError('Explore load nahi ho paaya. Please try again.');
+    }
     if (reset) setLoading(false); else setLoadingMore(false);
   }, [activeCategory]);
 
-  // Reset + reload when category changes
   useEffect(() => {
     if (searched) return;
     setPosts([]);
@@ -68,7 +75,6 @@ export default function ExplorePage() {
     loadPosts(null, true);
   }, [activeCategory, searched, loadPosts]);
 
-  // Infinite scroll
   useEffect(() => {
     if (!bottomRef.current) return;
     observerRef.current = new IntersectionObserver(([entry]) => {
@@ -80,7 +86,6 @@ export default function ExplorePage() {
     return () => observerRef.current?.disconnect();
   }, [hasMore, loadingMore, nextCursor, loadPosts]);
 
-  // Debounced search
   useEffect(() => {
     if (!query.trim()) {
       setSearched(false);
@@ -90,10 +95,15 @@ export default function ExplorePage() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setSearched(true);
+      setSearchLoading(true);
       try {
         const { data } = await exploreAPI.search(query, searchType);
         setResults({ posts: data.posts || [], users: data.users || [] });
-      } catch {}
+      } catch {
+        setResults({ posts: [], users: [] });
+      } finally {
+        setSearchLoading(false);
+      }
     }, 400);
     return () => clearTimeout(debounceRef.current);
   }, [query, searchType]);
@@ -108,7 +118,7 @@ export default function ExplorePage() {
   const activeCat = CATEGORIES.find(c => c.name === activeCategory) || CATEGORIES[0];
 
   return (
-<div className="animate-fade-in w-full min-w-0">
+    <div className="animate-fade-in w-full min-w-0">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-2xl font-cinzel gradient-text mb-1">Explore</h1>
@@ -148,7 +158,7 @@ export default function ExplorePage() {
 
       {/* Category chips */}
       {!query && (
-       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-5 w-full">
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-5 w-full">
           {CATEGORIES.map(cat => {
             const isActive = activeCategory === cat.name;
             return (
@@ -171,39 +181,45 @@ export default function ExplorePage() {
       {/* Search results */}
       {searched && (
         <div>
-          {results.users.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3"
-                style={{ color: 'var(--text-muted)' }}>Poets</h3>
-              <div className="space-y-2">
-                {results.users.map(u => (
-                  <Link key={u._id} to={`/profile/${u.username}`}
-                    className="flex items-center gap-3 p-3 rounded-xl glass-hover"
-                    style={{ border: '1px solid var(--border)' }}>
-                    <Avatar user={u} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{u.username}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.followersCount || 0} followers</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+          {searchLoading ? (
+            <FeedSkeleton count={2} />
+          ) : (
+            <>
+              {results.users.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest mb-3"
+                    style={{ color: 'var(--text-muted)' }}>Poets</h3>
+                  <div className="space-y-2">
+                    {results.users.map(u => (
+                      <Link key={u._id} to={`/profile/${u.username}`}
+                        className="flex items-center gap-3 p-3 rounded-xl glass-hover"
+                        style={{ border: '1px solid var(--border)' }}>
+                        <Avatar user={u} size="md" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{u.username}</p>
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{u.followersCount || 0} followers</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {results.posts.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3"
-                style={{ color: 'var(--text-muted)' }}>Shayari</h3>
-              {results.posts.map(p => <PostCard key={p._id} post={p} />)}
-            </div>
-          )}
+              {results.posts.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-widest mb-3"
+                    style={{ color: 'var(--text-muted)' }}>Shayari</h3>
+                  {results.posts.map(p => <PostCard key={p._id} post={p} />)}
+                </div>
+              )}
 
-          {results.posts.length === 0 && results.users.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-5xl mb-4">🔍</div>
-              <p className="gradient-text font-shayari text-lg">No results found</p>
-            </div>
+              {results.posts.length === 0 && results.users.length === 0 && (
+                <div className="text-center py-16">
+                  <div className="text-5xl mb-4">🔍</div>
+                  <p className="gradient-text font-shayari text-lg">No results found</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -222,7 +238,18 @@ export default function ExplorePage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12"><LoadingSpinner /></div>
+            <FeedSkeleton count={3} />
+          ) : error ? (
+            <div className="card text-center py-16 px-6">
+              <div className="text-5xl mb-4">📜</div>
+              <h2 className="text-xl font-shayari mb-2 gradient-text">Explore unavailable</h2>
+              <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                {error}
+              </p>
+              <button onClick={() => loadPosts(null, true)} className="btn-primary py-3 px-6">
+                Try Again
+              </button>
+            </div>
           ) : posts.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-5xl mb-3">📜</div>

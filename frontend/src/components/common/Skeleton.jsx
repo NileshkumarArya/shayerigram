@@ -178,3 +178,31 @@ export function PostPageSkeleton() {
     </div>
   );
 }
+export function ExploreSkeleton({ count = 3 }) {
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-5">
+        <SkeletonBlock className="h-8 w-32 mb-2" />
+        <SkeletonBlock className="h-3 w-44" />
+      </div>
+
+      <SkeletonBlock className="h-12 w-full rounded-xl mb-4" />
+
+      <div className="flex gap-2 overflow-hidden pb-2 mb-5">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonBlock key={i} className="h-9 w-24 rounded-full shrink-0" />
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 mb-4">
+        <SkeletonBlock className="h-5 w-5 rounded-full" />
+        <SkeletonBlock className="h-4 w-32" />
+        <SkeletonBlock className="h-px flex-1" />
+      </div>
+
+      {Array.from({ length: count }).map((_, i) => (
+        <PostCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
