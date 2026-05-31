@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
 import toast from 'react-hot-toast';
+
+const MAX_AVATAR_SIZE = 4 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function EditProfilePage() {
   const { user, updateUser } = useAuth();
@@ -19,24 +22,47 @@ export default function EditProfilePage() {
   const [avatar, setAvatar] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleAvatarSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      setAvatar(null);
+      setError('Only JPG, PNG, or WebP avatars are allowed.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      setAvatar(null);
+      setError('Avatar must be under 4MB.');
+      return;
+    }
+    setError('');
     setAvatar(file);
-    const reader = new FileReader();
-    reader.onload = () => setAvatarPreview(reader.result);
-    reader.readAsDataURL(file);
+    setAvatarPreview(prev => {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    setError('');
     setLoading(true);
     try {
       const fd = new FormData();
-      // ✅ Only send non-empty fields — prevents empty string validation errors
       Object.entries(form).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== '') fd.append(k, v);
       });
@@ -46,7 +72,9 @@ export default function EditProfilePage() {
       toast.success('Profile updated!');
       navigate(`/profile/${user.username}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Update failed');
+      const message = err.response?.data?.message || 'Profile update failed.';
+      setError(message);
+      toast.error(message);
     }
     setLoading(false);
   };
@@ -145,6 +173,14 @@ export default function EditProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="p-3 rounded-xl text-sm text-center"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}>
+            {error}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 pb-6">
