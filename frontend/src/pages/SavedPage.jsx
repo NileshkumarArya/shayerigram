@@ -18,13 +18,13 @@ function SavedPostCard({ post }) {
       style={{ border: '1px solid var(--border)' }}>
       {post.type === 'image' && post.image ? (
         <>
-         <img
-  src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
-  alt=""
-  className="w-full h-full object-cover transition-transform duration-400 group-hover:scale-105"
-  loading="lazy"
-  decoding="async"
-/>
+          <img
+            src={optimizeImageUrl(post.image, { width: 420, height: 420, crop: 'fill' })}
+            alt=""
+            className="w-full h-full object-cover transition-transform duration-400 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+          />
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3"
             style={{ background: 'rgba(0,0,0,0.7)' }}>
             <p className="text-white text-xs font-shayari text-center line-clamp-4 leading-relaxed">{post.content}</p>
@@ -65,14 +65,20 @@ export default function SavedPage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const load = async () => {
+      setError('');
       try {
         const { data } = await userAPI.getSavedPosts();
         setPosts(data.posts || []);
-      } catch {}
-      setLoading(false);
+      } catch {
+        setPosts([]);
+        setError('Saved shayari load nahi ho paayi. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
@@ -81,6 +87,31 @@ export default function SavedPage() {
   const filtered = filter === 'All' ? posts : posts.filter(p => p.category === filter);
 
   if (loading) return <GridSkeleton count={12} />;
+
+  if (error) {
+    return (
+      <div className="card text-center py-16 px-6 animate-fade-in">
+        <div className="text-5xl mb-4">🔖</div>
+        <h2 className="text-xl font-shayari mb-2 gradient-text">Saved unavailable</h2>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+          {error}
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            setError('');
+            userAPI.getSavedPosts()
+              .then(({ data }) => setPosts(data.posts || []))
+              .catch(() => setError('Saved shayari load nahi ho paayi. Please try again.'))
+              .finally(() => setLoading(false));
+          }}
+          className="btn-primary py-3 px-6"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">

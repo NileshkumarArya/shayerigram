@@ -16,12 +16,10 @@ const TYPE_CONFIG = {
 };
 
 function NotifItem({ notif }) {
-  // ✅ FIX: actorId, actor, sender — teeno try karo
   const actor = notif.actorId || notif.actor || notif.sender;
   if (!actor) return null;
 
   const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.like;
-  // ✅ FIX: backend notif.post bhejta hai (normalized), fallback entityId object
   const post = notif.post || (typeof notif.entityId === 'object' ? notif.entityId : null);
   const isUnread = notif.isRead === false || notif.read === false;
 
@@ -100,16 +98,22 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const load = async () => {
+      setError('');
       try {
         const { data } = await notifAPI.getAll();
         setNotifications(data.notifications || []);
         await notifAPI.markRead();
-        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      } catch {}
-      setLoading(false);
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
+      } catch {
+        setNotifications([]);
+        setError('Notifications load nahi ho paayi. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
@@ -119,6 +123,31 @@ export default function NotificationsPage() {
   const unread = notifications.filter(n => !n.isRead).length;
 
   if (loading) return <NotificationSkeleton count={6} />;
+
+  if (error) {
+    return (
+      <div className="card text-center py-16 px-6 animate-fade-in">
+        <div className="text-5xl mb-4">🔔</div>
+        <h2 className="text-xl font-shayari mb-2 gradient-text">Notifications unavailable</h2>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+          {error}
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            setError('');
+            notifAPI.getAll()
+              .then(({ data }) => setNotifications(data.notifications || []))
+              .catch(() => setError('Notifications load nahi ho paayi. Please try again.'))
+              .finally(() => setLoading(false));
+          }}
+          className="btn-primary py-3 px-6"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in w-full min-w-0">
