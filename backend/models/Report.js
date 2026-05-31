@@ -34,9 +34,9 @@ const reportSchema = new mongoose.Schema(
 
 reportSchema.index({ createdAt: -1 });
 reportSchema.index({ status: 1, createdAt: -1 });
-
-// Critical for admin moderation queue
-reportSchema.index({ status: 1, createdAt: -1 });
-reportSchema.index({ reportedContent: 1, contentType: 1 });
+reportSchema.index(
+  { targetType: 1, targetId: 1, reportedBy: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model('Report', reportSchema);

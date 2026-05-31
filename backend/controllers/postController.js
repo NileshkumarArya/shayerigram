@@ -260,15 +260,38 @@ exports.getTrending = async (req, res) => {
 
 exports.reportPost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findOne({
+      _id: req.params.id,
+      isDeleted: { $ne: true },
+      isTakenDown: { $ne: true },
+    }).select('_id');
+
     if (!post) return res.status(404).json({ message: 'Post not found.' });
+
     const validReasons = ['spam', 'harassment', 'hate_speech', 'inappropriate', 'copyright', 'other'];
-    const reason  = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
+    const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
     const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
-    const alreadyReported = await Report.findOne({ targetId: post._id, reportedBy: req.user._id });
-    if (alreadyReported) return res.status(400).json({ message: 'You have already reported this post.' });
-    await Report.create({ targetType: 'post', targetId: post._id, reason, details, reportedBy: req.user._id });
-    await Post.findByIdAndUpdate(post._id, { $inc: { reportCount: 1 }, $set: { isReported: true } });
+
+    try {
+      await Report.create({
+        targetType: 'post',
+        targetId: post._id,
+        reason,
+        details,
+        reportedBy: req.user._id,
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(400).json({ message: 'You have already reported this post.' });
+      }
+      throw err;
+    }
+
+    await Post.findByIdAndUpdate(post._id, {
+      $inc: { reportCount: 1 },
+      $set: { isReported: true },
+    });
+
     res.json({ message: 'Post reported. Our team will review it.' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to report post.' });
