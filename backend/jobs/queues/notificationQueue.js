@@ -6,7 +6,11 @@
 const { Queue } = require('bullmq');
 const logger    = require('../../utils/logger');
 
-const connection = process.env.REDIS_URL ? { url: process.env.REDIS_URL } : null;
+const shouldUseQueue =
+  process.env.ENABLE_NOTIFICATION_QUEUE === 'true' &&
+  Boolean(process.env.REDIS_URL);
+
+const connection = shouldUseQueue ? { url: process.env.REDIS_URL } : null;
 
 let notificationQueue = null;
 
@@ -20,9 +24,14 @@ if (connection) {
       removeOnFail:     5000,
     },
   });
+
+  notificationQueue.on('error', (err) => {
+    logger.warn('Notification queue error', { error: err.message });
+  });
+
   logger.info('Notification queue initialized');
 } else {
-  logger.warn('REDIS_URL not set — notification queue disabled, direct DB fallback active');
+  logger.info('Notification queue disabled — direct DB fallback active');
 }
 
 const enqueueNotification = async (payload) => {
