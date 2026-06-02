@@ -162,12 +162,17 @@ const adminOnly = (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
   const token = extractToken(req);
   if (!token) return next();
+
   try {
     const decoded = verifyAccessToken(token);
-    if (decoded.type === 'access') {
-      req.user = await User.findById(decoded.id).select('-password');
-    }
+    if (decoded.type !== 'access') return next();
+
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user || user.isSuspended || user.isDeleted) return next();
+
+    req.user = user;
   } catch {}
+
   next();
 };
 
