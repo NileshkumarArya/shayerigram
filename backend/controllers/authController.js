@@ -256,9 +256,9 @@ exports.getMe = async (req, res) => {
 };
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
-exports.logout = (req, res) => {
-  res.json({ message: 'Logged out.' });
-};
+// Logout is handled by middleware/auth.revokeCurrentDevice.
+// Keep logout cookie clearing centralized so refresh tokens are revoked correctly.
+
 
 // ─── Verify Email ─────────────────────────────────────────────────────────────
 exports.verifyEmail = async (req, res) => {
