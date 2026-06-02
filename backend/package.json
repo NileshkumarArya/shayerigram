@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+"check:syntax": "node scripts/checkSyntax.js",
     "dev": "nodemon server.js",
     "seed": "node utils/seeder.js",
     "test": "jest --runInBand --forceExit",
