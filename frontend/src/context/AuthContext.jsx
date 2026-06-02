@@ -9,17 +9,24 @@ export const AuthProvider = ({ children }) => {
 
   // ── App init — cookie se current user fetch karo (no localStorage needed) ──
   useEffect(() => {
+    let active = true;
+
     const init = async () => {
       try {
         const { data } = await authAPI.me();
-        setUser(data);
+        if (active) setUser(data);
       } catch {
-        setUser(null); // Cookie missing/expired — logged out rehna theek hai
+        if (active) setUser(null);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
+
     init();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // ── Login — backend HttpOnly cookie set karta hai, hum sirf user data lete hain ──
