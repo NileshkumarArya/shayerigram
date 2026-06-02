@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { authAPI, setLoggingOut } from '../services/api';
 
 const AuthContext = createContext(null);
+const normalizeUser = (data) => data?.user || data || null;
 
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
@@ -14,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const init = async () => {
       try {
         const { data } = await authAPI.me();
-        if (active) setUser(data);
+        if (active) setUser(normalizeUser(data));
       } catch {
         if (active) setUser(null);
       } finally {
@@ -35,8 +36,9 @@ export const AuthProvider = ({ children }) => {
     await authAPI.login({ identifier, password });
     try {
       const { data } = await authAPI.me();
-      setUser(data);
-      return data;
+      const currentUser = normalizeUser(data);
+      setUser(currentUser);
+      return currentUser;
     } catch {
       setUser(null);
       throw new Error(
@@ -49,8 +51,9 @@ export const AuthProvider = ({ children }) => {
   const register = useCallback(async (formData) => {
     setLoggingOut(false);
     const { data } = await authAPI.register(formData);
-    setUser(data.user);
-    return data.user;
+    const createdUser = normalizeUser(data);
+    setUser(createdUser);
+    return createdUser;
   }, []);
 
   // ── Logout — refresh interceptor band karo, cookie clear karo, state reset karo ──
