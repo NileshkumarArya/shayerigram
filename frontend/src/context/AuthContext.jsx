@@ -1,20 +1,20 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, setLoggingOut } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
+  const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On app load — try fetching current user via cookie (no localStorage needed)
+  // ── App init — cookie se current user fetch karo (no localStorage needed) ──
   useEffect(() => {
     const init = async () => {
       try {
         const { data } = await authAPI.me();
         setUser(data);
       } catch {
-        setUser(null); // Cookie missing/expired — that's fine, stay logged out
+        setUser(null); // Cookie missing/expired — logged out rehna theek hai
       } finally {
         setLoading(false);
       }
@@ -22,10 +22,9 @@ export const AuthProvider = ({ children }) => {
     init();
   }, []);
 
-  // Login — backend sets HttpOnly cookie, we just get user data
-const login = useCallback(async (identifier, password) => {
+  // ── Login — backend HttpOnly cookie set karta hai, hum sirf user data lete hain ──
+  const login = useCallback(async (identifier, password) => {
     await authAPI.login({ identifier, password });
-
     try {
       const { data } = await authAPI.me();
       setUser(data);
@@ -37,19 +36,28 @@ const login = useCallback(async (identifier, password) => {
       );
     }
   }, []);
-  // Register — backend sets HttpOnly cookie + records ToS acceptance
+
+  // ── Register — backend cookie set karta hai + ToS acceptance record hoti hai ──
   const register = useCallback(async (formData) => {
     const { data } = await authAPI.register(formData);
     setUser(data.user);
     return data.user;
   }, []);
 
-  // Logout — backend clears cookie server-side
+  // ── Logout — pehle refresh interceptor band karo, phir cookie server-side clear ──
+  // setLoggingOut(true) zaroori hai: warna pending 401 requests refresh trigger
+  // kar ke user ko wapas login kar deti hain (race condition)
   const logout = useCallback(async () => {
-    try { await authAPI.logout(); } catch {}
+    setLoggingOut(true);
+    try {
+      await authAPI.logout();
+    } catch {}
     setUser(null);
+    // Thodi der baad guard hatao — redirect/unmount ho chuka hoga tab tak
+    setTimeout(() => setLoggingOut(false), 500);
   }, []);
 
+  // ── User update — profile edit ke baad local state sync karta hai ──
   const updateUser = useCallback((updates) => {
     setUser((prev) => ({ ...prev, ...updates }));
   }, []);
