@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }) => {
 
   // ── Login — backend HttpOnly cookie set karta hai, hum sirf user data lete hain ──
   const login = useCallback(async (identifier, password) => {
+    setLoggingOut(false);
     await authAPI.login({ identifier, password });
     try {
       const { data } = await authAPI.me();
@@ -46,6 +47,7 @@ export const AuthProvider = ({ children }) => {
 
   // ── Register — backend cookie set karta hai + ToS acceptance record hoti hai ──
   const register = useCallback(async (formData) => {
+    setLoggingOut(false);
     const { data } = await authAPI.register(formData);
     setUser(data.user);
     return data.user;
