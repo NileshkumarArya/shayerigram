@@ -44,17 +44,24 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   }, []);
 
-  // ── Logout — pehle refresh interceptor band karo, phir cookie server-side clear ──
+  // ── Logout — refresh interceptor band karo, cookie clear karo, state reset karo ──
   // setLoggingOut(true) zaroori hai: warna pending 401 requests refresh trigger
   // kar ke user ko wapas login kar deti hain (race condition)
+  // finally me setUser(null) guarantee karta hai ke server fail ho tab bhi logout ho
   const logout = useCallback(async () => {
     setLoggingOut(true);
     try {
       await authAPI.logout();
-    } catch {}
-    setUser(null);
-    // Thodi der baad guard hatao — redirect/unmount ho chuka hoga tab tak
-    setTimeout(() => setLoggingOut(false), 500);
+    } catch {
+      // Server/cookie clear fail ho to bhi frontend ko logged-out rakho
+    } finally {
+      setUser(null);
+      sessionStorage.clear();
+      // Thodi der baad guard hatao — redirect/unmount ho chuka hoga tab tak
+      setTimeout(() => {
+        setLoggingOut(false);
+      }, 800);
+    }
   }, []);
 
   // ── User update — profile edit ke baad local state sync karta hai ──
