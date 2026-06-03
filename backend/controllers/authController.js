@@ -44,13 +44,23 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
       });
       const isCrossDomain = String(process.env.CROSS_DOMAIN) === 'true';
       const isProd        = process.env.NODE_ENV === 'production';
-      res.cookie('refreshToken', refreshRaw, {
+           const refreshCookieOptions = {
         httpOnly: true,
         secure:   isProd || isCrossDomain,
         sameSite: isCrossDomain ? 'none' : 'lax',
         maxAge:   REFRESH_TOKEN_EXPIRY * 1000,
         path:     '/api/auth',
+      };
+
+      // Old builds used /api/auth/refresh, clear it so duplicate refreshToken cookies do not conflict.
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure:   isProd || isCrossDomain,
+        sameSite: isCrossDomain ? 'none' : 'lax',
+        path:     '/api/auth/refresh',
       });
+
+      res.cookie('refreshToken', refreshRaw, refreshCookieOptions);
     } catch (err) {
       logger.warn('Refresh token creation failed', { userId: user._id, error: err.message });
     }
