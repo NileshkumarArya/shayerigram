@@ -75,13 +75,23 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
       });
 
       res.cookie('refreshToken', refreshRaw, refreshCookieOptions);
-    } catch (err) {
-      logger.warn('Refresh token creation failed', { userId: user._id, error: err.message });
+        } catch (err) {
+      logger.error('Refresh token creation failed', { userId: user._id, error: err.message });
+
+      res.clearCookie(cookieName, {
+        httpOnly: true,
+        secure: authCookieOptions.secure,
+        sameSite: authCookieOptions.sameSite,
+        path: authCookieOptions.path || '/',
+      });
+
+      return res.status(500).json({ message: 'Could not start secure session. Please try again.' });
     }
   }
 
   return res.status(statusCode).json({ user: safeUser(user) });
 };
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
   const isUnder13 = (dob) => {
