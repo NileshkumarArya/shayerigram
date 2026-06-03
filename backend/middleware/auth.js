@@ -93,7 +93,6 @@ const refreshAccessToken = async (req, res) => {
 
     if (!stored) {
   logger.warn('Invalid/already-used refresh token', { ip: req.ip, ua: req.headers['user-agent']?.slice(0, 100) });
-  clearAuthCookies(res);
   return res.status(401).json({ message: 'Invalid or expired refresh token.' });
 }
 
