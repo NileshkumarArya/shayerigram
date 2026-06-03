@@ -31,7 +31,7 @@ const getRefreshCookieOptions = () => ({
   httpOnly: true,
   secure:   process.env.NODE_ENV === 'production' || String(process.env.CROSS_DOMAIN) === 'true',
   sameSite: String(process.env.CROSS_DOMAIN) === 'true' ? 'none' : 'lax',
-  path:     '/api/auth/refresh',
+  path:     '/api/auth',
   maxAge:   REFRESH_TOKEN_EXPIRY * 1000,
 });
 
@@ -44,7 +44,15 @@ const clearCookieOptions = (options = {}) => {
 const clearAuthCookies = (res) => {
   const refreshOptions = clearCookieOptions(getRefreshCookieOptions());
   const accessOptions  = clearCookieOptions(authCookieOptions);
+
   res.clearCookie('refreshToken', refreshOptions);
+
+  // Legacy path cleanup: old builds stored refreshToken only on /api/auth/refresh.
+  res.clearCookie('refreshToken', {
+    ...refreshOptions,
+    path: '/api/auth/refresh',
+  });
+
   res.clearCookie(cookieName, accessOptions);
 };
 
