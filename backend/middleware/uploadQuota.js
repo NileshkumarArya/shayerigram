@@ -5,7 +5,7 @@
  *   - Bot bulk uploading
  *   - Excessive API costs
  */
-const { getCache, setCache } = require('../utils/cache');
+const { incrementCache, decrementCache } = require('../utils/cache');
 const logger = require('../utils/logger');
 
 const LIMITS = {
@@ -15,51 +15,57 @@ const LIMITS = {
 };
 
 const checkUploadQuota = async (req, res, next) => {
-  if (!req.user) return next(); // Auth middleware handles unauth
+  if (!req.user) return next();
 
   // Only count actual file uploads. Text-only multipart posts should not consume image quota.
   if (!req.file) return next();
-  
+
   const userId = String(req.user._id);
 
   try {
-    const hourKey  = `quota:upload:hour:${userId}`;
-    const dayKey   = `quota:upload:day:${userId}`;
+    const hourKey = `quota:upload:hour:${userId}`;
+    const dayKey = `quota:upload:day:${userId}`;
 
     const [hourCount, dayCount] = await Promise.all([
-      getCache(hourKey) || 0,
-      getCache(dayKey)  || 0,
+      incrementCache(hourKey, LIMITS.hourly.windowSec),
+      incrementCache(dayKey, LIMITS.daily.windowSec),
     ]);
 
-    if (hourCount >= LIMITS.hourly.max) {
+    const releaseQuota = async () => {
+      await Promise.all([
+        decrementCache(hourKey),
+        decrementCache(dayKey),
+      ]);
+    };
+
+    if (hourCount > LIMITS.hourly.max) {
+      await releaseQuota();
       logger.warn('Upload quota exceeded (hourly)', { userId, count: hourCount });
       return res.status(429).json({
         message: `Upload limit reached. Max ${LIMITS.hourly.max} images per hour.`,
-        code:    'UPLOAD_QUOTA_HOURLY',
+        code: 'UPLOAD_QUOTA_HOURLY',
       });
     }
 
-    if (dayCount >= LIMITS.daily.max) {
+    if (dayCount > LIMITS.daily.max) {
+      await releaseQuota();
       logger.warn('Upload quota exceeded (daily)', { userId, count: dayCount });
       return res.status(429).json({
         message: `Daily upload limit reached. Max ${LIMITS.daily.max} images per day.`,
-        code:    'UPLOAD_QUOTA_DAILY',
+        code: 'UPLOAD_QUOTA_DAILY',
       });
     }
 
-    // Increment on success (do after upload succeeds via res finish)
-    res.on('finish', async () => {
-      if (res.statusCode === 201 || res.statusCode === 200) {
-        await Promise.all([
-          setCache(hourKey, (hourCount + 1), LIMITS.hourly.windowSec),
-          setCache(dayKey,  (dayCount + 1),  LIMITS.daily.windowSec),
-        ]);
+    // Quota reserve ho chuka hai. Upload fail hua to reserve wapas release karo.
+    res.on('finish', () => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        releaseQuota().catch(() => {});
       }
     });
 
     next();
   } catch {
-    next(); // Fail open on cache error
+    next();
   }
 };
 

@@ -23,6 +23,42 @@ const setMemory = (key, value, ttl = DEFAULT_TTL) => {
   memoryCache.set(key, { value, expiresAt: Date.now() + ttl * 1000 });
 };
 
+const incrementMemory = (key, ttl = DEFAULT_TTL) => {
+  const now = Date.now();
+  const entry = memoryCache.get(key);
+
+  let value = 0;
+  let expiresAt = now + ttl * 1000;
+
+  if (entry && entry.expiresAt > now) {
+    value = Number(entry.value) || 0;
+    expiresAt = entry.expiresAt;
+  }
+
+  value += 1;
+  memoryCache.set(key, { value, expiresAt });
+  return value;
+};
+
+const decrementMemory = (key) => {
+  const entry = memoryCache.get(key);
+  if (!entry) return 0;
+
+  if (entry.expiresAt < Date.now()) {
+    memoryCache.delete(key);
+    return 0;
+  }
+
+  const value = Math.max((Number(entry.value) || 0) - 1, 0);
+  if (value === 0) {
+    memoryCache.delete(key);
+    return 0;
+  }
+
+  memoryCache.set(key, { value, expiresAt: entry.expiresAt });
+  return value;
+};
+
 // ─── Connect ──────────────────────────────────────────────────────────────
 const connectCache = async () => {
   if (!process.env.REDIS_URL) {
@@ -65,6 +101,43 @@ const setCache = async (key, value, ttl = DEFAULT_TTL) => {
   setMemory(key, value, ttl);
 };
 
+// ─── Increment ────────────────────────────────────────────────────────────
+
+const incrementCache = async (key, ttl = DEFAULT_TTL) => {
+  if (redisEnabled && redisClient) {
+    const redisKey = buildKey(key);
+
+    const value = await redisClient.incr(redisKey);
+
+    if (value === 1) {
+      await redisClient.expire(redisKey, ttl);
+    }
+
+    return value;
+  }
+
+  return incrementMemory(key, ttl);
+};
+
+// ─── Decrement ────────────────────────────────────────────────────────────
+
+const decrementCache = async (key) => {
+  if (redisEnabled && redisClient) {
+    const redisKey = buildKey(key);
+
+    const value = await redisClient.decr(redisKey);
+
+    if (value <= 0) {
+      await redisClient.del(redisKey);
+      return 0;
+    }
+
+    return value;
+  }
+
+  return decrementMemory(key);
+};
+
 // ─── Delete exact keys ────────────────────────────────────────────────────
 const deleteCache = async (key) => {
   if (redisEnabled && redisClient) {
@@ -81,4 +154,12 @@ const invalidateCache = async (keys = []) => {
   await Promise.all(list.map(k => deleteCache(k)));
 };
 
-module.exports = { connectCache, getCache, setCache, deleteCache, invalidateCache };
+module.exports = {
+  connectCache,
+  getCache,
+  setCache,
+  incrementCache,
+  decrementCache,
+  deleteCache,
+  invalidateCache,
+};
