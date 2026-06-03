@@ -231,4 +231,13 @@ const multerErrorHandler = (err, req, res, next) => {
   next(err);
 };
 
-module.exports = { uploadPostImage, uploadAvatarImage, multerErrorHandler };
+const uploadPostImageFile = uploadPostImage[0];
+const processPostImage = uploadPostImage[1];
+
+module.exports = {
+  uploadPostImage,
+  uploadPostImageFile,
+  processPostImage,
+  uploadAvatarImage,
+  multerErrorHandler,
+};

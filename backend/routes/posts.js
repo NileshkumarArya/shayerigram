@@ -6,7 +6,11 @@ const {
   toggleSave, getTrending, reportPost,
 } = require('../controllers/postController');
 const { protect, optionalAuth }  = require('../middleware/auth');
-const { uploadPostImage, multerErrorHandler } = require('../middleware/secureUpload');
+const {
+  uploadPostImageFile,
+  processPostImage,
+  multerErrorHandler,
+} = require('../middleware/secureUpload');
 const { createPostValidation, commentValidation, mongoIdValidation } = require('../middleware/validate');
 const { createPostLimiter, commentLimiter, likeLimiter, uploadLimiter } = require('../middleware/rateLimiter');
 const { checkAbuse } = require('../middleware/abuseDetection');
@@ -19,9 +23,10 @@ router.post('/',
   protect,
   createPostLimiter,
   uploadLimiter,
-  checkUploadQuota,
-  ...uploadPostImage,
+  uploadPostImageFile,
   multerErrorHandler,
+  checkUploadQuota,
+  processPostImage,
   createPostValidation,
   createPost
 );

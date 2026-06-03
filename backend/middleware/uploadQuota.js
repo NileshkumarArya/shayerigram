@@ -17,9 +17,9 @@ const LIMITS = {
 const checkUploadQuota = async (req, res, next) => {
   if (!req.user) return next(); // Auth middleware handles unauth
 
-  // Only check if request has a file upload
-  if (!req.headers['content-type']?.includes('multipart/form-data')) return next();
-
+  // Only count actual file uploads. Text-only multipart posts should not consume image quota.
+  if (!req.file) return next();
+  
   const userId = String(req.user._id);
 
   try {
