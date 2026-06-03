@@ -49,7 +49,7 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
         secure:   isProd || isCrossDomain,
         sameSite: isCrossDomain ? 'none' : 'lax',
         maxAge:   REFRESH_TOKEN_EXPIRY * 1000,
-        path:     '/api/auth/refresh',
+        path:     '/api/auth',
       });
     } catch (err) {
       logger.warn('Refresh token creation failed', { userId: user._id, error: err.message });
