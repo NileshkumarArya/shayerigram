@@ -73,17 +73,18 @@ const protect = async (req, res, next) => {
 // ─── refreshAccessToken ──────────────────────────────────────────────────────
 const refreshAccessToken = async (req, res) => {
   try {
-    const raw = req.cookies?.refreshToken || req.body?.refreshToken;
+    const raw = req.cookies?.refreshToken;
+
     if (!raw) {
-  clearAuthCookies(res);
-  return res.status(401).json({ message: 'Refresh token required.' });
-}
+      clearAuthCookies(res);
+      return res.status(401).json({ message: 'Refresh token required.' });
+    }
 
     const hashed = crypto.createHash('sha256').update(raw).digest('hex');
 
     const stored = await RefreshToken.findOneAndUpdate(
       {
-        token:     hashed,
+        token: hashed,
         revokedAt: { $exists: false },
         expiresAt: { $gt: new Date() },
       },
@@ -92,20 +93,23 @@ const refreshAccessToken = async (req, res) => {
     );
 
     if (!stored) {
-  logger.warn('Invalid/already-used refresh token', { ip: req.ip, ua: req.headers['user-agent']?.slice(0, 100) });
-  return res.status(401).json({ message: 'Invalid or expired refresh token.' });
-}
+      logger.warn('Invalid/already-used refresh token', {
+        ip: req.ip,
+        ua: req.headers['user-agent']?.slice(0, 100),
+      });
+      return res.status(401).json({ message: 'Invalid or expired refresh token.' });
+    }
 
     const user = await User.findById(stored.userId).select('-password');
-   if (!user || user.isSuspended || user.isDeleted) {
-  clearAuthCookies(res);
-  return res.status(403).json({ message: 'Account not accessible.' });
-}
+    if (!user || user.isSuspended || user.isDeleted) {
+      clearAuthCookies(res);
+      return res.status(403).json({ message: 'Account not accessible.' });
+    }
 
     const newRefreshRaw = await generateRefreshToken(user._id, {
-      ip:        req.ip,
+      ip: req.ip,
       userAgent: req.headers['user-agent'],
-      deviceId:  stored.deviceId,
+      deviceId: stored.deviceId,
     });
     const accessToken = generateAccessToken(user._id);
 
