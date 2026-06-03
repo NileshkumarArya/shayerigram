@@ -1,5 +1,5 @@
 const crypto      = require('crypto');
-const User        = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
 const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY } = require('../utils/tokenService');
 const { enqueueEmail } = require('../jobs/queues/emailQueue');
 const logger      = require('../utils/logger');
@@ -37,27 +37,41 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
 
   if (req) {
     try {
+      const existingRefreshToken = req.cookies?.refreshToken;
+      if (existingRefreshToken) {
+        const hashedExisting = crypto
+          .createHash('sha256')
+          .update(existingRefreshToken)
+          .digest('hex');
+
+        await RefreshToken.findOneAndUpdate(
+          { token: hashedExisting, revokedAt: { $exists: false } },
+          { $set: { revokedAt: new Date(), lastUsedAt: new Date() } }
+        );
+      }
+
       const refreshRaw = await generateRefreshToken(user._id, {
-        ip:        req.ip,
+        ip: req.ip,
         userAgent: req.headers['user-agent'],
-        deviceId:  req.headers['x-device-id'],
+        deviceId: req.headers['x-device-id'],
       });
+
       const isCrossDomain = String(process.env.CROSS_DOMAIN) === 'true';
-      const isProd        = process.env.NODE_ENV === 'production';
-           const refreshCookieOptions = {
+      const isProd = process.env.NODE_ENV === 'production';
+
+      const refreshCookieOptions = {
         httpOnly: true,
-        secure:   isProd || isCrossDomain,
+        secure: isProd || isCrossDomain,
         sameSite: isCrossDomain ? 'none' : 'lax',
-        maxAge:   REFRESH_TOKEN_EXPIRY * 1000,
-        path:     '/api/auth',
+        maxAge: REFRESH_TOKEN_EXPIRY * 1000,
+        path: '/api/auth',
       };
 
-      // Old builds used /api/auth/refresh, clear it so duplicate refreshToken cookies do not conflict.
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure:   isProd || isCrossDomain,
+        secure: isProd || isCrossDomain,
         sameSite: isCrossDomain ? 'none' : 'lax',
-        path:     '/api/auth/refresh',
+        path: '/api/auth/refresh',
       });
 
       res.cookie('refreshToken', refreshRaw, refreshCookieOptions);
@@ -68,7 +82,6 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
 
   return res.status(statusCode).json({ user: safeUser(user) });
 };
-
 // ─── Register ─────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
   const isUnder13 = (dob) => {
