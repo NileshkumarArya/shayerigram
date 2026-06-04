@@ -54,18 +54,24 @@ const alertSuspiciousUpload = (reason, req, extra = {}) => {
 
 // ─── Duplicate detection via SHA-256 hash (per user) ─────────────────────
 // FIX B: Prevent same file being uploaded repeatedly (spam/flood)
+const getUploadCacheKey = (buffer, userId) => {
+  const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+  return `upload_hash:${userId}:${hash}`;
+};
+
 const isDuplicateUpload = async (buffer, userId) => {
-  const hash     = crypto.createHash('sha256').update(buffer).digest('hex');
-  const cacheKey = `upload_hash:${userId}:${hash}`;
   try {
-    const existing = await getCache(cacheKey);
-    if (existing) return true; // Duplicate found
-    // Store hash for 24 hours — user can re-upload same image after 24h
-    await setCache(cacheKey, '1', 86400);
-    return false;
+    return !!(await getCache(getUploadCacheKey(buffer, userId)));
   } catch {
-    // Cache unavailable — allow upload (fail open, not fail closed)
     return false;
+  }
+};
+
+const markUploadHash = async (buffer, userId) => {
+  try {
+    await setCache(getUploadCacheKey(buffer, userId), '1', 86400);
+  } catch {
+    // Cache unavailable — upload already succeeded, so do not fail response.
   }
 };
 
@@ -196,6 +202,11 @@ const processAndUpload = ({ folder, width, height, fit = 'inside', quality = 82 
 
       // ── Upload to Cloudinary ───────────────────────────────────────────
       const uploaded = await uploadToCloudinary(safeBuffer, folder);
+
+      if (req.user?._id) {
+        await markUploadHash(buffer, String(req.user._id));
+      }
+
       req.safeUpload = { url: uploaded.secure_url, publicId: uploaded.public_id };
       next();
 
