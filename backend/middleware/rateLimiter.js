@@ -110,7 +110,8 @@ const uploadLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => isTest,
+  // Run after multer. Text-only posts should not consume image upload limit.
+  skip: (req) => isTest || !req.file,
   keyGenerator: userOrIpKey,
   message: { message: 'Upload limit reached. Max 5 image uploads per hour.' },
 });
