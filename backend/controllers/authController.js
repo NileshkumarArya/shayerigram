@@ -1,4 +1,5 @@
 const crypto      = require('crypto');
+const User        = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY } = require('../utils/tokenService');
 const { enqueueEmail } = require('../jobs/queues/emailQueue');

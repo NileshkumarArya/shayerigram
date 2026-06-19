@@ -20,7 +20,9 @@ jest.mock('../middleware/auth', () => ({
 
 jest.mock('../middleware/secureUpload', () => ({
   uploadPostImage: [],
-  multerErrorHandler: (req, res, next) => next(),
+  uploadPostImageFile: (req, res, next) => next(),
+  processPostImage: (req, res, next) => next(),
+  multerErrorHandler: (err, req, res, next) => next(err),
 }));
 
 jest.mock('../models/Post', () => ({
@@ -44,6 +46,8 @@ jest.mock('cloudinary', () => ({ v2: { uploader: { destroy: jest.fn() } } }));
 jest.mock('../utils/cache', () => ({
   getCache: jest.fn().mockResolvedValue(null),
   setCache: jest.fn().mockResolvedValue(),
+  incrementCache: jest.fn().mockResolvedValue(1),
+  decrementCache: jest.fn().mockResolvedValue(0),
   invalidateCache: jest.fn().mockResolvedValue(),
 }));
 
