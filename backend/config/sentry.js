@@ -34,9 +34,8 @@ const initSentry = (app) => {
       },
     });
 
-    // Must be FIRST middleware
-    app.use(Sentry.Handlers.requestHandler());
-    app.use(Sentry.Handlers.tracingHandler());
+// v8+ mein Handlers removed — setupExpressErrorHandler use hota hai
+    Sentry.setupExpressErrorHandler(app);
 
     logger.info('Sentry error monitoring initialized');
   } catch (err) {
@@ -45,11 +44,10 @@ const initSentry = (app) => {
 };
 
 /**
- * Sentry error handler — must be AFTER all routes, BEFORE custom error handler
+ * Sentry error handler — v8+ mein setupExpressErrorHandler initSentry mein hi ho jaata hai
  */
 const sentryErrorHandler = () => {
-  if (Sentry) return Sentry.Handlers.errorHandler();
-  return (err, req, res, next) => next(err); // passthrough if no Sentry
+  return (err, req, res, next) => next(err);
 };
 
 /**
