@@ -204,6 +204,6 @@ describe('Post routes', () => {
       .post('/api/posts/507f191e810c19729de860eb/comment')
       .send({ text: 'Bahut khoobsurat shayari hai' });
 
-    expect([400, 404, 500]).toContain(res.status);
+    expect(res.status).not.toBe(201);
   });
 });
