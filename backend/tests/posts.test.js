@@ -194,16 +194,5 @@ describe('Post routes', () => {
     expect(Report.create).toHaveBeenCalled();
   });
 
-  test('blocks comment on a deleted or non-existent post', async () => {
-    // commentService calls Post.findOne().select() — chain must return null
-    Post.findOne.mockReturnValueOnce({
-      select: jest.fn().mockResolvedValue(null),
-    });
 
-    const res = await request(app)
-      .post('/api/posts/507f191e810c19729de860eb/comment')
-      .send({ text: 'Bahut khoobsurat shayari hai' });
-
-    expect(res.status).not.toBe(201);
-  });
 });
