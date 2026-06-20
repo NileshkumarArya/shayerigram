@@ -141,6 +141,12 @@ exports.createPost = async (req, res) => {
       content: req.body?.content?.slice(0, 50),
     });
 
+    // Upload ho chuka tha but post create fail hua — Cloudinary orphan cleanup
+    if (req.safeUpload?.publicId) {
+      const cloudinary = require('cloudinary').v2;
+      cloudinary.uploader.destroy(req.safeUpload.publicId).catch(() => {});
+    }
+
     const msg = process.env.NODE_ENV !== 'production'
       ? `Failed to create post: ${err.message}`
       : 'Failed to create post.';
