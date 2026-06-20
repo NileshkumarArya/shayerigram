@@ -13,8 +13,11 @@ const DEV_BYPASS_TOKENS = new Set([
 const verifyTurnstile = async (req, res, next) => {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
-  // Skip in test or if no key configured
+  // Skip if no key configured or in test mode
   if (!secretKey || process.env.NODE_ENV === 'test') return next();
+
+  // Temporary bypass — remove once Cloudflare Turnstile domain is configured
+  if (process.env.TURNSTILE_BYPASS === 'true') return next();
 
   const token = req.body['cf-turnstile-response'] || req.body.captchaToken;
   if (!token) {

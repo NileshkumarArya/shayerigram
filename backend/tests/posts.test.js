@@ -195,8 +195,10 @@ describe('Post routes', () => {
   });
 
   test('blocks comment on a deleted or non-existent post', async () => {
-    // commentService checks Post.findOne with isDeleted filter — null means post unavailable
-    Post.findOne.mockResolvedValueOnce(null);
+    // commentService calls Post.findOne().select() — chain must return null
+    Post.findOne.mockReturnValueOnce({
+      select: jest.fn().mockResolvedValue(null),
+    });
 
     const res = await request(app)
       .post('/api/posts/507f191e810c19729de860eb/comment')
