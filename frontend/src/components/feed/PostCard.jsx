@@ -149,6 +149,13 @@ export default function PostCard({ post: initialPost, onDelete }) {
     setSaveLoading(true);
     const wasSaved = saved;
     setSavedOverride(!wasSaved);
+      if (!wasSaved) {
+        const toast = document.createElement('div');
+        toast.textContent = '🔖 Shayari saved!';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#7c3aed;color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      }
     try {
       const { data } = await postAPI.toggleSave(post._id);
       setSavedOverride(!!data.saved);
@@ -156,6 +163,16 @@ export default function PostCard({ post: initialPost, onDelete }) {
       setSavedOverride(wasSaved);
     } finally {
       setSaveLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await postAPI.deleteComment(post._id, commentId);
+      setComments(prev => prev.filter(c => c._id !== commentId));
+      setCommentsCount(prev => Math.max((prev || 0) - 1, 0));
+    } catch {
+      // silent fail — comment already gone or no permission
     }
   };
 
@@ -388,7 +405,7 @@ export default function PostCard({ post: initialPost, onDelete }) {
               </p>
             ) : (
               comments.map((c, i) => (
-                <div key={c._id || i} className="flex gap-2 animate-fade-in">
+                <div key={c._id || i} className="flex gap-2 animate-fade-in group">
                   <Avatar user={c.user} size="xs" />
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-semibold mr-1.5" style={{ color: 'var(--text-primary)' }}>
@@ -396,6 +413,16 @@ export default function PostCard({ post: initialPost, onDelete }) {
                     </span>
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{c.text}</span>
                   </div>
+                  {(user?._id === c.user?._id || user?._id === post.author?._id) && (
+                    <button
+                      onClick={() => handleDeleteComment(c._id)}
+                      className="opacity-0 group-hover:opacity-100 text-xs transition-opacity ml-1"
+                      style={{ color: 'var(--text-secondary)' }}
+                      title="Delete comment"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))
             )}
