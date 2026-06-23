@@ -241,6 +241,7 @@ const initSocket = (io) => {
         chatId
       });
     });
+    
     // ─── Disconnect ───────────────────────────────────────────────────────
     socket.on('disconnect', (reason) => {
       // ✅ Decrement per-user connection count
