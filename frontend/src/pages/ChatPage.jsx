@@ -372,21 +372,21 @@ export default function ChatPage() {
         <p className="truncate text-sm font-semibold text-zinc-100">
           {otherUser?.fullName || otherUser?.username || 'Conversation'}
         </p>
-        <p className="text-xs text-emerald-400">online</p>
+        {/* Online text with green dot - Point 7 */}
+        <p className="flex items-center gap-1 text-xs text-emerald-400">
+          <span className="h-2 w-2 rounded-full bg-green-500" />
+          online
+        </p>
       </div>
 
+      {/* Only phone icon - Point 6 */}
       <button
         type="button"
         className="flex h-9 w-9 items-center justify-center rounded-xl text-purple-300 hover:bg-purple-500/10"
       >
-        <Phone size={17} />
+        <Phone size={18} />
       </button>
-      <button
-        type="button"
-        className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:bg-white/5"
-      >
-        <MoreVertical size={18} />
-      </button>
+      {/* MoreVertical removed as suggested */}
     </div>
   );
 
@@ -413,7 +413,8 @@ export default function ChatPage() {
         <div className={cx('flex flex-col', isMe ? 'items-end' : 'items-start')}>
           <div
             className={cx(
-              'max-w-[78%] px-4 py-2.5 text-sm leading-relaxed shadow-lg md:max-w-[68%]',
+              // Max width increased to 75% - Point 4
+              'max-w-[75%] px-4 py-2.5 text-sm leading-relaxed shadow-lg',
               isMe
                 ? 'rounded-[20px] rounded-br-md text-white'
                 : 'rounded-[20px] rounded-bl-md text-zinc-200'
@@ -448,7 +449,8 @@ export default function ChatPage() {
   };
 
   const MessageComposer = () => (
-    <div className="shrink-0 border-t border-white/5 bg-[#0d0a18]/95 px-3 py-3 backdrop-blur md:px-5">
+    // Sticky bottom - Point 9
+    <div className="sticky bottom-0 shrink-0 border-t border-white/5 bg-[#0d0a18]/95 px-3 py-3 backdrop-blur md:px-5">
       {showEmoji && (
         <div className="mb-3 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#191327] p-3">
           {EMOJIS.map((emoji) => (
@@ -464,7 +466,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      {/* Input bar with w-full - Point 5 */}
+      <div className="flex w-full items-center gap-2">
         <button
           type="button"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
@@ -516,12 +519,15 @@ export default function ChatPage() {
       <ChatHeader mobile />
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 opacity-[.08]">
-          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-purple-300/30" />
-          <div className="absolute bottom-8 right-8 text-7xl font-serif text-purple-300/20">SG</div>
+        {/* Background logo - Point 8 (centered) */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[.08]">
+          <div className="rotate-45 border border-purple-300/30 p-8 text-8xl font-serif text-purple-300/20">
+            SG
+          </div>
         </div>
 
-        <div className="relative h-full overflow-y-auto px-4 py-4 md:px-6" style={{ scrollbarWidth: 'none' }}>
+        {/* Message area with reduced padding - Point 3 */}
+        <div className="relative h-full overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none' }}>
           {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
 
           {!loading && messages.length === 0 && (
@@ -613,12 +619,15 @@ export default function ChatPage() {
         {chatId ? <ChatBody /> : <Inbox />}
       </div>
 
+      {/* Desktop layout */}
       <div className="hidden h-screen w-full overflow-hidden bg-[#090711] text-zinc-100 md:flex">
-        <aside className="w-[320px] shrink-0 border-r border-white/5 bg-[#0c0915]">
+        {/* Left sidebar - width reduced to 260px - Point 1 */}
+        <aside className="w-[260px] shrink-0 border-r border-white/5 bg-[#0c0915]">
           <Inbox desktop />
         </aside>
 
-        <main className="min-w-0 flex-1">
+        {/* Main chat area - full width - Point 2 */}
+        <main className="flex-1 w-full">
           {chatId ? (
             <div className="flex h-full flex-col">
               <div className="hidden md:block">
@@ -626,12 +635,15 @@ export default function ChatPage() {
               </div>
 
               <div className="relative min-h-0 flex-1 overflow-hidden">
-                <div className="pointer-events-none absolute inset-0 opacity-[.08]">
-                  <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-purple-300/30" />
-                  <div className="absolute bottom-8 right-10 text-8xl font-serif text-purple-300/20">SG</div>
+                {/* Background logo centered - Point 8 */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[.08]">
+                  <div className="rotate-45 border border-purple-300/30 p-8 text-8xl font-serif text-purple-300/20">
+                    SG
+                  </div>
                 </div>
 
-                <div className="relative h-full overflow-y-auto px-6 py-5" style={{ scrollbarWidth: 'none' }}>
+                {/* Message area with reduced padding - Point 3 */}
+                <div className="relative h-full overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none' }}>
                   {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
 
                   {!loading && messages.length === 0 && (
