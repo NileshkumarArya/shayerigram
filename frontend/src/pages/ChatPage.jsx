@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import api from '../services/api';
@@ -16,8 +16,25 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  // ─── Profile se aaya hai to chat auto-open karo ───────────────────────────
+  useEffect(() => {
+    const { userId } = location.state || {};
+    if (!userId) return;
+
+    const startChat = async () => {
+      try {
+        const { data } = await api.post('/chats', { userId });
+        navigate(`/chat/${data.chat._id}`, { replace: true });
+      } catch (err) {
+        console.error('Chat start error:', err);
+      }
+    };
+    startChat();
+  }, [location.state]);
 
   // ─── Inbox load karo ───────────────────────────────────────────────────────
   useEffect(() => {
