@@ -4,11 +4,7 @@ import {
   ArrowLeft,
   Bot,
   CheckCheck,
-  Droplets,
   Edit3,
-  Flame,
-  Ghost,
-  Heart,
   Lock,
   Mic,
   MoreVertical,
@@ -17,23 +13,11 @@ import {
   Search,
   Send,
   Smile,
-  Sparkles,
-  Star,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { userAPI } from '../services/api';
 import api from '../services/api';
-
-const CATEGORIES = [
-  { name: 'Love', icon: Heart, color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
-  { name: 'Sad', icon: Droplets, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-  { name: 'Motivation', icon: Zap, color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
-  { name: 'Spiritual', icon: Star, color: '#5eead4', bg: 'rgba(94,234,212,0.12)' },
-  { name: 'Poetry', icon: Flame, color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
-  { name: 'Funny', icon: Ghost, color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
-];
 
 const EMOJIS = [
   '\uD83D\uDE00',
@@ -623,76 +607,6 @@ export default function ChatPage() {
     </div>
   );
 
-  const RightPanel = () => (
-    <aside className="hidden w-[282px] shrink-0 border-l border-white/5 bg-[#0c0915] p-4 xl:block">
-      <div className="rounded-3xl border border-white/10 bg-white/[.04] p-4">
-        <div className="flex items-center gap-3">
-          <Avatar person={user} size="sm" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-zinc-100">{user?.username || 'Shayar'}</p>
-            <p className="text-xs text-zinc-500">{user?.fullName || 'Poetry account'}</p>
-          </div>
-          <Link to="/profile/edit" className="text-xs font-semibold text-purple-300">
-            Edit
-          </Link>
-        </div>
-      </div>
-
-      <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-zinc-600">Categories</p>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {CATEGORIES.map((category) => (
-          <Link
-            key={category.name}
-            to={`/explore?category=${category.name}`}
-            className="rounded-2xl border border-white/5 px-2 py-3 text-center transition hover:-translate-y-0.5 hover:border-purple-400/30"
-            style={{ background: category.bg }}
-          >
-            <category.icon size={18} className="mx-auto" style={{ color: category.color }} />
-            <span className="mt-1 block truncate text-[10px] font-medium text-zinc-300">{category.name}</span>
-          </Link>
-        ))}
-      </div>
-
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-[.18em] text-zinc-600">Suggested Shayers</p>
-        <Link to="/explore" className="text-xs text-zinc-500 hover:text-zinc-300">
-          See all
-        </Link>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {suggestions.slice(0, 5).map((item) => (
-          <div key={item._id} className="flex items-center gap-3 rounded-2xl bg-white/[.04] p-2.5">
-            <Link to={`/profile/${item.username}`}>
-              <Avatar person={item} size="sm" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <Link to={`/profile/${item.username}`} className="block truncate text-sm font-semibold text-zinc-200">
-                {item.username}
-              </Link>
-              <p className="text-[11px] text-zinc-500">{item.followersCount || 0} followers</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleFollow(item._id)}
-              className="rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white"
-            >
-              Follow
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 rounded-3xl border border-purple-400/10 bg-purple-500/[.06] p-4">
-        <Sparkles size={18} className="text-purple-300" />
-        <p className="mt-2 text-sm font-semibold text-zinc-100">Poetry flows better in conversation.</p>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          Share a line, ask for feedback, or continue a thought.
-        </p>
-      </div>
-    </aside>
-  );
-
   return (
     <>
       <div className="md:hidden h-[calc(100vh-4rem)] overflow-hidden bg-[#090711] text-zinc-100">
@@ -765,8 +679,6 @@ export default function ChatPage() {
             </div>
           )}
         </main>
-
-        <RightPanel />
       </div>
     </>
   );
