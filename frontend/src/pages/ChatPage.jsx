@@ -1,21 +1,144 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Bot,
+  CheckCheck,
+  Droplets,
+  Edit3,
+  Flame,
+  Ghost,
+  Heart,
+  Lock,
+  Mic,
+  MoreVertical,
+  Paperclip,
+  Phone,
+  Search,
+  Send,
+  Smile,
+  Sparkles,
+  Star,
+  Zap,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { userAPI } from '../services/api';
 import api from '../services/api';
-import { Heart, Droplets, Zap, Star, Flame, Ghost, Edit3, CheckCheck } from 'lucide-react';
 
 const CATEGORIES = [
-  { name: 'Love',         icon: Heart,    color: 'text-red-500',    bg: 'bg-[#2A1625]' },
-  { name: 'Sad',          icon: Droplets, color: 'text-blue-400',   bg: 'bg-[#1A233A]' },
-  { name: 'Motivational', icon: Zap,      color: 'text-yellow-500', bg: 'bg-[#2D281C]' },
-  { name: 'Spiritual',    icon: Star,     color: 'text-teal-400',   bg: 'bg-[#182A2A]' },
-  { name: 'Poetry',       icon: Flame,    color: 'text-orange-500', bg: 'bg-[#2D201A]' },
-  { name: 'Funny',        icon: Ghost,    color: 'text-purple-400', bg: 'bg-[#251A3A]' },
+  { name: 'Love', icon: Heart, color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
+  { name: 'Sad', icon: Droplets, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
+  { name: 'Motivation', icon: Zap, color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+  { name: 'Spiritual', icon: Star, color: '#5eead4', bg: 'rgba(94,234,212,0.12)' },
+  { name: 'Poetry', icon: Flame, color: '#fb923c', bg: 'rgba(251,146,60,0.12)' },
+  { name: 'Funny', icon: Ghost, color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
 ];
 
-const EMOJIS = ['😀','😂','😍','🥰','😭','😎','🙏','❤️','🔥','✨','💜','🎶','📜','🌹','💫','🥺','😊','🤣','💯','🎉'];
+const EMOJIS = [
+  '\uD83D\uDE00',
+  '\uD83D\uDE02',
+  '\uD83D\uDE0D',
+  '\uD83E\uDD70',
+  '\uD83D\uDE2D',
+  '\uD83D\uDE0E',
+  '\uD83D\uDE4F',
+  '\u2764\uFE0F',
+  '\uD83D\uDD25',
+  '\u2728',
+  '\uD83D\uDC9C',
+  '\uD83C\uDFB6',
+  '\uD83D\uDCDC',
+  '\uD83C\uDF39',
+  '\uD83D\uDCAB',
+  '\uD83E\uDD7A',
+];
+
+const demoBot = {
+  _id: 'shayari-bot',
+  username: 'ShayeriBot',
+  fullName: 'ShayeriBot',
+  isVerified: true,
+};
+
+const cx = (...classes) => classes.filter(Boolean).join(' ');
+
+const getInitial = (user) =>
+  (user?.fullName || user?.username || '?').trim().charAt(0).toUpperCase();
+
+const avatarUrl = (user) =>
+  user?.avatar ||
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || '?')}&background=9333ea&color=fff`;
+
+const formatTime = (date) => {
+  if (!date) return '';
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return '';
+
+  const diff = Date.now() - value.getTime();
+  if (diff < 60_000) return 'now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`;
+  if (diff < 86_400_000) {
+    return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return value.toLocaleDateString([], { day: '2-digit', month: 'short' });
+};
+
+const formatDay = (date) => {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return 'Today';
+  const today = new Date();
+
+  if (value.toDateString() === today.toDateString()) return 'Today';
+
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (value.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+  return value.toLocaleDateString([], { day: '2-digit', month: 'short' });
+};
+
+const getMessageText = (chat) =>
+  chat?.lastMessage?.content ||
+  chat?.lastMessage?.text ||
+  chat?.lastMessage ||
+  'Start a poetic conversation';
+
+function Avatar({ person, size = 'md', bot = false }) {
+  const sizeClass = size === 'lg' ? 'h-14 w-14' : size === 'sm' ? 'h-9 w-9' : 'h-11 w-11';
+
+  return (
+    <div className={cx('relative shrink-0 rounded-full', sizeClass)}>
+      {person?.avatar ? (
+        <img
+          src={avatarUrl(person)}
+          alt={person?.username || 'avatar'}
+          className="h-full w-full rounded-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center rounded-full text-sm font-bold text-white"
+          style={{ background: bot ? '#3b245f' : 'linear-gradient(145deg,#9333ea,#5b21b6)' }}
+        >
+          {bot ? <Bot size={size === 'lg' ? 24 : 18} /> : getInitial(person)}
+        </div>
+      )}
+
+      {bot ? (
+        <span className="absolute -right-0.5 bottom-0 rounded-full bg-[#10101a] p-0.5 text-emerald-400">
+          <Lock size={12} />
+        </span>
+      ) : (
+        <span
+          className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2"
+          style={{ background: '#22c55e', borderColor: '#0c0915' }}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const { chatId } = useParams();
@@ -31,38 +154,43 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [query, setQuery] = useState('');
+
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const currentUserId = user?._id ? String(user._id) : '';
 
-  // ─── Profile se auto open ─────────────────────────────────────────────────
   useEffect(() => {
     const { userId } = location.state || {};
     if (!userId) return;
+
     const startChat = async () => {
       try {
         const { data } = await api.post('/chats', { userId });
-        navigate(`/chat/${data.chat._id}`, { replace: true });
+        if (data?.chat?._id) {
+          navigate(`/chat/${data.chat._id}`, { replace: true });
+        }
       } catch (err) {
         console.error('Chat start error:', err);
       }
     };
-    startChat();
-  }, [location.state]);
 
-  // ─── Inbox ────────────────────────────────────────────────────────────────
+    startChat();
+  }, [location.state, navigate]);
+
   useEffect(() => {
     const fetchChats = async () => {
       try {
         const { data } = await api.get('/chats');
-        setChats(data.chats);
+        setChats(data.chats || []);
       } catch (err) {
         console.error('Chats fetch error:', err);
       }
     };
+
     fetchChats();
   }, []);
 
-  // ─── Suggestions ──────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
@@ -72,74 +200,116 @@ export default function ChatPage() {
         console.error('Suggestions error:', err);
       }
     };
+
     fetchSuggestions();
   }, []);
 
-  // ─── Messages ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {
+      setMessages([]);
+      return;
+    }
+
     const fetchMessages = async () => {
       setLoading(true);
       try {
         const { data } = await api.get(`/messages/${chatId}`);
-        setMessages(data.messages);
+        setMessages(data.messages || []);
       } catch (err) {
         console.error('Messages fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchMessages();
   }, [chatId]);
 
-  // ─── Socket ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!socket || !chatId) return;
+    if (!socket || !chatId || !currentUserId) return;
+
     socket.emit('chat:join', { chatId });
-    socket.on('message:new', (message) => {
-      if (message.chatId === chatId) setMessages(prev => [...prev, message]);
-      setChats(prev => prev.map(c =>
-        c._id === message.chatId
-          ? { ...c, lastMessage: message, lastMessageAt: message.createdAt }
-          : c
-      ));
-    });
-    socket.on('typing:start', ({ userId: tid }) => {
-      if (tid !== user._id) setTypingUser(tid);
-    });
+
+    const handleNewMessage = (message) => {
+      if (String(message.chatId) === String(chatId)) {
+        setMessages((prev) => {
+          if (prev.some((item) => item._id === message._id)) return prev;
+          return [...prev, message];
+        });
+      }
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          String(chat._id) === String(message.chatId)
+            ? { ...chat, lastMessage: message, lastMessageAt: message.createdAt }
+            : chat
+        )
+      );
+    };
+
+    const handleTypingStart = ({ userId }) => {
+      if (String(userId) !== currentUserId) setTypingUser(userId);
+    };
+
+    socket.on('message:new', handleNewMessage);
+    socket.on('typing:start', handleTypingStart);
     socket.on('typing:stop', () => setTypingUser(null));
+
     return () => {
-      socket.off('message:new');
-      socket.off('typing:start');
+      socket.off('message:new', handleNewMessage);
+      socket.off('typing:start', handleTypingStart);
       socket.off('typing:stop');
     };
-  }, [socket, chatId, user._id]);
+  }, [socket, chatId, currentUserId]);
 
-  // ─── Auto scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, typingUser]);
+
+  const getOtherUser = (chat) =>
+    chat?.participants?.find((person) => String(person._id) !== currentUserId);
+
+  const activeChat = useMemo(
+    () => chats.find((chat) => String(chat._id) === String(chatId)),
+    [chats, chatId]
+  );
+
+  const otherUser = activeChat ? getOtherUser(activeChat) : null;
+
+  const filteredChats = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) return chats;
+
+    return chats.filter((chat) => {
+      const other = getOtherUser(chat);
+      const name = `${other?.username || ''} ${other?.fullName || ''}`.toLowerCase();
+      return name.includes(value) || String(getMessageText(chat)).toLowerCase().includes(value);
+    });
+  }, [chats, query, currentUserId]);
 
   const sendMessage = () => {
-    if (!content.trim() || !socket || !chatId) return;
-    socket.emit('message:send', { chatId, content: content.trim() });
+    const text = content.trim();
+    if (!text || !socket || !chatId) return;
+
+    socket.emit('message:send', { chatId, content: text });
     setContent('');
     setShowEmoji(false);
   };
 
-  const handleTyping = (e) => {
-    setContent(e.target.value);
+  const handleTyping = (event) => {
+    setContent(event.target.value);
     if (!socket || !chatId) return;
+
     socket.emit('typing:start', { chatId });
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('typing:stop', { chatId });
-    }, 1500);
+    }, 1200);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       sendMessage();
     }
   };
@@ -147,471 +317,465 @@ export default function ChatPage() {
   const handleFollow = async (id) => {
     try {
       await userAPI.toggleFollow(id);
-      setSuggestions(prev => prev.filter(u => u._id !== id));
+      setSuggestions((prev) => prev.filter((item) => item._id !== id));
     } catch (err) {
       console.error('Follow error:', err);
     }
   };
 
-  const getOtherUser = (chat) =>
-    chat.participants?.find(p => p._id !== user._id);
+  const ConversationRow = ({ chat, compact = false }) => {
+    const other = getOtherUser(chat);
+    const selected = String(chat._id) === String(chatId);
+    const bot = chat._id === demoBot._id;
 
-  const formatTime = (date) => {
-    if (!date) return '';
-    const d = new Date(date);
-    const now = new Date();
-    const diff = now - d;
-    if (diff < 60000) return 'just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
+    return (
+      <button
+        type="button"
+        onClick={() => !bot && navigate(`/chat/${chat._id}`)}
+        className="group relative flex w-full items-center gap-3 rounded-none px-4 py-3 text-left transition"
+        style={{
+          background: selected
+            ? 'linear-gradient(90deg,rgba(147,51,234,.36),rgba(147,51,234,.13),transparent)'
+            : 'transparent',
+          borderLeft: selected ? '3px solid #a855f7' : '3px solid transparent',
+        }}
+      >
+        <Avatar person={bot ? demoBot : other} size={compact ? 'sm' : 'md'} bot={bot} />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="truncate text-[15px] font-semibold text-zinc-100">
+              {bot ? 'ShayeriBot' : other?.fullName || other?.username || 'Unknown'}
+              {bot && <span className="ml-1 text-emerald-400">✓</span>}
+            </p>
+            <span className="shrink-0 text-xs text-zinc-500">
+              {bot ? '' : formatTime(chat.lastMessageAt)}
+            </span>
+          </div>
+
+          <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-400">
+            {bot ? 'New ghazals and writing prompts for you.' : getMessageText(chat)}
+          </p>
+        </div>
+
+        {bot && <Lock size={15} className="text-zinc-500" />}
+      </button>
+    );
   };
 
-  const avatarUrl = (u) =>
-    u?.avatar || `https://ui-avatars.com/api/?name=${u?.username || '?'}&background=9333ea&color=fff`;
+  const ChatHeader = ({ mobile = false }) => (
+    <div
+      className="flex h-16 shrink-0 items-center gap-3 border-b px-4"
+      style={{
+        background: 'rgba(13,10,24,.92)',
+        borderColor: 'rgba(255,255,255,.07)',
+        backdropFilter: 'blur(18px)',
+      }}
+    >
+      {mobile && (
+        <button
+          type="button"
+          onClick={() => navigate('/chat')}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 hover:bg-white/5"
+        >
+          <ArrowLeft size={20} />
+        </button>
+      )}
 
-  const activeChat = chats.find(c => c._id === chatId);
-  const otherUser = activeChat ? getOtherUser(activeChat) : null;
+      <Avatar person={otherUser} size="sm" />
 
-  // ─── MOBILE: Inbox Screen ─────────────────────────────────────────────────
-  const InboxScreen = (
-    <div className="flex flex-col h-full" style={{ background: '#0b0814' }}>
-      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: '#1f1a2e' }}>
-        <h1 className="text-xl font-bold text-gray-100">Messages</h1>
-        <button className="text-gray-500 hover:text-gray-300"><Edit3 size={18} /></button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-zinc-100">
+          {otherUser?.fullName || otherUser?.username || 'Conversation'}
+        </p>
+        <p className="text-xs text-emerald-400">online</p>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 py-2" style={{ scrollbarWidth: 'none' }}>
-        {chats.length === 0 ? (
-          <div className="text-center mt-20 px-4">
-            <div className="text-5xl mb-3">💬</div>
-            <p className="text-sm text-gray-500">Koi message nahi abhi</p>
-            <p className="text-xs mt-1 text-gray-600">Kisi ke profile pe jaake Message dabao</p>
+
+      <button
+        type="button"
+        className="flex h-9 w-9 items-center justify-center rounded-xl text-purple-300 hover:bg-purple-500/10"
+      >
+        <Phone size={17} />
+      </button>
+      <button
+        type="button"
+        className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:bg-white/5"
+      >
+        <MoreVertical size={18} />
+      </button>
+    </div>
+  );
+
+  const MessageBubble = ({ message, index }) => {
+    const senderId = typeof message.sender === 'object' ? message.sender?._id : message.sender;
+    const isMe = String(senderId) === currentUserId;
+    const previous = messages[index - 1];
+    const showDay =
+      index === 0 ||
+      new Date(message.createdAt).toDateString() !== new Date(previous?.createdAt).toDateString();
+
+    return (
+      <div>
+        {showDay && (
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/5" />
+            <span className="rounded-full border border-white/5 bg-white/[.04] px-3 py-1 text-[11px] text-zinc-500">
+              {formatDay(message.createdAt)}
+            </span>
+            <div className="h-px flex-1 bg-white/5" />
           </div>
-        ) : chats.map(chat => {
-          const other = getOtherUser(chat);
-          return (
-            <div key={chat._id}
-              onClick={() => navigate(`/chat/${chat._id}`)}
-              className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer mb-1 transition-all hover:bg-[#151023]">
-              <div className="relative shrink-0">
-                <img src={avatarUrl(other)} alt={other?.username}
-                  className="w-12 h-12 rounded-full object-cover" />
-                <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
-                  style={{ background: '#22c55e', borderColor: '#0b0814' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline mb-0.5">
-                  <p className="font-semibold text-sm text-gray-200 truncate">
-                    {other?.fullName || other?.username}
-                  </p>
-                  <span className="text-[10px] text-gray-500 ml-2 shrink-0">
-                    {formatTime(chat.lastMessageAt)}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 truncate">
-                  {chat.lastMessage?.content || 'Chat shuru karo'}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        )}
+
+        <div className={cx('flex flex-col', isMe ? 'items-end' : 'items-start')}>
+          <div
+            className={cx(
+              'max-w-[78%] px-4 py-2.5 text-sm leading-relaxed shadow-lg md:max-w-[68%]',
+              isMe
+                ? 'rounded-[20px] rounded-br-md text-white'
+                : 'rounded-[20px] rounded-bl-md text-zinc-200'
+            )}
+            style={{
+              background: isMe
+                ? 'linear-gradient(145deg,#a855f7,#7c3aed)'
+                : 'linear-gradient(145deg,rgba(45,48,63,.96),rgba(30,34,48,.96))',
+              boxShadow: isMe
+                ? '0 12px 30px rgba(147,51,234,.28)'
+                : '0 12px 26px rgba(0,0,0,.18)',
+            }}
+          >
+            {message.content}
+          </div>
+
+          <div className="mt-1 flex items-center gap-1 px-1 text-[10px] text-zinc-500">
+            {isMe ? (
+              <>
+                <CheckCheck size={12} className="text-sky-400" />
+                <span>Sent by Me</span>
+              </>
+            ) : (
+              <span>
+                {message.sender?.username || otherUser?.username || 'Shayar'} · {formatTime(message.createdAt)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const MessageComposer = () => (
+    <div className="shrink-0 border-t border-white/5 bg-[#0d0a18]/95 px-3 py-3 backdrop-blur md:px-5">
+      {showEmoji && (
+        <div className="mb-3 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#191327] p-3">
+          {EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => setContent((prev) => prev + emoji)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-xl transition hover:bg-white/5 hover:scale-110"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+        >
+          <Paperclip size={19} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowEmoji((prev) => !prev)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-purple-300"
+        >
+          <Smile size={19} />
+        </button>
+
+        <button
+          type="button"
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-zinc-200 sm:flex"
+        >
+          <Mic size={19} />
+        </button>
+
+        <div className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[.06] px-4 py-2">
+          <input
+            value={content}
+            onChange={handleTyping}
+            onKeyDown={handleKeyDown}
+            placeholder="Message likho..."
+            className="h-6 w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={sendMessage}
+          disabled={!content.trim()}
+          className="flex h-10 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-semibold text-white shadow-lg transition disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ background: 'linear-gradient(145deg,#a855f7,#7c3aed)' }}
+        >
+          <Send size={16} />
+          <span className="hidden sm:inline">Send</span>
+        </button>
       </div>
     </div>
   );
 
-  // ─── MOBILE: Chat Screen ──────────────────────────────────────────────────
-  const ChatScreen = (
-    <div className="flex flex-col h-full" style={{ background: '#0f0b1a' }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0"
-        style={{ borderColor: '#1f1a2e', background: '#0f0b1a' }}>
-        <button onClick={() => navigate('/chat')}
-          className="text-gray-400 hover:text-white text-lg mr-1">←</button>
-        <div className="relative">
-          <img src={avatarUrl(otherUser)} alt={otherUser?.username}
-            className="w-10 h-10 rounded-full object-cover" />
-          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
-            style={{ background: '#22c55e', borderColor: '#0f0b1a' }} />
+  const ChatBody = () => (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ChatHeader mobile />
+
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 opacity-[.08]">
+          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-purple-300/30" />
+          <div className="absolute bottom-8 right-8 text-7xl font-serif text-purple-300/20">SG</div>
         </div>
-        <div>
-          <p className="font-semibold text-sm text-gray-100">
-            {otherUser?.fullName || otherUser?.username}
-          </p>
-          <p className="text-[11px] text-green-500">● online</p>
+
+        <div className="relative h-full overflow-y-auto px-4 py-4 md:px-6" style={{ scrollbarWidth: 'none' }}>
+          {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
+
+          {!loading && messages.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <MessageCircleIcon />
+              <p className="mt-4 text-sm font-semibold text-zinc-200">No messages yet</p>
+              <p className="mt-1 max-w-xs text-xs text-zinc-500">
+                Start with a sher, a salam, or just a simple hello.
+              </p>
+            </div>
+          )}
+
+          {messages.map((message, index) => (
+            <MessageBubble key={message._id || `${message.createdAt}-${index}`} message={message} index={index} />
+          ))}
+
+          {typingUser && (
+            <div className="mt-3 flex w-fit items-center gap-2 rounded-full border border-white/5 bg-white/[.06] px-4 py-2 text-xs text-zinc-400">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:300ms]" />
+              </span>
+              Typing...
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
-        style={{ scrollbarWidth: 'none' }}>
-        {loading && <p className="text-center text-sm text-gray-500">Loading...</p>}
-        {messages.map((msg, i) => {
-          const isMe = msg.sender?._id === user._id || msg.sender === user._id;
-          const showDate = i === 0 || (
-            new Date(msg.createdAt).toDateString() !==
-            new Date(messages[i - 1]?.createdAt).toDateString()
-          );
-          return (
-            <div key={msg._id}>
-              {showDate && (
-                <div className="flex items-center gap-2 my-3">
-                  <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
-                  <span className="text-[11px] text-gray-600 bg-[#1a1429] px-3 py-1 rounded-full">
-                    {new Date(msg.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' })}
-                  </span>
-                  <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
-                </div>
-              )}
-              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div className="max-w-[75%] px-4 py-2.5 text-sm leading-relaxed rounded-2xl"
-                  style={isMe ? {
-                    background: '#9d4edd',
-                    color: 'white',
-                    borderBottomRightRadius: '4px',
-                    boxShadow: '0 0 20px rgba(157,78,221,0.25)'
-                  } : {
-                    background: '#1a1429',
-                    color: '#d1d5db',
-                    borderBottomLeftRadius: '4px',
-                    border: '1px solid rgba(255,255,255,0.05)'
-                  }}>
-                  {msg.content}
-                </div>
-                <div className="flex items-center gap-1 mt-1 px-1 text-[10px] text-gray-500">
-                  {isMe
-                    ? <><CheckCheck size={11} className="text-blue-400" /><span>Sent Me</span></>
-                    : <span>{msg.sender?.username} · {formatTime(msg.createdAt)}</span>
-                  }
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {typingUser && (
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-[#1a1429] w-fit px-4 py-2 rounded-full border border-white/5">
-            <div className="flex gap-1">
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <span>Typing...</span>
+      <MessageComposer />
+    </div>
+  );
+
+  const Inbox = ({ desktop = false }) => (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-5 pb-3 pt-5">
+        <div className="flex items-center justify-between">
+          <h1 className={cx('font-semibold tracking-tight text-zinc-100', desktop ? 'text-lg' : 'text-3xl')}>
+            Messages
+          </h1>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-2xl text-zinc-400 hover:bg-white/5"
+          >
+            <Edit3 size={18} />
+          </button>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.05] px-3 py-2">
+          <Search size={16} className="text-zinc-500" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search conversations"
+            className="min-w-0 flex-1 bg-transparent text-sm text-zinc-200 outline-none placeholder:text-zinc-600"
+          />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto pb-3" style={{ scrollbarWidth: 'none' }}>
+        <ConversationRow chat={{ _id: demoBot._id, participants: [demoBot], lastMessage: null }} />
+
+        {filteredChats.length === 0 ? (
+          <div className="mx-5 mt-8 rounded-3xl border border-white/10 bg-white/[.04] px-5 py-8 text-center">
+            <MessageCircleIcon />
+            <p className="mt-4 text-sm font-semibold text-zinc-200">Koi message nahi abhi</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              Kisi ke profile pe jaake message start karo.
+            </p>
           </div>
+        ) : (
+          filteredChats.map((chat) => <ConversationRow key={chat._id} chat={chat} compact={desktop} />)
         )}
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Emoji picker */}
-      {showEmoji && (
-        <div className="px-4 pb-2">
-          <div className="p-3 rounded-2xl flex flex-wrap gap-2"
-            style={{ background: '#1a1429', border: '1px solid #2a1f40' }}>
-            {EMOJIS.map(emoji => (
-              <button key={emoji}
-                onClick={() => setContent(prev => prev + emoji)}
-                className="text-xl hover:scale-125 transition-transform">
-                {emoji}
-              </button>
-            ))}
-          </div>
+      {!desktop && (
+        <div className="mx-5 mb-3 rounded-full border border-white/10 bg-white/[.08] px-4 py-2 text-center text-sm text-zinc-300">
+          Showing recent conversations only
         </div>
       )}
+    </div>
+  );
 
-      {/* Input */}
-      <div className="px-4 py-3 pb-4 shrink-0 border-t" style={{ borderColor: '#1f1a2e' }}>
-        <div className="flex items-center gap-2 rounded-2xl p-1.5 pr-2 border"
-          style={{ background: '#1a1429', borderColor: '#2a1f40' }}>
-          <button onClick={() => setShowEmoji(p => !p)}
-            className="p-2 rounded-xl hover:bg-white/5"
-            style={{ color: showEmoji ? '#b026ff' : '#6b7280' }}>
-            <span className="text-lg">😊</span>
-          </button>
-          <input
-            type="text"
-            placeholder="Message likho..."
-            value={content}
-            onChange={handleTyping}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent text-gray-200 text-sm focus:outline-none px-2 placeholder-gray-600"
-          />
-          <button onClick={sendMessage} disabled={!content.trim()}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
-            style={{ background: '#1f1533', border: '1px solid rgba(176,38,255,0.3)', color: '#b026ff' }}>
-            Send
-          </button>
+  const RightPanel = () => (
+    <aside className="hidden w-[282px] shrink-0 border-l border-white/5 bg-[#0c0915] p-4 xl:block">
+      <div className="rounded-3xl border border-white/10 bg-white/[.04] p-4">
+        <div className="flex items-center gap-3">
+          <Avatar person={user} size="sm" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-zinc-100">{user?.username || 'Shayar'}</p>
+            <p className="text-xs text-zinc-500">{user?.fullName || 'Poetry account'}</p>
+          </div>
+          <Link to="/profile/edit" className="text-xs font-semibold text-purple-300">
+            Edit
+          </Link>
         </div>
       </div>
-    </div>
+
+      <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-zinc-600">Categories</p>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {CATEGORIES.map((category) => (
+          <Link
+            key={category.name}
+            to={`/explore?category=${category.name}`}
+            className="rounded-2xl border border-white/5 px-2 py-3 text-center transition hover:-translate-y-0.5 hover:border-purple-400/30"
+            style={{ background: category.bg }}
+          >
+            <category.icon size={18} className="mx-auto" style={{ color: category.color }} />
+            <span className="mt-1 block truncate text-[10px] font-medium text-zinc-300">{category.name}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-[.18em] text-zinc-600">Suggested Shayers</p>
+        <Link to="/explore" className="text-xs text-zinc-500 hover:text-zinc-300">
+          See all
+        </Link>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {suggestions.slice(0, 5).map((item) => (
+          <div key={item._id} className="flex items-center gap-3 rounded-2xl bg-white/[.04] p-2.5">
+            <Link to={`/profile/${item.username}`}>
+              <Avatar person={item} size="sm" />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <Link to={`/profile/${item.username}`} className="block truncate text-sm font-semibold text-zinc-200">
+                {item.username}
+              </Link>
+              <p className="text-[11px] text-zinc-500">{item.followersCount || 0} followers</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleFollow(item._id)}
+              className="rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Follow
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 rounded-3xl border border-purple-400/10 bg-purple-500/[.06] p-4">
+        <Sparkles size={18} className="text-purple-300" />
+        <p className="mt-2 text-sm font-semibold text-zinc-100">Poetry flows better in conversation.</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+          Share a line, ask for feedback, or continue a thought.
+        </p>
+      </div>
+    </aside>
   );
 
   return (
     <>
-      {/* ── MOBILE VIEW ── */}
-      <div className="flex md:hidden h-[calc(100vh-4rem)]">
-        {chatId ? ChatScreen : InboxScreen}
+      <div className="md:hidden h-[calc(100vh-4rem)] overflow-hidden bg-[#090711] text-zinc-100">
+        {chatId ? <ChatBody /> : <Inbox />}
       </div>
 
-      {/* ── DESKTOP VIEW ── */}
-      <div className="hidden md:flex h-screen w-full overflow-hidden"
-        style={{ background: '#0b0814' }}>
+      <div className="hidden h-screen w-full overflow-hidden bg-[#090711] text-zinc-100 md:flex">
+        <aside className="w-[320px] shrink-0 border-r border-white/5 bg-[#0c0915]">
+          <Inbox desktop />
+        </aside>
 
-        {/* Left: Inbox */}
-        <div className="w-[280px] flex flex-col border-r shrink-0"
-          style={{ borderColor: '#1f1a2e', background: '#0b0814' }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b"
-            style={{ borderColor: '#1f1a2e' }}>
-            <h1 className="text-xl font-bold text-gray-100">Messages</h1>
-            <button className="text-gray-500 hover:text-gray-300"><Edit3 size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 py-2" style={{ scrollbarWidth: 'none' }}>
-            {chats.length === 0 ? (
-              <div className="text-center mt-16 px-4">
-                <div className="text-4xl mb-3">💬</div>
-                <p className="text-sm text-gray-500">Koi chat nahi</p>
+        <main className="min-w-0 flex-1">
+          {chatId ? (
+            <div className="flex h-full flex-col">
+              <div className="hidden md:block">
+                <ChatHeader />
               </div>
-            ) : chats.map(chat => {
-              const other = getOtherUser(chat);
-              const isSelected = chatId === chat._id;
-              return (
-                <div key={chat._id}
-                  onClick={() => navigate(`/chat/${chat._id}`)}
-                  className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer mb-1 transition-all"
-                  style={{
-                    background: isSelected ? '#151023' : 'transparent',
-                    border: isSelected ? '1px solid #2a1f40' : '1px solid transparent'
-                  }}>
-                  <div className="relative shrink-0">
-                    <img src={avatarUrl(other)} alt={other?.username}
-                      className="w-11 h-11 rounded-full object-cover" />
-                    <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
-                      style={{ background: '#22c55e', borderColor: '#0b0814' }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <p className="font-semibold text-sm text-gray-200 truncate">
-                        {other?.fullName || other?.username}
-                      </p>
-                      <span className="text-[10px] text-gray-500 ml-2 shrink-0">
-                        {formatTime(chat.lastMessageAt)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">
-                      {chat.lastMessage?.content || 'Chat shuru karo'}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Middle: Chat */}
-        <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#0f0b1a' }}>
-          {!chatId ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-600">
-              <div className="text-6xl mb-4">💬</div>
-              <p className="text-lg font-semibold">Koi chat select karo</p>
-              <p className="text-sm mt-1">Ya kisi ke profile se message bhejo</p>
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 opacity-[.08]">
+                  <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-purple-300/30" />
+                  <div className="absolute bottom-8 right-10 text-8xl font-serif text-purple-300/20">SG</div>
+                </div>
+
+                <div className="relative h-full overflow-y-auto px-6 py-5" style={{ scrollbarWidth: 'none' }}>
+                  {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
+
+                  {!loading && messages.length === 0 && (
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <MessageCircleIcon />
+                      <p className="mt-4 text-sm font-semibold text-zinc-200">No messages yet</p>
+                      <p className="mt-1 max-w-xs text-xs text-zinc-500">
+                        Start with a sher, a salam, or just a simple hello.
+                      </p>
+                    </div>
+                  )}
+
+                  {messages.map((message, index) => (
+                    <MessageBubble
+                      key={message._id || `${message.createdAt}-${index}`}
+                      message={message}
+                      index={index}
+                    />
+                  ))}
+
+                  {typingUser && (
+                    <div className="mt-3 flex w-fit items-center gap-2 rounded-full border border-white/5 bg-white/[.06] px-4 py-2 text-xs text-zinc-400">
+                      <span className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400 [animation-delay:300ms]" />
+                      </span>
+                      Typing...
+                    </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+
+              <MessageComposer />
             </div>
           ) : (
-            <>
-              {/* Header */}
-              <div className="h-16 flex items-center gap-3 px-6 border-b shrink-0"
-                style={{ borderColor: '#1f1a2e' }}>
-                <div className="relative">
-                  <img src={avatarUrl(otherUser)} alt={otherUser?.username}
-                    className="w-10 h-10 rounded-full object-cover" />
-                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
-                    style={{ background: '#22c55e', borderColor: '#0f0b1a' }} />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm text-gray-100">
-                    {otherUser?.fullName || otherUser?.username}
-                  </p>
-                  <p className="text-[11px] text-green-500">● online</p>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-3"
-                style={{ scrollbarWidth: 'none' }}>
-                {loading && <p className="text-center text-sm text-gray-500">Loading...</p>}
-                {messages.map((msg, i) => {
-                  const isMe = msg.sender?._id === user._id || msg.sender === user._id;
-                  const showDate = i === 0 || (
-                    new Date(msg.createdAt).toDateString() !==
-                    new Date(messages[i - 1]?.createdAt).toDateString()
-                  );
-                  return (
-                    <div key={msg._id}>
-                      {showDate && (
-                        <div className="flex items-center gap-2 my-3">
-                          <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
-                          <span className="text-[11px] text-gray-600 bg-[#1a1429] px-3 py-1 rounded-full">
-                            {new Date(msg.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' })}
-                          </span>
-                          <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
-                        </div>
-                      )}
-                      <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className="max-w-[70%] px-4 py-3 text-sm leading-relaxed rounded-2xl"
-                          style={isMe ? {
-                            background: '#9d4edd',
-                            color: 'white',
-                            borderBottomRightRadius: '4px',
-                            boxShadow: '0 0 20px rgba(157,78,221,0.25)'
-                          } : {
-                            background: '#1a1429',
-                            color: '#d1d5db',
-                            borderBottomLeftRadius: '4px',
-                            border: '1px solid rgba(255,255,255,0.05)'
-                          }}>
-                          {msg.content}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1 px-1 text-[10px] text-gray-500">
-                          {isMe
-                            ? <><CheckCheck size={11} className="text-blue-400" /><span>Sent by Me</span></>
-                            : <span>{msg.sender?.username} · {formatTime(msg.createdAt)}</span>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {typingUser && (
-                  <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-[#1a1429] w-fit px-4 py-2 rounded-full border border-white/5">
-                    <div className="flex gap-1">
-                      <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
-                      <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                    <span>Typing...</span>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Emoji picker */}
-              {showEmoji && (
-                <div className="px-4 pb-2">
-                  <div className="p-3 rounded-2xl flex flex-wrap gap-2"
-                    style={{ background: '#1a1429', border: '1px solid #2a1f40' }}>
-                    {EMOJIS.map(emoji => (
-                      <button key={emoji}
-                        onClick={() => setContent(prev => prev + emoji)}
-                        className="text-xl hover:scale-125 transition-transform">
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Input */}
-              <div className="px-6 py-4 shrink-0 border-t" style={{ borderColor: '#1f1a2e' }}>
-                <div className="flex items-center gap-2 rounded-2xl p-1.5 pr-2 border"
-                  style={{ background: '#1a1429', borderColor: '#2a1f40' }}>
-                  <button onClick={() => setShowEmoji(p => !p)}
-                    className="p-2.5 rounded-xl hover:bg-white/5"
-                    style={{ color: showEmoji ? '#b026ff' : '#6b7280' }}>
-                    <span className="text-lg">😊</span>
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="Message likho..."
-                    value={content}
-                    onChange={handleTyping}
-                    onKeyDown={handleKeyDown}
-                    className="flex-1 bg-transparent text-gray-200 text-sm focus:outline-none px-2 placeholder-gray-600"
-                  />
-                  <button onClick={sendMessage} disabled={!content.trim()}
-                    className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-40"
-                    style={{ background: '#1f1533', border: '1px solid rgba(176,38,255,0.3)', color: '#b026ff' }}>
-                    Send
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Right: Info Panel */}
-        <div className="w-[280px] flex flex-col border-l shrink-0 overflow-y-auto p-5"
-          style={{ borderColor: '#1f1a2e', background: '#0b0814', scrollbarWidth: 'none' }}>
-
-          {/* Profile card */}
-          <div className="flex items-center justify-between p-4 rounded-2xl mb-6 border"
-            style={{ background: '#151023', borderColor: '#1f1a2e' }}>
-            <div className="flex items-center gap-3">
-              <img src={avatarUrl(user)} alt={user?.username}
-                className="w-10 h-10 rounded-full object-cover" />
-              <div>
-                <p className="text-sm font-semibold text-white">{user?.username}</p>
-                <p className="text-[10px] text-gray-500">{user?.fullName || 'Shayar'}</p>
-              </div>
+            <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+              <MessageCircleIcon />
+              <p className="mt-5 text-lg font-semibold text-zinc-100">Select a conversation</p>
+              <p className="mt-1 max-w-sm text-sm leading-relaxed text-zinc-500">
+                Open a chat from the left, or start one from a poet profile.
+              </p>
             </div>
-            <Link to="/profile/edit"
-              className="text-[11px] px-3 py-1.5 rounded-lg font-medium"
-              style={{ color: '#b026ff', background: '#1f1533' }}>
-              Edit
-            </Link>
-          </div>
+          )}
+        </main>
 
-          {/* Categories */}
-          <h3 className="text-[11px] font-bold text-gray-600 tracking-widest mb-4 uppercase">
-            Categories
-          </h3>
-          <div className="grid grid-cols-3 gap-2 mb-6">
-            {CATEGORIES.map((cat, i) => (
-              <Link to={`/explore?category=${cat.name}`} key={i}
-                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl ${cat.bg} hover:brightness-110 transition-all border border-white/5`}>
-                <cat.icon size={18} className={`${cat.color} mb-1.5`} />
-                <span className="text-[10px] font-medium text-gray-300">{cat.name}</span>
-              </Link>
-            ))}
-          </div>
-
-          {/* Suggested Shayers */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[11px] font-bold text-gray-600 tracking-widest uppercase">
-              Suggested Shayers
-            </h3>
-            <Link to="/explore" className="text-[10px] text-gray-400 hover:text-white">
-              See All
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {suggestions.slice(0, 5).map(u => (
-              <div key={u._id}
-                className="flex items-center gap-3 p-2.5 rounded-2xl transition-colors"
-                style={{ background: '#110d1c' }}>
-                <Link to={`/profile/${u.username}`}>
-                  <img src={avatarUrl(u)} alt={u.username}
-                    className="w-9 h-9 rounded-xl object-cover" />
-                </Link>
-                <div className="flex-1 min-w-0">
-                  <Link to={`/profile/${u.username}`}>
-                    <p className="text-sm font-semibold text-gray-200 truncate">{u.username}</p>
-                  </Link>
-                  <p className="text-[10px] text-gray-500">{u.followersCount ?? 0} followers</p>
-                </div>
-                <button onClick={() => handleFollow(u._id)}
-                  className="text-[11px] px-3 py-1.5 rounded-lg font-medium text-white"
-                  style={{ background: '#b026ff' }}>
-                  Follow
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <div className="mt-auto pt-6 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-gray-600">
-            <Link to="/policies/terms" className="hover:text-gray-400">Terms</Link>
-            <Link to="/policies/privacy" className="hover:text-gray-400">Privacy</Link>
-            <Link to="/policies/guidelines" className="hover:text-gray-400">Guidelines</Link>
-            <p className="w-full text-center mt-2">© 2026 ShayeriGram • Made with ✦ for Shayars</p>
-          </div>
-        </div>
+        <RightPanel />
       </div>
     </>
+  );
+}
+
+function MessageCircleIcon() {
+  return (
+    <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-purple-400/20 bg-purple-500/10 text-purple-300">
+      <Smile size={28} />
+    </div>
   );
 }
