@@ -161,6 +161,86 @@ const initSocket = (io) => {
       });
     });
 
+
+
+    // ─── Chat: Message send karo ──────────────────────────────────────────
+    handleEvent('message:send', async ({ chatId, content } = {}) => {
+      try {
+        if (typeof chatId !== 'string' || !chatId) return;
+        if (typeof content !== 'string' || !content.trim()) return;
+
+        // Verify karo user is chat ka participant hai
+        const chat = await Chat.findOne({
+          _id: chatId,
+          participants: userId
+        });
+        if (!chat) {
+          socket.emit('chat:error', { message: 'Chat nahi mili.' });
+          return;
+        }
+
+        // Message DB mein save karo
+        const message = await Message.create({
+          chatId,
+          sender: userId,
+          content: content.trim().slice(0, 2000),
+          type: 'text'
+        });
+
+        await message.populate('sender', 'username fullName avatar');
+
+        // Chat ka lastMessage update karo
+        await Chat.findByIdAndUpdate(chatId, {
+          lastMessage: message._id,
+          lastMessageAt: new Date()
+        });
+
+        // Saare participants ko emit karo
+        io.to(`chat_${chatId}`).emit('message:new', message);
+
+      } catch (err) {
+        socket.emit('chat:error', { message: 'Message send nahi hua.' });
+      }
+    });
+
+    // ─── Chat: Room join karo ─────────────────────────────────────────────
+    handleEvent('chat:join', async ({ chatId } = {}) => {
+      try {
+        if (typeof chatId !== 'string') return;
+        if (!/^[a-f0-9]{24}$/.test(chatId)) return;
+
+        // Verify karo user participant hai
+        const chat = await Chat.findOne({
+          _id: chatId,
+          participants: userId
+        });
+        if (!chat) {
+          socket.emit('chat:error', { message: 'Unauthorized.' });
+          return;
+        }
+
+        socket.join(`chat_${chatId}`);
+      } catch (err) {
+        socket.emit('chat:error', { message: 'Chat join nahi hua.' });
+      }
+    });
+
+    // ─── Chat: Typing indicator ───────────────────────────────────────────
+    handleEvent('typing:start', ({ chatId } = {}) => {
+      if (typeof chatId !== 'string') return;
+      socket.to(`chat_${chatId}`).emit('typing:start', {
+        userId,
+        chatId
+      });
+    });
+
+    handleEvent('typing:stop', ({ chatId } = {}) => {
+      if (typeof chatId !== 'string') return;
+      socket.to(`chat_${chatId}`).emit('typing:stop', {
+        userId,
+        chatId
+      });
+    });
     // ─── Disconnect ───────────────────────────────────────────────────────
     socket.on('disconnect', (reason) => {
       // ✅ Decrement per-user connection count
