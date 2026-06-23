@@ -53,7 +53,8 @@ export default function MobileBottomNav({ notifCount = 0 }) {
           </div>
           <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>Create</span>
         </button>
-
+         {/* Chat */}
+        {tab('/chat', '💬', 'Chat')}
         {/* Notifications */}
         <Link to="/notifications" className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 relative">
           <span className="text-xl">🔔</span>
