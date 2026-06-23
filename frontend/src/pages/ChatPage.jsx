@@ -4,6 +4,20 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { userAPI } from '../services/api';
 import api from '../services/api';
+import {
+  Home, Search, Plus, MessageCircle, User,
+  Settings, LogOut, Heart, Droplets, Zap,
+  Star, Flame, Ghost, Edit3, CheckCheck
+} from 'lucide-react';
+
+const CATEGORIES = [
+  { name: 'Love',       icon: Heart,     color: 'text-red-500',    bg: 'bg-[#2A1625]' },
+  { name: 'Sad',        icon: Droplets,  color: 'text-blue-400',   bg: 'bg-[#1A233A]' },
+  { name: 'Motivational', icon: Zap,     color: 'text-yellow-500', bg: 'bg-[#2D281C]' },
+  { name: 'Spiritual',  icon: Star,      color: 'text-teal-400',   bg: 'bg-[#182A2A]' },
+  { name: 'Poetry',     icon: Flame,     color: 'text-orange-500', bg: 'bg-[#2D201A]' },
+  { name: 'Funny',      icon: Ghost,     color: 'text-purple-400', bg: 'bg-[#251A3A]' },
+];
 
 export default function ChatPage() {
   const { chatId } = useParams();
@@ -24,7 +38,7 @@ export default function ChatPage() {
 
   const EMOJIS = ['😀','😂','😍','🥰','😭','😎','🙏','❤️','🔥','✨','💜','🎶','📜','🌹','💫','🥺','😊','🤣','💯','🎉'];
 
-  // ─── Profile se aaya hai to chat auto-open ────────────────────────────────
+  // ─── Profile se auto open ─────────────────────────────────────────────────
   useEffect(() => {
     const { userId } = location.state || {};
     if (!userId) return;
@@ -52,7 +66,7 @@ export default function ChatPage() {
     fetchChats();
   }, []);
 
-  // ─── Suggested shayers ────────────────────────────────────────────────────
+  // ─── Suggestions load ─────────────────────────────────────────────────────
   useEffect(() => {
     const fetchSuggestions = async () => {
       try {
@@ -82,7 +96,7 @@ export default function ChatPage() {
     fetchMessages();
   }, [chatId]);
 
-  // ─── Socket events ────────────────────────────────────────────────────────
+  // ─── Socket ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket || !chatId) return;
     socket.emit('chat:join', { chatId });
@@ -115,7 +129,7 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ─── Send message ─────────────────────────────────────────────────────────
+  // ─── Send ─────────────────────────────────────────────────────────────────
   const sendMessage = () => {
     if (!content.trim() || !socket || !chatId) return;
     socket.emit('message:send', { chatId, content: content.trim() });
@@ -123,7 +137,6 @@ export default function ChatPage() {
     setShowEmoji(false);
   };
 
-  // ─── Typing handler ───────────────────────────────────────────────────────
   const handleTyping = (e) => {
     setContent(e.target.value);
     if (!socket || !chatId) return;
@@ -141,7 +154,6 @@ export default function ChatPage() {
     }
   };
 
-  // ─── Follow suggestion ────────────────────────────────────────────────────
   const handleFollow = async (id) => {
     try {
       await userAPI.toggleFollow(id);
@@ -151,7 +163,6 @@ export default function ChatPage() {
     }
   };
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
   const getOtherUser = (chat) =>
     chat.participants?.find(p => p._id !== user._id);
 
@@ -168,33 +179,39 @@ export default function ChatPage() {
 
   const activeChat = chats.find(c => c._id === chatId);
   const otherUser = activeChat ? getOtherUser(activeChat) : null;
+  const avatarUrl = (u) =>
+    u?.avatar || `https://ui-avatars.com/api/?name=${u?.username || '?'}&background=9333ea&color=fff`;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] md:h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex h-screen w-full overflow-hidden"
+      style={{ background: '#0b0814', color: '#e2e8f0' }}>
 
       {/* ── LEFT: Inbox ── */}
-      <div className={`${chatId ? 'hidden md:flex' : 'flex'} w-full md:w-80 flex-col border-r`}
-        style={{ borderColor: 'var(--border)' }}>
+      <div className={`${chatId ? 'hidden md:flex' : 'flex'} w-full md:w-[300px] flex-col border-r shrink-0`}
+        style={{ borderColor: '#1f1a2e' }}>
 
         {/* Header */}
-        <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Messages</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b"
+          style={{ borderColor: '#1f1a2e' }}>
+          <h1 className="text-xl font-bold text-gray-100">Messages</h1>
+          <button className="text-gray-500 hover:text-gray-300">
+            <Edit3 size={18} />
+          </button>
         </div>
 
         {/* Chat list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-3 py-2"
+          style={{ scrollbarWidth: 'none' }}>
           {chats.length === 0 && (
-            <div className="text-center mt-16 px-6">
+            <div className="text-center mt-16 px-4">
               <div className="text-5xl mb-3">💬</div>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Koi message nahi abhi
-              </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm text-gray-500">Koi message nahi abhi</p>
+              <p className="text-xs mt-1 text-gray-600">
                 Kisi ke profile pe jaake Message button dabao
               </p>
             </div>
           )}
+
           {chats.map(chat => {
             const other = getOtherUser(chat);
             const isSelected = chatId === chat._id;
@@ -202,42 +219,31 @@ export default function ChatPage() {
               <div
                 key={chat._id}
                 onClick={() => navigate(`/chat/${chat._id}`)}
-                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all"
+                className="flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all mb-1"
                 style={{
-                  background: isSelected
-                    ? 'linear-gradient(135deg, rgba(147,51,234,0.2), rgba(124,58,237,0.1))'
-                    : 'transparent',
-                  borderLeft: isSelected ? '2px solid #9333ea' : '2px solid transparent'
+                  background: isSelected ? '#151023' : 'transparent',
+                  border: isSelected ? '1px solid #2a1f40' : '1px solid transparent'
                 }}
               >
-                {/* Avatar with online dot */}
                 <div className="relative shrink-0">
                   <img
-                    src={other?.avatar || `https://ui-avatars.com/api/?name=${other?.username}&background=9333ea&color=fff`}
+                    src={avatarUrl(other)}
                     alt={other?.username}
-                    className="w-12 h-12 rounded-full object-cover"
+                    className="w-11 h-11 rounded-full object-cover"
                   />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
-                    style={{
-                      background: '#22c55e',
-                      borderColor: 'var(--bg-primary)'
-                    }} />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2"
+                    style={{ background: '#22c55e', borderColor: '#0b0814' }} />
                 </div>
-
-                {/* Name + last message */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <p className="font-semibold text-sm truncate"
-                      style={{ color: 'var(--text-primary)' }}>
+                  <div className="flex justify-between items-baseline mb-0.5">
+                    <p className="font-semibold text-sm truncate text-gray-200">
                       {other?.fullName || other?.username}
                     </p>
-                    <span className="text-xs shrink-0 ml-2"
-                      style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-[10px] text-gray-500 ml-2 shrink-0">
                       {formatTime(chat.lastMessageAt)}
                     </span>
                   </div>
-                  <p className="text-xs truncate mt-0.5"
-                    style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs text-gray-500 truncate">
                     {chat.lastMessage?.content || 'Chat shuru karo'}
                   </p>
                 </div>
@@ -248,10 +254,11 @@ export default function ChatPage() {
       </div>
 
       {/* ── MIDDLE: Chat Window ── */}
-      <div className={`${chatId ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
+      <div className={`${chatId ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-hidden`}
+        style={{ background: '#0f0b1a' }}>
+
         {!chatId ? (
-          <div className="flex-1 flex flex-col items-center justify-center"
-            style={{ color: 'var(--text-muted)' }}>
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-600">
             <div className="text-6xl mb-4">💬</div>
             <p className="text-lg font-semibold">Koi chat select karo</p>
             <p className="text-sm mt-1">Ya kisi ke profile se message bhejo</p>
@@ -259,37 +266,40 @@ export default function ChatPage() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b"
-              style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              {/* Back button — mobile only */}
-              <button
-                className="md:hidden mr-1 text-gray-400 hover:text-white"
-                onClick={() => navigate('/chat')}>
-                ←
-              </button>
-              <div className="relative">
-                <img
-                  src={otherUser?.avatar || `https://ui-avatars.com/api/?name=${otherUser?.username}&background=9333ea&color=fff`}
-                  alt={otherUser?.username}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
-                  style={{ background: '#22c55e', borderColor: 'var(--bg-card)' }} />
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                  {otherUser?.fullName || otherUser?.username}
-                </p>
-                <p className="text-xs" style={{ color: '#22c55e' }}>● online</p>
+            <div className="h-16 flex items-center justify-between px-6 border-b shrink-0"
+              style={{ borderColor: '#1f1a2e', background: '#0f0b1a' }}>
+              <div className="flex items-center gap-3">
+                <button
+                  className="md:hidden mr-1 text-gray-400 hover:text-white"
+                  onClick={() => navigate('/chat')}>
+                  ←
+                </button>
+                <div className="relative">
+                  <img
+                    src={avatarUrl(otherUser)}
+                    alt={otherUser?.username}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
+                    style={{ background: '#22c55e', borderColor: '#0f0b1a' }} />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-gray-100">
+                    {otherUser?.fullName || otherUser?.username}
+                  </p>
+                  <p className="text-[11px] text-green-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                    online
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4"
+              style={{ scrollbarWidth: 'none' }}>
               {loading && (
-                <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Loading...
-                </p>
+                <p className="text-center text-sm text-gray-500">Loading...</p>
               )}
 
               {messages.map((msg, i) => {
@@ -300,54 +310,50 @@ export default function ChatPage() {
                 );
                 return (
                   <div key={msg._id}>
-                    {/* Date separator */}
                     {showDate && (
                       <div className="flex items-center gap-2 my-3">
-                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                        <span className="text-xs px-2" style={{ color: 'var(--text-muted)' }}>
+                        <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
+                        <span className="text-[11px] text-gray-600 bg-[#1a1429] px-3 py-1 rounded-full">
                           {new Date(msg.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' })}
                         </span>
-                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                        <div className="flex-1 h-px" style={{ background: '#1f1a2e' }} />
                       </div>
                     )}
-
-                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
-                        <div
-                          className="px-4 py-2.5 rounded-2xl text-sm"
-                          style={isMe ? {
-                            background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
-                            color: 'white',
-                            borderBottomRightRadius: '4px'
-                          } : {
-                            background: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border)',
-                            borderBottomLeftRadius: '4px'
-                          }}>
-                          {msg.content}
-                        </div>
-                        <span className="text-xs mt-1 px-1"
-                          style={{ color: 'var(--text-muted)' }}>
-                          {isMe ? 'Sent by Me' : `${msg.sender?.username || ''} · ${formatTime(msg.createdAt)}`}
-                        </span>
+                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div
+                        className="max-w-[70%] px-4 py-3 text-sm leading-relaxed rounded-2xl"
+                        style={isMe ? {
+                          background: '#9d4edd',
+                          color: 'white',
+                          borderBottomRightRadius: '4px',
+                          boxShadow: '0 0 20px rgba(157,78,221,0.3)'
+                        } : {
+                          background: '#1a1429',
+                          color: '#d1d5db',
+                          borderBottomLeftRadius: '4px',
+                          border: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                        {msg.content}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 px-1 text-[10px] text-gray-500">
+                        {isMe
+                          ? <><CheckCheck size={12} className="text-blue-400" /> Sent by Me</>
+                          : <span>{msg.sender?.username} · {formatTime(msg.createdAt)}</span>
+                        }
                       </div>
                     </div>
                   </div>
                 );
               })}
 
-              {/* Typing indicator */}
               {typingUser && (
-                <div className="flex justify-start">
-                  <div className="px-4 py-2.5 rounded-2xl text-sm italic"
-                    style={{
-                      background: 'var(--bg-card)',
-                      color: 'var(--text-muted)',
-                      border: '1px solid var(--border)'
-                    }}>
-                    ••• typing...
+                <div className="flex items-center gap-2 text-gray-500 text-[11px] bg-[#1a1429] w-fit px-4 py-2 rounded-full border border-white/5">
+                  <div className="flex gap-1 items-center">
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
+                  <span className="ml-1">Typing...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -357,10 +363,9 @@ export default function ChatPage() {
             {showEmoji && (
               <div className="px-4 pb-2">
                 <div className="p-3 rounded-2xl flex flex-wrap gap-2"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                  style={{ background: '#1a1429', border: '1px solid #2a1f40' }}>
                   {EMOJIS.map(emoji => (
-                    <button
-                      key={emoji}
+                    <button key={emoji}
                       onClick={() => setContent(prev => prev + emoji)}
                       className="text-xl hover:scale-125 transition-transform">
                       {emoji}
@@ -371,98 +376,140 @@ export default function ChatPage() {
             )}
 
             {/* Input bar */}
-            <div className="px-4 py-3 border-t flex items-end gap-2"
-              style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-              {/* Emoji button */}
-              <button
-                onClick={() => setShowEmoji(prev => !prev)}
-                className="text-xl pb-1.5 transition-transform hover:scale-110"
-                style={{ color: showEmoji ? '#9333ea' : 'var(--text-muted)' }}>
-                😊
-              </button>
-
-              {/* Text input */}
-              <textarea
-                value={content}
-                onChange={handleTyping}
-                onKeyDown={handleKeyDown}
-                placeholder="Message likho..."
-                rows={1}
-                className="flex-1 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-purple-500"
-                style={{
-                  background: 'var(--bg-primary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border)'
-                }}
-              />
-
-              {/* Send button */}
-              <button
-                onClick={sendMessage}
-                disabled={!content.trim()}
-                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-                style={{
-                  background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
-                  color: 'white'
-                }}>
-                Send
-              </button>
+            <div className="p-4 px-6 pb-6 shrink-0">
+              <div className="flex items-center gap-2 rounded-2xl p-1.5 pr-2 border focus-within:border-purple-500/50 transition-colors"
+                style={{ background: '#1a1429', borderColor: '#2a1f40' }}>
+                <button
+                  onClick={() => setShowEmoji(prev => !prev)}
+                  className="p-2.5 rounded-xl hover:bg-white/5 transition-colors"
+                  style={{ color: showEmoji ? '#b026ff' : '#6b7280' }}>
+                  <span className="text-lg">😊</span>
+                </button>
+                <input
+                  type="text"
+                  placeholder="Message likho..."
+                  value={content}
+                  onChange={handleTyping}
+                  onKeyDown={handleKeyDown}
+                  className="flex-1 bg-transparent text-gray-200 text-sm focus:outline-none px-2 placeholder-gray-600"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!content.trim()}
+                  className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-40"
+                  style={{
+                    background: '#1f1533',
+                    border: '1px solid rgba(176,38,255,0.3)',
+                    color: '#b026ff'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#b026ff';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#1f1533';
+                    e.currentTarget.style.color = '#b026ff';
+                  }}>
+                  Send
+                </button>
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* ── RIGHT: Suggested Shayers ── */}
-      <div className="hidden xl:flex w-72 flex-col border-l p-4"
-        style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-bold tracking-widest uppercase"
-            style={{ color: 'var(--text-muted)' }}>
-            Suggested Shayars
-          </p>
-          <Link to="/explore" className="text-xs"
-            style={{ color: '#9333ea' }}>
-            See All
+      {/* ── RIGHT: Info Panel ── */}
+      <div className="hidden xl:flex w-[300px] flex-col border-l p-6 shrink-0 overflow-y-auto"
+        style={{ borderColor: '#1f1a2e', background: '#0b0814', scrollbarWidth: 'none' }}>
+
+        {/* Profile card */}
+        <div className="flex items-center justify-between p-4 rounded-2xl mb-6 border"
+          style={{ background: '#151023', borderColor: '#1f1a2e' }}>
+          <div className="flex items-center gap-3">
+            <img
+              src={avatarUrl(user)}
+              alt={user?.username}
+              className="w-10 h-10 rounded-full ring-2"
+              style={{ ringColor: 'rgba(176,38,255,0.3)' }}
+            />
+            <div>
+              <p className="text-sm font-semibold text-white">{user?.username}</p>
+              <p className="text-[10px] text-gray-500">{user?.fullName || 'Shayar'}</p>
+            </div>
+          </div>
+          <Link to="/profile/edit"
+            className="text-[11px] px-3 py-1.5 rounded-lg font-medium"
+            style={{ color: '#b026ff', background: '#1f1533' }}>
+            Edit
           </Link>
         </div>
 
-        <div className="space-y-3">
-          {suggestions.length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Loading...
-            </p>
-          )}
-          {suggestions.slice(0, 6).map(u => (
-            <div key={u._id} className="flex items-center gap-3">
-              <Link to={`/profile/${u.username}`}>
-                <img
-                  src={u.avatar || `https://ui-avatars.com/api/?name=${u.username}&background=9333ea&color=fff`}
-                  alt={u.username}
-                  className="w-9 h-9 rounded-full object-cover"
-                />
+        {/* Categories */}
+        <div className="mb-6">
+          <h3 className="text-[11px] font-bold text-gray-600 tracking-widest mb-4 uppercase">
+            Categories
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {CATEGORIES.map((cat, i) => (
+              <Link to={`/explore?category=${cat.name}`} key={i}
+                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl ${cat.bg} cursor-pointer hover:brightness-110 transition-all border border-white/5`}>
+                <cat.icon size={20} className={`${cat.color} mb-2`} />
+                <span className="text-[10px] font-medium text-gray-300">{cat.name}</span>
               </Link>
-              <div className="flex-1 min-w-0">
+            ))}
+          </div>
+        </div>
+
+        {/* Suggested Shayers */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[11px] font-bold text-gray-600 tracking-widest uppercase">
+              Suggested Shayers
+            </h3>
+            <Link to="/explore" className="text-[10px] text-gray-400 hover:text-white">
+              See All
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {suggestions.length === 0 && (
+              <p className="text-xs text-gray-600">Loading...</p>
+            )}
+            {suggestions.slice(0, 5).map(u => (
+              <div key={u._id}
+                className="flex items-center gap-3 p-2.5 rounded-2xl border border-transparent hover:border-[#1f1a2e] transition-colors"
+                style={{ background: '#110d1c' }}>
                 <Link to={`/profile/${u.username}`}>
-                  <p className="text-sm font-semibold truncate"
-                    style={{ color: 'var(--text-primary)' }}>
-                    {u.username}
-                  </p>
+                  <img
+                    src={avatarUrl(u)}
+                    alt={u.username}
+                    className="w-10 h-10 rounded-xl object-cover"
+                  />
                 </Link>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {u.followersCount ?? 0} followers
-                </p>
+                <div className="flex-1 min-w-0">
+                  <Link to={`/profile/${u.username}`}>
+                    <p className="text-sm font-semibold text-gray-200 truncate">{u.username}</p>
+                  </Link>
+                  <p className="text-[10px] text-gray-500">
+                    {u.followersCount ?? 0} followers
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleFollow(u._id)}
+                  className="text-[11px] px-3 py-1.5 rounded-lg font-medium text-white transition-all hover:opacity-90"
+                  style={{ background: '#b026ff' }}>
+                  Follow
+                </button>
               </div>
-              <button
-                onClick={() => handleFollow(u._id)}
-                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all hover:opacity-90"
-                style={{
-                  background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
-                  color: 'white'
-                }}>
-                Follow
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto pt-6 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-gray-600">
+          <Link to="/policies/terms" className="hover:text-gray-400">Terms</Link>
+          <Link to="/policies/privacy" className="hover:text-gray-400">Privacy</Link>
+          <Link to="/policies/guidelines" className="hover:text-gray-400">Guidelines</Link>
+          <p className="w-full text-center mt-2">© 2026 ShayeriGram • Made with ✦ for Shayars</p>
         </div>
       </div>
 
