@@ -12,6 +12,8 @@
  *   - DB is source of truth (socket miss → client fetches)
  */
 const jwt    = require('jsonwebtoken');
+const Message = require('../models/Message');
+const Chat    = require('../models/Chat');
 const crypto = require('crypto');
 const { parseCookies, cookieName } = require('../middleware/security');
 const logger = require('../utils/logger');
