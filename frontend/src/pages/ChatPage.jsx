@@ -600,7 +600,7 @@ export default function ChatPage() {
 
   // 🔥 FINAL RETURN – ROOT WRAPPER FORCES FULL WIDTH
   return (
-    <div className="fixed inset-0 overflow-hidden" style={{ left: '4rem', right: 0 }}>
+    <div className="fixed inset-0 overflow-hidden" style={{ left: '64px', right: 0 }}>
       {/* Mobile */}
       <div className="md:hidden h-[calc(100vh-4rem)] overflow-hidden bg-[#090711] text-zinc-100">
         {chatId ? <ChatBody /> : <Inbox />}
