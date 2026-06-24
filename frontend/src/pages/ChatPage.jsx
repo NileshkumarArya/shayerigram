@@ -7,7 +7,6 @@ import {
   Edit3,
   Lock,
   Mic,
-  MoreVertical,
   Paperclip,
   Phone,
   Search,
@@ -372,21 +371,18 @@ export default function ChatPage() {
         <p className="truncate text-sm font-semibold text-zinc-100">
           {otherUser?.fullName || otherUser?.username || 'Conversation'}
         </p>
-        {/* Online text with green dot - Point 7 */}
         <p className="flex items-center gap-1 text-xs text-emerald-400">
           <span className="h-2 w-2 rounded-full bg-green-500" />
           online
         </p>
       </div>
 
-      {/* Only phone icon - Point 6 */}
       <button
         type="button"
         className="flex h-9 w-9 items-center justify-center rounded-xl text-purple-300 hover:bg-purple-500/10"
       >
         <Phone size={18} />
       </button>
-      {/* MoreVertical removed as suggested */}
     </div>
   );
 
@@ -413,7 +409,6 @@ export default function ChatPage() {
         <div className={cx('flex flex-col', isMe ? 'items-end' : 'items-start')}>
           <div
             className={cx(
-              // Max width increased to 75% - Point 4
               'max-w-[75%] px-4 py-2.5 text-sm leading-relaxed shadow-lg',
               isMe
                 ? 'rounded-[20px] rounded-br-md text-white'
@@ -449,7 +444,6 @@ export default function ChatPage() {
   };
 
   const MessageComposer = () => (
-    // Sticky bottom - Point 9
     <div className="sticky bottom-0 shrink-0 border-t border-white/5 bg-[#0d0a18]/95 px-3 py-3 backdrop-blur md:px-5">
       {showEmoji && (
         <div className="mb-3 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#191327] p-3">
@@ -466,7 +460,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Input bar with w-full - Point 5 */}
       <div className="flex w-full items-center gap-2">
         <button
           type="button"
@@ -518,15 +511,7 @@ export default function ChatPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <ChatHeader mobile />
 
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        {/* Background logo - Point 8 (centered) */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[.08]">
-          <div className="rotate-45 border border-purple-300/30 p-8 text-8xl font-serif text-purple-300/20">
-            SG
-          </div>
-        </div>
-
-        {/* Message area with reduced padding - Point 3 */}
+      <div className="relative flex-1 overflow-hidden" style={{ height: 0, minHeight: '100%' }}>
         <div className="relative h-full overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none' }}>
           {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
 
@@ -613,36 +598,28 @@ export default function ChatPage() {
     </div>
   );
 
+  // 🔥 FINAL RETURN – ROOT WRAPPER FORCES FULL WIDTH
   return (
-    <>
+    <div className="!w-screen !max-w-none !mx-0 !min-h-screen overflow-x-hidden">
+      {/* Mobile */}
       <div className="md:hidden h-[calc(100vh-4rem)] overflow-hidden bg-[#090711] text-zinc-100">
         {chatId ? <ChatBody /> : <Inbox />}
       </div>
 
-      {/* Desktop layout */}
-      <div className="hidden h-screen w-full overflow-hidden bg-[#090711] text-zinc-100 md:flex">
-        {/* Left sidebar - width reduced to 260px - Point 1 */}
+      {/* Desktop */}
+      <div className="hidden md:flex h-screen w-full overflow-hidden bg-[#090711] text-zinc-100">
         <aside className="w-[260px] shrink-0 border-r border-white/5 bg-[#0c0915]">
           <Inbox desktop />
         </aside>
 
-        {/* Main chat area - full width - Point 2 */}
-        <main className="flex-1 w-full">
+        <main className="flex-1 min-w-0">
           {chatId ? (
             <div className="flex h-full flex-col">
               <div className="hidden md:block">
                 <ChatHeader />
               </div>
 
-              <div className="relative min-h-0 flex-1 overflow-hidden">
-                {/* Background logo centered - Point 8 */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[.08]">
-                  <div className="rotate-45 border border-purple-300/30 p-8 text-8xl font-serif text-purple-300/20">
-                    SG
-                  </div>
-                </div>
-
-                {/* Message area with reduced padding - Point 3 */}
+             <div className="relative flex-1 w-full overflow-hidden" style={{ height: 0, minHeight: '100%' }}> 
                 <div className="relative h-full overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none' }}>
                   {loading && <p className="py-6 text-center text-sm text-zinc-500">Loading messages...</p>}
 
@@ -692,7 +669,7 @@ export default function ChatPage() {
           )}
         </main>
       </div>
-    </>
+    </div>
   );
 }
 
