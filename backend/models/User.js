@@ -43,6 +43,7 @@ const userSchema = new mongoose.Schema(
     followingCount: { type: Number, default: 0, min: 0 },
     postsCount:     { type: Number, default: 0, min: 0 },
     savedCount:     { type: Number, default: 0, min: 0 },
+    storiesCount:   { type: Number, default: 0, min: 0 },
 
     dateOfBirth: { type: Date, select: false },
 
