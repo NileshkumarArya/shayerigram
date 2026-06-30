@@ -2,7 +2,7 @@ const Story          = require('../models/Story');
 const Chapter        = require('../models/Chapter');
 const Bookmark       = require('../models/Bookmark');
 const ReadingProgress = require('../models/ReadingProgress');
-const cloudinary     = require('../config/cloudinary');
+const { cloudinary } = require('../config/cloudinary');
 const logger         = require('../utils/logger');
 
 // ─── Create Story ─────────────────────────────────────────────────────────────
@@ -21,14 +21,10 @@ exports.createStory = async (req, res) => {
       status:      'draft',
     });
 
-    // Cover image upload
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder:         'shayerigram/story-covers',
-        transformation: [{ width: 400, height: 600, crop: 'fill' }],
-      });
-      story.coverImage         = result.secure_url;
-      story.coverImagePublicId = result.public_id;
+   // Cover image — secureUpload middleware ne already process kar diya hai
+    if (req.safeUpload) {
+      story.coverImage         = req.safeUpload.url;
+      story.coverImagePublicId = req.safeUpload.publicId;
       await story.save();
     }
 
@@ -65,18 +61,14 @@ exports.updateStory = async (req, res) => {
       story.status = status;
     }
 
-    // Cover image update
-    if (req.file) {
+    // Cover image update — secureUpload middleware ne already process kar diya hai
+    if (req.safeUpload) {
       // Purana image delete karo
       if (story.coverImagePublicId) {
-        await cloudinary.uploader.destroy(story.coverImagePublicId);
+        await cloudinary.uploader.destroy(story.coverImagePublicId).catch(() => {});
       }
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder:         'shayerigram/story-covers',
-        transformation: [{ width: 400, height: 600, crop: 'fill' }],
-      });
-      story.coverImage         = result.secure_url;
-      story.coverImagePublicId = result.public_id;
+      story.coverImage         = req.safeUpload.url;
+      story.coverImagePublicId = req.safeUpload.publicId;
     }
 
     await story.save();

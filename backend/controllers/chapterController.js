@@ -1,6 +1,6 @@
 const Chapter         = require('../models/Chapter');
 const Story            = require('../models/Story');
-const cloudinary       = require('../config/cloudinary');
+const { cloudinary }   = require('../config/cloudinary');
 const logger           = require('../utils/logger');
 
 // ─── Add Chapter ──────────────────────────────────────────────────────────────
@@ -24,15 +24,11 @@ exports.addChapter = async (req, res) => {
       status:      'draft',
     });
 
-    // Audio upload (agar hai)
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder:        'shayerigram/chapter-audio',
-        resource_type: 'video', // Cloudinary audio ke liye 'video' type use karta hai
-      });
-      chapter.audioUrl      = result.secure_url;
-      chapter.audioPublicId = result.public_id;
-      chapter.audioDuration = Math.round(result.duration || 0);
+    // Audio — secureUpload middleware ne already process kar diya hai
+    if (req.safeUpload) {
+      chapter.audioUrl      = req.safeUpload.url;
+      chapter.audioPublicId = req.safeUpload.publicId;
+      chapter.audioDuration = req.safeUpload.duration || 0;
       await chapter.save();
     }
 
@@ -64,18 +60,14 @@ exports.updateChapter = async (req, res) => {
     if (contentType) chapter.contentType = contentType;
     if (status)       chapter.status      = status;
 
-    // Audio update
-    if (req.file) {
+    // Audio update — secureUpload middleware ne already process kar diya hai
+    if (req.safeUpload) {
       if (chapter.audioPublicId) {
         await cloudinary.uploader.destroy(chapter.audioPublicId, { resource_type: 'video' }).catch(() => {});
       }
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder:        'shayerigram/chapter-audio',
-        resource_type: 'video',
-      });
-      chapter.audioUrl      = result.secure_url;
-      chapter.audioPublicId = result.public_id;
-      chapter.audioDuration = Math.round(result.duration || 0);
+      chapter.audioUrl      = req.safeUpload.url;
+      chapter.audioPublicId = req.safeUpload.publicId;
+      chapter.audioDuration = req.safeUpload.duration || 0;
     }
 
     await chapter.save();
