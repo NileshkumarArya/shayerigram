@@ -2,7 +2,7 @@ import { optimizeImageUrl } from '../utils/image';
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { userAPI } from '../services/api';
+import { userAPI, storyAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
 import PostCard from '../components/feed/PostCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -60,6 +60,8 @@ export default function ProfilePage() {
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [view, setView] = useState('grid');
+  const [contentTab, setContentTab] = useState('posts');
+  const [stories, setStories] = useState([]);
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
 
@@ -77,6 +79,11 @@ export default function ProfilePage() {
         setProfile(p.data.user);
         setPosts(postsRes.data.posts || []);
         setFollowing(p.data.user.isFollowing ?? false);
+
+        // Stories fetch karo
+        storyAPI.getUserStories(p.data.user._id)
+          .then(res => setStories(res.data.stories || []))
+          .catch(() => setStories([]));
       } catch {
         setProfile(null);
         setPosts([]);
@@ -198,31 +205,81 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* View toggle */}
+      {/* Content tabs — Posts vs Stories */}
       <div className="flex gap-1 p-1 rounded-xl mb-4 w-fit glass">
-        {[['grid', '⊞'], ['list', '☰']].map(([v, icon]) => (
-          <button key={v} onClick={() => setView(v)}
+        {[['posts', '📜 Posts'], ['stories', '📚 Stories']].map(([v, label]) => (
+          <button key={v} onClick={() => setContentTab(v)}
             className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={view === v ? { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }
+            style={contentTab === v ? { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }
               : { color: 'var(--text-muted)' }}>
-            {icon} {v.charAt(0).toUpperCase() + v.slice(1)}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Posts */}
-      {posts.length === 0 ? (
-        <div className="text-center py-16 card">
-          <div className="text-5xl mb-4">📜</div>
-          <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>No shayari yet</h3>
-          {isMe && <Link to="/create" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">Write your first shayari</Link>}
+      {/* View toggle — sirf posts tab mein */}
+      {contentTab === 'posts' && (
+        <div className="flex gap-1 p-1 rounded-xl mb-4 w-fit glass">
+          {[['grid', '⊞'], ['list', '☰']].map(([v, icon]) => (
+            <button key={v} onClick={() => setView(v)}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={view === v ? { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }
+                : { color: 'var(--text-muted)' }}>
+              {icon} {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
         </div>
-      ) : view === 'grid' ? (
-        <PostGrid posts={posts} />
-      ) : (
-        <div className="space-y-4">
-          {posts.map(post => <PostCard key={post._id} post={post} onDelete={id => setPosts(p => p.filter(x => x._id !== id))} />)}
-        </div>
+      )}
+
+      {/* Posts tab */}
+      {contentTab === 'posts' && (
+        posts.length === 0 ? (
+          <div className="text-center py-16 card">
+            <div className="text-5xl mb-4">📜</div>
+            <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>No shayari yet</h3>
+            {isMe && <Link to="/create" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">Write your first shayari</Link>}
+          </div>
+        ) : view === 'grid' ? (
+          <PostGrid posts={posts} />
+        ) : (
+          <div className="space-y-4">
+            {posts.map(post => <PostCard key={post._id} post={post} onDelete={id => setPosts(p => p.filter(x => x._id !== id))} />)}
+          </div>
+        )
+      )}
+
+      {/* Stories tab */}
+      {contentTab === 'stories' && (
+        stories.length === 0 ? (
+          <div className="text-center py-16 card">
+            <div className="text-5xl mb-4">📚</div>
+            <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>No stories yet</h3>
+            {isMe && <Link to="/story/create" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">Write your first story</Link>}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {stories.map(story => (
+              <Link key={story._id} to={`/story/${story._id}`}
+                className="card overflow-hidden hover:opacity-90 transition-opacity">
+                <div className="aspect-[2/3] w-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
+                  {story.coverImage ? (
+                    <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center p-3">
+                      <p className="text-xs font-shayari text-center line-clamp-4" style={{ color: 'var(--text-secondary)' }}>
+                        {story.title}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{story.title}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{story.totalChapters} chapters</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
       {/* Followers/Following modals */}
