@@ -65,10 +65,26 @@ export default function StoriesPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold gradient-text">📚 Stories</h1>
         <Link to="/story/create" className="btn-primary text-sm py-2.5 px-5">
           + Write a Story
+        </Link>
+      </div>
+
+      {/* Quick links */}
+      <div className="flex gap-2 mb-6 overflow-x-auto hide-scrollbar pb-1">
+        <Link to="/my-stories" className="shrink-0 px-4 py-2 rounded-xl text-xs font-medium glass-hover"
+          style={{ color: 'var(--text-secondary)' }}>
+          ✏️ My Stories
+        </Link>
+        <Link to="/story-bookmarks" className="shrink-0 px-4 py-2 rounded-xl text-xs font-medium glass-hover"
+          style={{ color: 'var(--text-secondary)' }}>
+          🔖 Saved
+        </Link>
+        <Link to="/reading-history" className="shrink-0 px-4 py-2 rounded-xl text-xs font-medium glass-hover"
+          style={{ color: 'var(--text-secondary)' }}>
+          📖 History
         </Link>
       </div>
 
