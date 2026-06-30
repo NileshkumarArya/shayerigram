@@ -162,4 +162,30 @@ export const adminAPI = {
   getDeletedPosts: (params)   => api.get('/admin/posts/deleted', { params }),
 };
 
+
+// ─── Stories API ──────────────────────────────────────────────────────────
+export const storyAPI = {
+  getStories:      (params)       => api.get('/stories', { params }),
+  getStory:        (id)           => api.get(`/stories/${id}`),
+  getUserStories:  (userId, p)    => api.get(`/stories/user/${userId}`, { params: p }),
+  getMyStories:    (params)       => api.get('/stories/my/stories', { params }),
+  createStory:     (data)         => api.post('/stories', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updateStory:     (id, data)     => api.put(`/stories/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteStory:     (id)           => api.delete(`/stories/${id}`),
+  toggleBookmark:  (id)           => api.post(`/stories/${id}/bookmark`),
+  getMyBookmarks:  (params)       => api.get('/stories/my/bookmarks', { params }),
+  saveProgress:    (id, data)     => api.post(`/stories/${id}/progress`, data),
+  getReadingHistory: (params)     => api.get('/stories/my/reading-history', { params }),
+};
+
+// ─── Chapters API ─────────────────────────────────────────────────────────
+export const chapterAPI = {
+  getChapters:     (storyId)      => api.get(`/chapters/story/${storyId}`),
+  getChapter:      (id)           => api.get(`/chapters/${id}`),
+  addChapter:      (storyId, data)=> api.post(`/chapters/story/${storyId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updateChapter:   (id, data)     => api.put(`/chapters/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteChapter:   (id)           => api.delete(`/chapters/${id}`),
+  reorderChapters: (storyId, order) => api.put(`/chapters/story/${storyId}/reorder`, { chapterOrder: order }),
+};
+
 export default api;
