@@ -22,6 +22,11 @@ const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage'));
 const VerifyEmailPage    = lazy(() => import('./pages/VerifyEmailPage'));
 const AdminPage          = lazy(() => import('./pages/AdminPage'));
 const SettingsPage       = lazy(() => import('./pages/SettingsPage'));
+const StoriesPage        = lazy(() => import('./pages/StoriesPage'));
+const CreateStoryPage    = lazy(() => import('./pages/CreateStoryPage'));
+const EditStoryPage      = lazy(() => import('./pages/EditStoryPage'));
+const StoryDetailPage    = lazy(() => import('./pages/StoryDetailPage'));
+const ReadStoryPage      = lazy(() => import('./pages/ReadStoryPage'));
 
 
 const RouteFallback = memo(function RouteFallback() {
@@ -70,6 +75,11 @@ export default function App() {
             <Route path="profile/:username" element={<ProfilePage />} />
             <Route path="post/:id"          element={<PostPage />} />
             <Route path="hashtag/:tag"      element={<HashtagPage />} />
+            <Route path="stories"               element={<StoriesPage />} />
+            <Route path="story/create"          element={<CreateStoryPage />} />
+            <Route path="story/:storyId/edit"   element={<EditStoryPage />} />
+            <Route path="story/:storyId"        element={<StoryDetailPage />} />
+            <Route path="read/:chapterId"       element={<ReadStoryPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
