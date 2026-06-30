@@ -231,6 +231,98 @@ const uploadAvatarImage = [
   processAndUpload({ folder: 'shayerigram/avatars', width: 400, height: 400, fit: 'cover', quality: 80 }),
 ];
 
+// ─── Story cover image pipeline ───────────────────────────────────────────
+const uploadStoryCoverImage = [
+  createMulter(5).single('cover'),
+  processAndUpload({ folder: 'shayerigram/story-covers', width: 400, height: 600, fit: 'cover', quality: 82 }),
+];
+
+// ─── Chapter audio pipeline (separate — audio nahi image hai) ─────────────
+const ALLOWED_AUDIO_MIME = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/x-m4a'];
+const MAX_AUDIO_BYTES = 30 * 1024 * 1024; // 30MB
+
+const createAudioMulter = () =>
+  multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_AUDIO_BYTES, files: 1 },
+    fileFilter: (req, file, cb) => {
+      if (!ALLOWED_AUDIO_MIME.includes(file.mimetype)) {
+        logger.warn('[UPLOAD BLOCKED] Invalid audio MIME type', {
+          mimetype: file.mimetype,
+          filename: file.originalname?.slice(0, 100),
+          ip: req.ip,
+          userId: req.user?._id,
+        });
+        return cb(new Error('Invalid audio type. Only MP3, WAV, M4A allowed.'));
+      }
+      cb(null, true);
+    },
+  });
+
+const processAudioUpload = async (req, res, next) => {
+  if (!req.file) return next();
+
+  try {
+    const buffer = req.file.buffer;
+
+    // Magic byte check — audio files ke liye bhi zaroori hai
+    const detected = await FileType.fromBuffer(buffer);
+    const allowedAudioMagic = ['audio/mpeg', 'audio/x-wav', 'audio/mp4'];
+    if (!detected || !allowedAudioMagic.includes(detected.mime)) {
+      alertSuspiciousUpload('Audio magic byte mismatch', req, {
+        detectedMime: detected?.mime || 'unknown',
+        claimedMime:  req.file.mimetype,
+      });
+      return res.status(400).json({ message: 'Invalid audio file. Content does not match allowed types.' });
+    }
+
+    // Duplicate check
+    if (req.user?._id) {
+      const duplicate = await isDuplicateUpload(buffer, String(req.user._id));
+      if (duplicate) {
+        return res.status(400).json({
+          message: 'This audio was already uploaded recently.',
+        });
+      }
+    }
+
+    // Cloudinary upload — resource_type 'video' (Cloudinary audio ko isi se handle karta hai)
+    const safePublicId = uuidv4();
+    const uploaded = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder:        'shayerigram/chapter-audio',
+          public_id:     safePublicId,
+          resource_type: 'video',
+          overwrite:     false,
+        },
+        (error, result) => (error ? reject(error) : resolve(result))
+      );
+      stream.end(buffer);
+    });
+
+    if (req.user?._id) {
+      await markUploadHash(buffer, String(req.user._id));
+    }
+
+    req.safeUpload = {
+      url:      uploaded.secure_url,
+      publicId: uploaded.public_id,
+      duration: Math.round(uploaded.duration || 0),
+    };
+    next();
+
+  } catch (err) {
+    logger.error('[AUDIO UPLOAD ERROR]', { error: err.message, userId: req.user?._id });
+    return res.status(400).json({ message: 'Audio processing failed. Please try a valid MP3/WAV/M4A file.' });
+  }
+};
+
+const uploadChapterAudio = [
+  createAudioMulter().single('audio'),
+  processAudioUpload,
+];
+
 // ─── Multer error handler ─────────────────────────────────────────────────
 const multerErrorHandler = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -250,5 +342,7 @@ module.exports = {
   uploadPostImageFile,
   processPostImage,
   uploadAvatarImage,
+  uploadStoryCoverImage,
+  uploadChapterAudio,
   multerErrorHandler,
 };
