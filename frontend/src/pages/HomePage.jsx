@@ -1,13 +1,30 @@
 import AdCard from '../components/feed/AdCard';
+import StoryFeedCard from '../components/feed/StoryFeedCard';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { postAPI } from '../services/api';
+import { postAPI, storyAPI } from '../services/api';
 import PostCard from '../components/feed/PostCard';
 import CreatePostModal from '../components/feed/CreatePostModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { FeedSkeleton } from '../components/common/Skeleton';
 
+// Inserts a story card after every 5th post, using stories fetched once on load
+function buildMixedFeed(posts, stories) {
+  if (!stories.length) return posts;
+  const mixed = [];
+  let storyIdx = 0;
+  posts.forEach((post, i) => {
+    mixed.push(post);
+    if ((i + 1) % 5 === 0 && storyIdx < stories.length) {
+      mixed.push({ _id: `story-${stories[storyIdx]._id}`, type: 'story', story: stories[storyIdx] });
+      storyIdx += 1;
+    }
+  });
+  return mixed;
+}
+
 export default function HomePage() {
   const [posts,      setPosts]      = useState([]);
+  const [stories,    setStories]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [loadingMore,setLoadingMore]= useState(false);
   const [hasMore,    setHasMore]    = useState(true);
@@ -40,6 +57,13 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { loadPosts(null, true); }, [loadPosts]);
+
+  // Fetch a small batch of latest stories once, to mix into the feed
+  useEffect(() => {
+    storyAPI.getStories({ limit: 6, sort: 'latest' })
+      .then(({ data }) => setStories(data.stories || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!bottomRef.current) return;
@@ -88,10 +112,10 @@ export default function HomePage() {
         </div>
       ) : (
         <>
-          {posts.map(item =>
-            item.type === 'ad'
-              ? <AdCard key={item._id} ad={item} />
-              : <PostCard key={item._id} post={item} />
+          {buildMixedFeed(posts, stories).map(item =>
+            item.type === 'ad'    ? <AdCard key={item._id} ad={item} /> :
+            item.type === 'story' ? <StoryFeedCard key={item._id} story={item.story} /> :
+                                     <PostCard key={item._id} post={item} />
           )}
           <div ref={bottomRef} className="h-4" />
           {loadingMore && <div className="flex justify-center py-4"><LoadingSpinner /></div>}
