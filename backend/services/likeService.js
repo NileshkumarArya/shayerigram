@@ -4,6 +4,8 @@ const Post  = require('../models/Post');
 const Block = require('../models/Block');
 const { invalidateCache } = require('../utils/cache');
 
+// toggleLike now stays post-only (unchanged behavior) but writes the
+// polymorphic fields too so it matches the current Like schema.
 const toggleLike = async (userId, postId, actorUsername, io) => {
   const targetPost = await Post.findOne({
     _id: postId,
@@ -25,8 +27,8 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
     if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
   }
 
-  // ✅ FIX: findOne + deleteOne ki jagah seedha deleteOne — race condition safe
-  const removed = await Like.deleteOne({ userId, postId });
+  // Race-condition safe removal, matched by polymorphic target
+  const removed = await Like.deleteOne({ userId, targetType: 'Post', targetId: postId });
 
   if (removed.deletedCount > 0) {
     const updatedPost = await Post.findOneAndUpdate(
@@ -38,9 +40,9 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
     return { liked: false, likesCount: Math.max(updatedPost?.likesCount || 0, 0) };
   }
 
-  // ✅ FIX: duplicate like race condition handle karo
+  // FIX: targetType/targetId now included — required by the schema
   try {
-    await Like.create({ userId, postId });
+    await Like.create({ userId, postId, targetType: 'Post', targetId: postId });
   } catch (err) {
     if (err.code === 11000) {
       const currentPost = await Post.findById(postId).select('likesCount');
@@ -75,12 +77,14 @@ const toggleLike = async (userId, postId, actorUsername, io) => {
 };
 
 const isLiked = async (userId, postId) => {
-  return !!(await Like.exists({ userId, postId }));
+  return !!(await Like.exists({ userId, targetType: 'Post', targetId: postId }));
 };
 
 const getUserLikedPostIds = async (userId, postIds) => {
-  const likes = await Like.find({ userId, postId: { $in: postIds } }).select('postId').lean();
-  return new Set(likes.map(l => String(l.postId)));
+  const likes = await Like.find({ userId, targetType: 'Post', targetId: { $in: postIds } })
+    .select('targetId')
+    .lean();
+  return new Set(likes.map(l => String(l.targetId)));
 };
 
 module.exports = { toggleLike, isLiked, getUserLikedPostIds };
