@@ -16,7 +16,7 @@ const ensureNotAdmin = async (targetId, res, action) => {
   if (target.role === 'admin') {
     res.status(403).json({ message: `Cannot ${action} another admin account.` });
     return null;
-  }
+  } 
   return target;
 };
 

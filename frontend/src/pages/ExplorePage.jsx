@@ -139,9 +139,7 @@ export default function ExplorePage() {
         ))}
       </div>
 
-      {contentTab === 'shayari' && (
-      <>
-      {/* Search bar */}
+      {/* Search bar — common for both tabs */}
       <div className="relative mb-4">
         <svg className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
           width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -149,7 +147,7 @@ export default function ExplorePage() {
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input value={query} onChange={e => setQuery(e.target.value)}
-          placeholder="Search shayari, poets, hashtags..."
+          placeholder={contentTab === 'stories' ? 'Search stories, genre, author...' : 'Search shayari, poets, hashtags...'}
           className="input-field" style={{ paddingLeft: '2.75rem' }} />
         {query && (
           <button onClick={() => { setQuery(''); setSearched(false); }}
@@ -157,6 +155,8 @@ export default function ExplorePage() {
         )}
       </div>
 
+      {contentTab === 'shayari' && (
+      <>
       {/* Search type tabs */}
       {query && (
         <div className="flex gap-1 p-1 rounded-xl glass mb-4 w-fit">
@@ -291,7 +291,7 @@ export default function ExplorePage() {
       </>
       )}
 
-      {contentTab === 'stories' && <StoriesExplore />}
+      {contentTab === 'stories' && <StoriesExplore query={query} />}
     </div>
   );
 }
@@ -311,15 +311,20 @@ const STORY_GENRES = [
   { name: 'Other',      emoji: '📝', color: '#9ca3af' },
 ];
 
-function StoriesExplore() {
+function StoriesExplore({ query }) {
   const [genre, setGenre] = useState('All');
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [searchResults, setSearchResults] = useState(null); // null = not searching
+  const [searchLoading, setSearchLoading] = useState(false);
   const bottomRef = useRef(null);
   const observerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  const isSearching = !!query?.trim();
 
   const loadStories = useCallback(async (pageNum = 1, reset = false) => {
     if (reset) setLoading(true); else setLoadingMore(true);
@@ -336,10 +341,34 @@ function StoriesExplore() {
     if (reset) setLoading(false); else setLoadingMore(false);
   }, [genre]);
 
+  // Genre-based browsing — only runs when not searching
   useEffect(() => {
+    if (isSearching) return;
     setStories([]);
     loadStories(1, true);
-  }, [genre, loadStories]);
+  }, [genre, isSearching, loadStories]);
+
+  // Debounced story search — title/genre/tags/author (backend: type=stories)
+  useEffect(() => {
+    if (!query?.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const { data } = await exploreAPI.search(query, 'stories');
+        setSearchResults(data.stories || []);
+      } catch (err) {
+        console.error('Story search error:', err);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
 
   useEffect(() => {
     if (!bottomRef.current) return;
@@ -353,6 +382,50 @@ function StoriesExplore() {
   }, [hasMore, loadingMore, page, loadStories]);
 
   const activeGenre = STORY_GENRES.find(g => g.name === genre) || STORY_GENRES[0];
+
+  // Search mode — show matched stories, no genre chips
+  if (isSearching) {
+    return (
+      <div>
+        {searchLoading ? (
+          <FeedSkeleton count={3} />
+        ) : !searchResults || searchResults.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-5xl mb-4">🔍</div>
+            <p className="gradient-text font-shayari text-lg">No stories found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {searchResults.map(s => (
+              <Link key={s._id} to={`/story/${s._id}`}
+                className="rounded-xl overflow-hidden glass-hover"
+                style={{ border: '1px solid var(--border)' }}>
+                <div className="aspect-[2/3]" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
+                  {s.coverImage ? (
+                    <img src={s.coverImage} alt={s.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center p-2">
+                      <p className="text-xs font-shayari text-center line-clamp-5" style={{ color: 'var(--text-secondary)' }}>
+                        {s.title}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.title}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>by {s.author?.username}</p>
+                  <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span>❤️ {s.totalLikes || 0}</span>
+                    <span>👁️ {s.totalReads || 0}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
