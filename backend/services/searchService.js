@@ -8,8 +8,9 @@
  * To switch provider: change SEARCH_PROVIDER env var
  * Interface stays the same — controllers don't change
  */
-const Post = require('../models/Post');
-const User = require('../models/User');
+const Post  = require('../models/Post');
+const Story = require('../models/Story');
+const User  = require('../models/User');
 const logger = require('../utils/logger');
 
 const PROVIDER = process.env.SEARCH_PROVIDER || 'mongo'; // 'mongo' | 'atlas' | 'meilisearch'
@@ -57,6 +58,57 @@ const mongoSearch = {
       : null;
 
     return { posts: items, hasMore, nextCursor };
+  },
+
+  async searchStories(query, { limit = 20, cursor = null, excludeUserIds = [] } = {}) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex   = new RegExp(escaped, 'i');
+
+    // Title/genre/tag me match kar rahe hain, saath me author username bhi
+    const matchingAuthors = await User.find({
+      username:    regex,
+      isDeleted:   { $ne: true },
+      isSuspended: { $ne: true },
+    }).select('_id').lean();
+    const authorIds = matchingAuthors.map(u => u._id);
+
+    const filter = {
+      status:    'published',
+      isDeleted: false,
+      ...(excludeUserIds.length ? { author: { $nin: excludeUserIds } } : {}),
+      $or: [
+        { title:       regex },
+        { description: regex },
+        { genre:       regex },
+        { tags:        { $in: [query.toLowerCase()] } },
+        ...(authorIds.length ? [{ author: { $in: authorIds } }] : []),
+      ],
+    };
+
+    // Cursor support — same pattern as searchPosts
+    if (cursor) {
+      try {
+        const { createdAt, _id } = JSON.parse(Buffer.from(cursor, 'base64').toString());
+        filter.$and = [{ $or: [
+          { createdAt: { $lt: new Date(createdAt) } },
+          { createdAt: new Date(createdAt), _id: { $lt: _id } },
+        ]}];
+      } catch {}
+    }
+
+    const stories = await Story.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
+      .populate('author', '_id username avatar fullName isVerified')
+      .lean();
+
+    const hasMore    = stories.length > limit;
+    const items      = hasMore ? stories.slice(0, limit) : stories;
+    const nextCursor = hasMore
+      ? Buffer.from(JSON.stringify({ createdAt: items.at(-1).createdAt, _id: items.at(-1)._id })).toString('base64')
+      : null;
+
+    return { stories: items, hasMore, nextCursor };
   },
 
   async searchUsers(query, { limit = 20, excludeUserIds = [] } = {}) {
@@ -117,6 +169,7 @@ if (PROVIDER !== 'mongo') {
 
 module.exports = {
   searchPosts:    (...args) => provider.searchPosts(...args),
+  searchStories:  (...args) => provider.searchStories(...args),
   searchUsers:    (...args) => provider.searchUsers(...args),
   searchHashtags: (...args) => provider.searchHashtags(...args),
 };

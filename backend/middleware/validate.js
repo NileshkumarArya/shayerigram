@@ -130,7 +130,7 @@ const searchValidation = [
     .matches(/^[a-zA-Z0-9\u0900-\u097F\u0600-\u06FF\s#@_.,-]+$/).withMessage('Invalid search characters'),
   query('type')
     .optional()
-    .isIn(['all', 'posts', 'users']).withMessage('Invalid search type'),
+    .isIn(['all', 'posts', 'users', 'stories']).withMessage('Invalid search type'),
   validate,
 ];
 

@@ -58,6 +58,12 @@ exports.search = async (req, res) => {
       results.nextCursor = r.nextCursor;
       results.hasMore    = r.hasMore;
     }
+    if (type === 'all' || type === 'stories') {
+      const r = await searchService.searchStories(query, { cursor, excludeUserIds: blockedUserIds });
+      results.stories           = r.stories;
+      results.storiesHasMore    = r.hasMore;
+      results.storiesNextCursor = r.nextCursor;
+    }
     if (type === 'all' || type === 'users') {
       const r = await searchService.searchUsers(query, { excludeUserIds: blockedUserIds });
       results.users = r.users;
