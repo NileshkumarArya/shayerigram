@@ -11,17 +11,25 @@ const mongoose = require('mongoose');
  */
 const likeSchema = new mongoose.Schema(
   {
-    postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+    // Kept for backward compatibility with existing post likes
+    postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
+    // Polymorphic fields — used for new targets like Story
+    // For posts, targetType/targetId are also populated going forward
+    targetType: { type: String, enum: ['Post', 'Story'], default: 'Post' },
+    targetId:   { type: mongoose.Schema.Types.ObjectId, required: true },
   },
   { timestamps: true }
 );
 
-// Unique: can't like twice + fast "did user like this post?" check
-likeSchema.index({ postId: 1, userId: 1 }, { unique: true });
-// "All posts liked by user" — profile/saved likes
+// Unique: can't like the same target twice + fast "did user like this?" check
+likeSchema.index({ targetType: 1, targetId: 1, userId: 1 }, { unique: true });
+// "All targets liked by user" — profile/saved likes
 likeSchema.index({ userId: 1, createdAt: -1 });
-// "All likes for post" — if needed for analytics
-likeSchema.index({ postId: 1, createdAt: -1 });
+// "All likes for a target" — analytics
+likeSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 
+// Legacy index kept so existing post-like queries still work during migration
+likeSchema.index({ postId: 1, userId: 1 }, { unique: true, sparse: true });
 module.exports = mongoose.model('Like', likeSchema);
