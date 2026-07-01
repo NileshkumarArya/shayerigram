@@ -229,10 +229,12 @@ export default function PostCard({ post: initialPost, onDelete }) {
   };
 
   const handleShare = () => {
+    const url = window.location.origin + '/post/' + post._id;
+    // Only the link is shared — not the shayari title/content
     if (navigator.share) {
-      navigator.share({ title: post.title, text: post.content, url: window.location.origin + '/post/' + post._id });
+      navigator.share({ url });
     } else {
-      navigator.clipboard.writeText(window.location.origin + '/post/' + post._id);
+      navigator.clipboard.writeText(url);
     }
   };
 

@@ -128,10 +128,12 @@ export default function PostPage() {
   };
 
   const handleShare = () => {
+    const url = window.location.href;
+    // Only the link is shared — not the shayari title/content
     if (navigator.share) {
-      navigator.share({ title: post?.title, text: post?.content, url: window.location.href });
+      navigator.share({ url });
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(url);
     }
   };
 
