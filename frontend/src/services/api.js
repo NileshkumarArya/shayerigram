@@ -176,6 +176,9 @@ export const storyAPI = {
   getMyBookmarks:  (params)       => api.get('/stories/my/bookmarks', { params }),
   saveProgress:    (id, data)     => api.post(`/stories/${id}/progress`, data),
   getReadingHistory: (params)     => api.get('/stories/my/reading-history', { params }),
+  toggleLike:      (id)           => api.post(`/stories/${id}/like`),
+  addComment:      (id, text)     => api.post(`/stories/${id}/comment`, { text }),
+  getComments:     (id, params)   => api.get(`/stories/${id}/comments`, { params }),
 };
 
 // ─── Chapters API ─────────────────────────────────────────────────────────

@@ -3,6 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { storyAPI, chapterAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import Avatar from '../components/common/Avatar';
+
+function TimeAgo({ date }) {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export default function StoryDetailPage() {
   const { storyId } = useParams();
@@ -14,19 +25,29 @@ export default function StoryDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [storyRes, chaptersRes] = await Promise.all([
+        const [storyRes, chaptersRes, commentsRes] = await Promise.all([
           storyAPI.getStory(storyId),
           chapterAPI.getChapters(storyId),
+          storyAPI.getComments(storyId),
         ]);
         setStory(storyRes.data.story);
         setProgress(storyRes.data.progress);
         setIsBookmarked(storyRes.data.isBookmarked);
+        setLiked(storyRes.data.isLiked ?? false);
+        setLikeCount(storyRes.data.story?.totalLikes ?? 0);
         setChapters(chaptersRes.data.chapters);
+        setComments(commentsRes.data.comments || []);
       } catch (err) {
         console.error('Fetch error:', err);
       } finally {
@@ -45,6 +66,59 @@ export default function StoryDetailPage() {
       console.error('Bookmark error:', err);
     } finally {
       setBookmarkLoading(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (likeLoading) return;
+    setLikeLoading(true);
+    const wasLiked = liked;
+    const previousCount = likeCount;
+    setLiked(!wasLiked);
+    setLikeCount(prev => Math.max((prev || 0) + (wasLiked ? -1 : 1), 0));
+    try {
+      const { data } = await storyAPI.toggleLike(storyId);
+      setLiked(!!data.liked);
+      if (typeof data.totalLikes === 'number') {
+        setLikeCount(Math.max(data.totalLikes, 0));
+      }
+    } catch (err) {
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
+      console.error('Like error:', err);
+    } finally {
+      setLikeLoading(false);
+    }
+  };
+
+  const handleComment = async (e) => {
+    e.preventDefault();
+    const text = comment.trim();
+    if (!text || submitting) return;
+    setSubmitting(true);
+    try {
+      const { data } = await storyAPI.addComment(storyId, text);
+      if (data.comment) {
+        setComments(prev => {
+          if (prev.some(c => c._id === data.comment._id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
+      setComment('');
+    } catch (err) {
+      console.error('Comment error:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Only the link is shared — not the story title/description
+  const handleShare = () => {
+    const url = window.location.origin + `/story/${storyId}`;
+    if (navigator.share) {
+      navigator.share({ url });
+    } else {
+      navigator.clipboard.writeText(url);
     }
   };
 
@@ -142,6 +216,24 @@ export default function StoryDetailPage() {
         )}
       </div>
 
+      {/* Like / Comment / Share bar */}
+      <div className="flex items-center gap-5 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+        <button onClick={handleLike} disabled={likeLoading}
+          className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
+          <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
+          <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : 'var(--text-muted)' }}>
+            {likeCount}
+          </span>
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">💬</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
+            {comments.length}
+          </span>
+        </div>
+        <button onClick={handleShare} className="text-2xl transition-all hover:scale-110">🔗</button>
+      </div>
+
       {/* Chapters list */}
       <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
         Chapters ({publishedChapters.length})
@@ -172,6 +264,63 @@ export default function StoryDetailPage() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Comments section */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+          Comments ({comments.length})
+        </h2>
+
+        <form onSubmit={handleComment} className="flex gap-3 mb-6">
+          <Avatar user={user} size="sm" clickable={false} />
+          <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
+            <input
+              value={comment} onChange={e => setComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              maxLength={500}
+            />
+            {comment.trim() && (
+              <button type="submit" disabled={submitting}
+                className="text-xs font-semibold shrink-0 transition-all disabled:opacity-40"
+                style={{ color: 'var(--purple-light)' }}>
+                {submitting ? '...' : 'Post'}
+              </button>
+            )}
+          </div>
+        </form>
+
+        <div className="space-y-4">
+          {comments.length === 0 && (
+            <div className="text-center py-8">
+              <div className="text-3xl mb-2">💬</div>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No comments yet. Be the first!</p>
+            </div>
+          )}
+          {comments.map((c, i) => (
+            <div key={c._id || i} className="flex gap-3 animate-fade-in">
+              <Avatar user={c.user} size="sm" />
+              <div className="flex-1">
+                <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Link to={`/profile/${c.user?.username}`}
+                      className="text-sm font-semibold hover:text-purple-300 transition-colors"
+                      style={{ color: 'var(--text-primary)' }}>
+                      {c.user?.username}
+                    </Link>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {TimeAgo({ date: c.createdAt })}
+                    </span>
+                  </div>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{c.text}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
