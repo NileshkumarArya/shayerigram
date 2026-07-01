@@ -1,4 +1,5 @@
-const Post = require('../models/Post');
+const Post  = require('../models/Post');
+const Story = require('../models/Story');
 const Notification = require('../models/Notification');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 const { deleteCache } = require('../utils/cache');
@@ -27,24 +28,39 @@ exports.getNotifications = async (req, res) => {
     const items   = hasMore ? notifications.slice(0, limit) : notifications;
 
     const postIds = items
-      .filter(n => POST_NOTIFICATION_TYPES.has(n.type) && n.entityId)
+      .filter(n => POST_NOTIFICATION_TYPES.has(n.type) && n.entityId && n.entityType !== 'Story')
       .map(n => n.entityId);
 
-    const posts = postIds.length
-      ? await Post.find({ _id: { $in: postIds }, isDeleted: { $ne: true }, isTakenDown: { $ne: true } })
-          .select('_id type image content')
-          .lean()
-      : [];
+    const storyIds = items
+      .filter(n => POST_NOTIFICATION_TYPES.has(n.type) && n.entityId && n.entityType === 'Story')
+      .map(n => n.entityId);
 
-    const postMap = new Map(posts.map(p => [String(p._id), p]));
+    const [posts, stories] = await Promise.all([
+      postIds.length
+        ? Post.find({ _id: { $in: postIds }, isDeleted: { $ne: true }, isTakenDown: { $ne: true } })
+            .select('_id type image content')
+            .lean()
+        : [],
+      storyIds.length
+        ? Story.find({ _id: { $in: storyIds }, isDeleted: false })
+            .select('_id title coverImage')
+            .lean()
+        : [],
+    ]);
 
-        const normalized = items.map(n => ({
+    const postMap  = new Map(posts.map(p => [String(p._id), p]));
+    const storyMap = new Map(stories.map(s => [String(s._id), s]));
+
+    const normalized = items.map(n => ({
       ...n,
       sender: n.actorId || null,
       actor:  n.actorId || null,
       read:   n.isRead,
-      post:   POST_NOTIFICATION_TYPES.has(n.type) && n.entityId
+      post:   POST_NOTIFICATION_TYPES.has(n.type) && n.entityId && n.entityType !== 'Story'
         ? postMap.get(String(n.entityId)) || null
+        : null,
+      story:  POST_NOTIFICATION_TYPES.has(n.type) && n.entityId && n.entityType === 'Story'
+        ? storyMap.get(String(n.entityId)) || null
         : null,
     }));
 

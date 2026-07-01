@@ -15,12 +15,17 @@ const {
   getMyBookmarks,
   saveProgress,
   getReadingHistory,
+  toggleLike,
+  addComment,
+  deleteComment,
+  getComments,
 } = require('../controllers/storyController');
 
 // ─── Public routes (optional auth — draft check ke liye) ──────────────────────
-router.get('/',           getStories);
-router.get('/:storyId',   optionalAuth, getStory);
-router.get('/user/:userId', getUserStories);
+router.get('/',              getStories);
+router.get('/:storyId',      optionalAuth, getStory);
+router.get('/user/:userId',  getUserStories);
+router.get('/:storyId/comments', optionalAuth, getComments);
 
 // ─── Protected routes ──────────────────────────────────────────────────────────
 router.use(protect);
@@ -35,5 +40,9 @@ router.get('/my/reading-history',      getReadingHistory);
 
 router.post('/:storyId/bookmark',      toggleBookmark);
 router.post('/:storyId/progress',      saveProgress);
+
+router.post('/:storyId/like',              toggleLike);
+router.post('/:storyId/comment',           addComment);
+router.delete('/:storyId/comment/:commentId', deleteComment);
 
 module.exports = router;

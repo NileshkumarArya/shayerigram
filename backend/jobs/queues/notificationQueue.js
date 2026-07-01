@@ -40,6 +40,7 @@ const enqueueNotification = async (payload) => {
     actorId:     String(payload.actorId),
     type:        String(payload.type),
     entityId:    payload.entityId ? String(payload.entityId) : undefined,
+    entityType:  payload.entityType || 'Post', // NEW — defaults to Post, existing calls unaffected
   };
 
   // ✅ FIX: Render par separate worker run nahi hota
@@ -56,6 +57,7 @@ const enqueueNotification = async (payload) => {
       actorId:     safe.actorId,
       type:        safe.type,
       entityId:    safe.entityId,
+      entityType:  safe.entityType,
       isRead:      false,
     });
     logger.info('Notification created directly', { type: safe.type });

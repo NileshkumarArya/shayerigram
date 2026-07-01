@@ -13,7 +13,8 @@ const notificationSchema = new mongoose.Schema(
       enum: ['like', 'comment', 'follow', 'reply', 'mention', 'save'],
       required: true,
     },
-    entityId: { type: mongoose.Schema.Types.ObjectId }, // postId or userId
+    entityId:   { type: mongoose.Schema.Types.ObjectId }, // postId, storyId, or userId
+    entityType: { type: String, enum: ['Post', 'Story'], default: 'Post' }, // NEW — tells us which collection to look up
     isRead:   { type: Boolean, default: false },
   },
   { timestamps: true }

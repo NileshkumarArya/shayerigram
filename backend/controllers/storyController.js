@@ -2,6 +2,9 @@ const Story          = require('../models/Story');
 const Chapter        = require('../models/Chapter');
 const Bookmark       = require('../models/Bookmark');
 const ReadingProgress = require('../models/ReadingProgress');
+const Like            = require('../models/Like');
+const Comment          = require('../models/Comment');
+const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const { cloudinary } = require('../config/cloudinary');
 const logger         = require('../utils/logger');
 
@@ -138,14 +141,20 @@ exports.getStory = async (req, res) => {
       }).populate('lastChapter', 'title chapterNumber');
     }
 
-    // Bookmark check karo
+// Bookmark check karo
     let isBookmarked = false;
     if (req.user) {
       const bookmark = await Bookmark.findOne({ user: req.user._id, story: storyId });
       isBookmarked = !!bookmark;
     }
 
-    res.json({ success: true, story, progress, isBookmarked });
+    // Like check karo
+    let isLiked = false;
+    if (req.user) {
+      isLiked = !!(await Like.exists({ userId: req.user._id, targetType: 'Story', targetId: storyId }));
+    }
+
+    res.json({ success: true, story, progress, isBookmarked, isLiked });
   } catch (err) {
     logger.error('getStory error', { error: err.message });
     res.status(500).json({ message: err.message });
@@ -330,6 +339,177 @@ exports.getReadingHistory = async (req, res) => {
     res.json({ success: true, history: filtered });
   } catch (err) {
     logger.error('getReadingHistory error', { error: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+// ─── Toggle Story Like ─────────────────────────────────────────────────────────
+exports.toggleLike = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+
+    const story = await Story.findOne({ _id: storyId, isDeleted: false });
+    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+
+    // Race-condition safe removal
+    const removed = await Like.deleteOne({ userId: req.user._id, targetType: 'Story', targetId: storyId });
+
+    if (removed.deletedCount > 0) {
+      const updated = await Story.findOneAndUpdate(
+        { _id: storyId, totalLikes: { $gt: 0 } },
+        { $inc: { totalLikes: -1 } },
+        { new: true }
+      ).select('totalLikes');
+      return res.json({ success: true, liked: false, totalLikes: Math.max(updated?.totalLikes || 0, 0) });
+    }
+
+    try {
+      await Like.create({ userId: req.user._id, targetType: 'Story', targetId: storyId });
+    } catch (err) {
+      if (err.code === 11000) {
+        const current = await Story.findById(storyId).select('totalLikes');
+        return res.json({ success: true, liked: true, totalLikes: current?.totalLikes || 0 });
+      }
+      throw err;
+    }
+
+    const updated = await Story.findByIdAndUpdate(
+      storyId,
+      { $inc: { totalLikes: 1 } },
+      { new: true }
+    ).select('author totalLikes');
+
+    if (updated && String(updated.author) !== String(req.user._id)) {
+      enqueueNotification({
+        recipientId: updated.author,
+        actorId:     req.user._id,
+        type:        'like',
+        entityId:    storyId,
+        entityType:  'Story',
+      }).catch(() => {});
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`notification_${updated.author}`).emit('notification', { type: 'like', storyId });
+      }
+    }
+
+    res.json({ success: true, liked: true, totalLikes: updated?.totalLikes || 0 });
+  } catch (err) {
+    logger.error('toggleStoryLike error', { error: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ─── Add Story Comment ──────────────────────────────────────────────────────────
+exports.addComment = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const { text, parentId } = req.body;
+
+    const story = await Story.findOne({ _id: storyId, isDeleted: false });
+    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+
+    const comment = await Comment.create({
+      authorId:   req.user._id,
+      text,
+      parentId:   parentId || null,
+      targetType: 'Story',
+      targetId:   storyId,
+    });
+
+    await Story.findByIdAndUpdate(storyId, { $inc: { totalComments: 1 } });
+
+    const populated = await comment.populate('authorId', '_id username avatar');
+
+    if (String(story.author) !== String(req.user._id)) {
+      enqueueNotification({
+        recipientId: story.author,
+        actorId:     req.user._id,
+        type:        'comment',
+        entityId:    storyId,
+        entityType:  'Story',
+      }).catch(() => {});
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`notification_${story.author}`).emit('notification', { type: 'comment', storyId });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      comment: {
+        _id:       comment._id,
+        text:      comment.text,
+        user:      populated.authorId,
+        createdAt: comment.createdAt,
+      },
+      totalComments: (story.totalComments || 0) + 1,
+    });
+  } catch (err) {
+    logger.error('addStoryComment error', { error: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ─── Delete Story Comment ────────────────────────────────────────────────────────
+exports.deleteComment = async (req, res) => {
+  try {
+    const { storyId, commentId } = req.params;
+
+    const comment = await Comment.findOne({ _id: commentId, targetType: 'Story', targetId: storyId });
+    if (!comment) return res.status(404).json({ message: 'Comment nahi mila.' });
+
+    const story = await Story.findOne({ _id: storyId, isDeleted: false });
+    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+
+    const isOwner      = String(comment.authorId) === String(req.user._id);
+    const isStoryOwner = String(story.author)      === String(req.user._id);
+
+    if (!isOwner && !isStoryOwner) {
+      return res.status(403).json({ message: 'Authorized nahi hai.' });
+    }
+
+    const deleted = await Comment.findOneAndDelete({ _id: commentId, targetType: 'Story', targetId: storyId });
+    if (!deleted) return res.status(404).json({ message: 'Comment nahi mila.' });
+
+    await Story.findOneAndUpdate(
+      { _id: storyId, totalComments: { $gt: 0 } },
+      { $inc: { totalComments: -1 } }
+    );
+
+    res.json({ success: true, message: 'Comment delete ho gaya.' });
+  } catch (err) {
+    logger.error('deleteStoryComment error', { error: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ─── Get Story Comments ──────────────────────────────────────────────────────────
+exports.getComments = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const comments = await Comment.find({ targetType: 'Story', targetId: storyId, isDeleted: { $ne: true } })
+      .populate('authorId', '_id username avatar isVerified')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .lean();
+
+    const mapped = comments
+      .filter(c => c.authorId)
+      .map(c => ({
+        _id:       c._id,
+        text:      c.text,
+        user:      c.authorId,
+        createdAt: c.createdAt,
+      }));
+
+    res.json({ success: true, comments: mapped });
+  } catch (err) {
+    logger.error('getStoryComments error', { error: err.message });
     res.status(500).json({ message: err.message });
   }
 };
