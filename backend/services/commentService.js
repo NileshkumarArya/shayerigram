@@ -28,7 +28,11 @@ const addComment = async (postId, authorId, text, actorUsername, io, parentId = 
     if (blocked) throw Object.assign(new Error('Post not found'), { status: 404 });
   }
 
-  const comment = await Comment.create({ postId, authorId, text, parentId: parentId || null });
+  // targetType/targetId included — required by the polymorphic schema
+  const comment = await Comment.create({
+    postId, authorId, text, parentId: parentId || null,
+    targetType: 'Post', targetId: postId,
+  });
   await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
 
   const populated = await comment.populate('authorId', '_id username avatar');
