@@ -121,6 +121,34 @@ export default function PostPage() {
     }
   };
 
+  const handleCommentLike = async (commentId) => {
+    // Optimistic toggle
+    setComments(prev => prev.map(c => c._id === commentId
+      ? { ...c, liked: !c.liked, likesCount: Math.max((c.likesCount || 0) + (c.liked ? -1 : 1), 0) }
+      : c));
+    try {
+      const { data } = await postAPI.toggleCommentLike(id, commentId);
+      setComments(prev => prev.map(c => c._id === commentId
+        ? { ...c, liked: !!data.liked, likesCount: data.likesCount }
+        : c));
+    } catch {
+      // Revert on failure
+      setComments(prev => prev.map(c => c._id === commentId
+        ? { ...c, liked: !c.liked, likesCount: Math.max((c.likesCount || 0) + (c.liked ? 1 : -1), 0) }
+        : c));
+    }
+  };
+
+  const handleCommentDelete = async (commentId) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await postAPI.deleteComment(id, commentId);
+      setComments(prev => prev.filter(c => c._id !== commentId));
+    } catch (err) {
+      console.error('Delete comment error:', err);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm('Delete this shayari?')) return;
     try { await postAPI.deletePost(id); navigate(-1); }
@@ -346,6 +374,20 @@ export default function PostPage() {
                       </span>
                     </div>
                     <p className="text-sm" style={{ color:'var(--text-secondary)' }}>{c.text}</p>
+                  </div>
+                  <div className="flex items-center gap-4 mt-1.5 px-1">
+                    <button onClick={() => handleCommentLike(c._id)}
+                      className="flex items-center gap-1 text-xs transition-all hover:scale-110">
+                      <span>{c.liked ? '❤️' : '🤍'}</span>
+                      <span style={{ color: c.liked ? '#f87171' : 'var(--text-muted)' }}>{c.likesCount || 0}</span>
+                    </button>
+                    {(user?._id === c.user?._id || isOwner) && (
+                      <button onClick={() => handleCommentDelete(c._id)}
+                        className="text-xs transition-colors hover:text-red-400"
+                        style={{ color: 'var(--text-muted)' }}>
+                        🗑 Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

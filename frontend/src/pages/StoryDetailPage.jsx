@@ -115,6 +115,32 @@ export default function StoryDetailPage() {
     }
   };
 
+  const handleCommentLike = async (commentId) => {
+    setComments(prev => prev.map(c => c._id === commentId
+      ? { ...c, liked: !c.liked, likesCount: Math.max((c.likesCount || 0) + (c.liked ? -1 : 1), 0) }
+      : c));
+    try {
+      const { data } = await storyAPI.toggleCommentLike(storyId, commentId);
+      setComments(prev => prev.map(c => c._id === commentId
+        ? { ...c, liked: !!data.liked, likesCount: data.likesCount }
+        : c));
+    } catch {
+      setComments(prev => prev.map(c => c._id === commentId
+        ? { ...c, liked: !c.liked, likesCount: Math.max((c.likesCount || 0) + (c.liked ? 1 : -1), 0) }
+        : c));
+    }
+  };
+
+  const handleCommentDelete = async (commentId) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await storyAPI.deleteComment(storyId, commentId);
+      setComments(prev => prev.filter(c => c._id !== commentId));
+    } catch (err) {
+      console.error('Delete comment error:', err);
+    }
+  };
+
   // Only the link is shared — not the story title/description
   const handleShare = () => {
     const url = window.location.origin + `/story/${storyId}`;
@@ -355,6 +381,20 @@ export default function StoryDetailPage() {
                     </span>
                   </div>
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{c.text}</p>
+                </div>
+                <div className="flex items-center gap-4 mt-1.5 px-1">
+                  <button onClick={() => handleCommentLike(c._id)}
+                    className="flex items-center gap-1 text-xs transition-all hover:scale-110">
+                    <span>{c.liked ? '❤️' : '🤍'}</span>
+                    <span style={{ color: c.liked ? '#f87171' : 'var(--text-muted)' }}>{c.likesCount || 0}</span>
+                  </button>
+                  {(user?._id === c.user?._id || isAuthor) && (
+                    <button onClick={() => handleCommentDelete(c._id)}
+                      className="text-xs transition-colors hover:text-red-400"
+                      style={{ color: 'var(--text-muted)' }}>
+                      🗑 Delete
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
