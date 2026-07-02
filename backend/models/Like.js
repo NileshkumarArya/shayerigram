@@ -17,7 +17,7 @@ const likeSchema = new mongoose.Schema(
 
     // Polymorphic fields — used for new targets like Story
     // For posts, targetType/targetId are also populated going forward
-    targetType: { type: String, enum: ['Post', 'Story'], default: 'Post' },
+   targetType: { type: String, enum: ['Post', 'Story', 'Comment'], default: 'Post' },
     targetId:   { type: mongoose.Schema.Types.ObjectId, required: true },
   },
   { timestamps: true }

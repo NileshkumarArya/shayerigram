@@ -6,6 +6,7 @@ const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const Comment = require('../models/Comment');
 const Post    = require('../models/Post');
 const Block   = require('../models/Block');
+const Like    = require('../models/Like');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 const logger  = require('../utils/logger');
 
@@ -136,11 +137,22 @@ const getComments = async (postId, query = {}, userId = null) => {
   const items   = hasMore ? comments.slice(0, limit) : comments;
   const visibleItems = items.filter(c => c.authorId);
 
+  // Batch-check which of these comments the current viewer has liked
+  let likedCommentIds = new Set();
+  if (userId && visibleItems.length > 0) {
+    const likes = await Like.find({
+      userId, targetType: 'Comment', targetId: { $in: visibleItems.map(c => c._id) },
+    }).select('targetId').lean();
+    likedCommentIds = new Set(likes.map(l => String(l.targetId)));
+  }
+
   const mapped = visibleItems.map(c => ({
-    _id:       c._id,
-    text:      c.text,
-    user:      c.authorId,
-    createdAt: c.createdAt,
+    _id:        c._id,
+    text:       c.text,
+    user:       c.authorId,
+    createdAt:  c.createdAt,
+    likesCount: c.likesCount || 0,
+    liked:      likedCommentIds.has(String(c._id)),
   }));
 
   return {
@@ -150,4 +162,38 @@ const getComments = async (postId, query = {}, userId = null) => {
   };
 };
 
-module.exports = { addComment, deleteComment, getComments };
+const toggleCommentLike = async (commentId, userId) => {
+  const comment = await Comment.findOne({ _id: commentId, isDeleted: { $ne: true } });
+  if (!comment) throw Object.assign(new Error('Comment not found'), { status: 404 });
+
+  const removed = await Like.deleteOne({ userId, targetType: 'Comment', targetId: commentId });
+
+  if (removed.deletedCount > 0) {
+    const updated = await Comment.findOneAndUpdate(
+      { _id: commentId, likesCount: { $gt: 0 } },
+      { $inc: { likesCount: -1 } },
+      { new: true }
+    ).select('likesCount');
+    return { liked: false, likesCount: Math.max(updated?.likesCount || 0, 0) };
+  }
+
+  try {
+    await Like.create({ userId, targetType: 'Comment', targetId: commentId });
+  } catch (err) {
+    if (err.code === 11000) {
+      const current = await Comment.findById(commentId).select('likesCount');
+      return { liked: true, likesCount: current?.likesCount || 0 };
+    }
+    throw err;
+  }
+
+  const updated = await Comment.findByIdAndUpdate(
+    commentId,
+    { $inc: { likesCount: 1 } },
+    { new: true }
+  ).select('likesCount');
+
+  return { liked: true, likesCount: updated?.likesCount || 0 };
+};
+
+module.exports = { addComment, deleteComment, getComments, toggleCommentLike };

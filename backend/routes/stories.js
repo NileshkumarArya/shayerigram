@@ -20,6 +20,7 @@ const {
   deleteComment,
   getComments,
   getSimilarStories,
+  toggleCommentLike,
 } = require('../controllers/storyController');
 
 // ─── Public routes (optional auth — draft check ke liye) ──────────────────────
@@ -46,5 +47,6 @@ router.post('/:storyId/progress',      saveProgress);
 router.post('/:storyId/like',              toggleLike);
 router.post('/:storyId/comment',           addComment);
 router.delete('/:storyId/comment/:commentId', deleteComment);
+router.post('/:storyId/comment/:commentId/like', toggleCommentLike);
 
 module.exports = router;

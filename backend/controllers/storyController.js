@@ -5,6 +5,7 @@ const ReadingProgress = require('../models/ReadingProgress');
 const Like            = require('../models/Like');
 const Comment          = require('../models/Comment');
 const { enqueueNotification } = require('../jobs/queues/notificationQueue');
+const commentService = require('../services/commentService');
 const { cloudinary } = require('../config/cloudinary');
 const logger         = require('../utils/logger');
 
@@ -486,6 +487,15 @@ exports.deleteComment = async (req, res) => {
 };
 
 // ─── Get Story Comments ──────────────────────────────────────────────────────────
+exports.toggleCommentLike = async (req, res) => {
+  try {
+    const result = await commentService.toggleCommentLike(req.params.commentId, req.user._id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message });
+  }
+};
+
 exports.getComments = async (req, res) => {
   try {
     const { storyId } = req.params;
@@ -498,14 +508,24 @@ exports.getComments = async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit))
       .lean();
 
-    const mapped = comments
-      .filter(c => c.authorId)
-      .map(c => ({
-        _id:       c._id,
-        text:      c.text,
-        user:      c.authorId,
-        createdAt: c.createdAt,
-      }));
+    const visible = comments.filter(c => c.authorId);
+
+    let likedCommentIds = new Set();
+    if (req.user && visible.length > 0) {
+      const likes = await Like.find({
+        userId: req.user._id, targetType: 'Comment', targetId: { $in: visible.map(c => c._id) },
+      }).select('targetId').lean();
+      likedCommentIds = new Set(likes.map(l => String(l.targetId)));
+    }
+
+    const mapped = visible.map(c => ({
+      _id:        c._id,
+      text:       c.text,
+      user:       c.authorId,
+      createdAt:  c.createdAt,
+      likesCount: c.likesCount || 0,
+      liked:      likedCommentIds.has(String(c._id)),
+    }));
 
     res.json({ success: true, comments: mapped });
   } catch (err) {

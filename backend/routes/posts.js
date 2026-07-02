@@ -2,7 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const {
   getFeed, createPost, getPost, deletePost,
-  toggleLike, addComment, deleteComment, getComments,
+  toggleLike, addComment, deleteComment, getComments, toggleCommentLike,
   toggleSave, getTrending, reportPost,
 } = require('../controllers/postController');
 const { protect, optionalAuth }  = require('../middleware/auth');
@@ -38,6 +38,8 @@ router.post('/:id/comment',                    protect, commentLimiter, checkAbu
 router.post('/:id/comment/:commentId/reply',   protect, commentLimiter, checkAbuse('comment'), ...mongoIdValidation('id'), commentValidation, addComment);
 router.delete('/:id/comment/:commentId', protect,
   ...mongoIdValidation('id'), ...mongoIdValidation('commentId'), deleteComment);
+router.post('/:id/comment/:commentId/like', protect, likeLimiter,
+  ...mongoIdValidation('id'), ...mongoIdValidation('commentId'), toggleCommentLike);
 router.get('/:id/comments',          ...mongoIdValidation('id'), optionalAuth, getComments);
 router.post('/:id/save',   protect,  ...mongoIdValidation('id'), toggleSave);
 router.post('/:id/report', protect,  ...mongoIdValidation('id'), reportPost);

@@ -120,7 +120,8 @@ export const postAPI = {
   deletePost:    (id)        => api.delete(`/posts/${id}`),
   toggleLike:    (id)        => api.post(`/posts/${id}/like`),
   addComment:    (id, text)  => api.post(`/posts/${id}/comment`, { text }),
-  deleteComment: (id, cId)   => api.delete(`/posts/${id}/comment/${cId}`),
+  deleteComment:     (id, cId) => api.delete(`/posts/${id}/comment/${cId}`),
+  toggleCommentLike: (id, cId) => api.post(`/posts/${id}/comment/${cId}/like`),
   toggleSave:    (id)        => api.post(`/posts/${id}/save`),
   reportPost:    (id)        => api.post(`/posts/${id}/report`),
   getComments:   (id, params)=> api.get(`/posts/${id}/comments`, { params }),
@@ -182,6 +183,8 @@ export const storyAPI = {
   addComment:      (id, text)     => api.post(`/stories/${id}/comment`, { text }),
   getComments:     (id, params)   => api.get(`/stories/${id}/comments`, { params }),
   getSimilarStories: (id)         => api.get(`/stories/${id}/similar`),
+  deleteComment:     (id, cId)    => api.delete(`/stories/${id}/comment/${cId}`),
+  toggleCommentLike: (id, cId)    => api.post(`/stories/${id}/comment/${cId}/like`),
 };
 
 // ─── Chapters API ─────────────────────────────────────────────────────────

@@ -290,6 +290,15 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
+exports.toggleCommentLike = async (req, res) => {
+  try {
+    const result = await commentService.toggleCommentLike(req.params.commentId, req.user._id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle comment like.' });
+  }
+};
+
 exports.getComments = async (req, res) => {
   try {
     const result = await commentService.getComments(req.params.id, req.query, req.user?._id);
