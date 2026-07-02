@@ -150,6 +150,7 @@ export const exploreAPI = {
   getHashtag:  (tag)         => api.get(`/explore/hashtag/${tag}`),
   getTrendingStories: ()      => api.get('/explore/trending/stories'),
   getNewWriters:      ()      => api.get('/explore/new-writers'),
+  getLeaderboard:     (type, period) => api.get('/explore/leaderboard', { params: { type, period } }),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────

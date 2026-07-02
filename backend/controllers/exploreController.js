@@ -260,6 +260,66 @@ exports.getNewWriters = async (req, res) => {
   }
 };
 
+// ─── Leaderboards — Top Writers, Top Shayars, Top Stories, Weekly Rankings ──────
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const { type = 'writers', period = 'all' } = req.query;
+    const cacheKey = `leaderboard:${type}:${period}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.json({ ...cached, cached: true });
+
+    const since = period === 'weekly' ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : null;
+    let result = [];
+
+    if (type === 'writers') {
+      // Top Writers — by followers (all-time only, weekly doesn't apply to a static count)
+      result = await User.find({ isDeleted: { $ne: true }, isSuspended: { $ne: true } })
+        .select('_id username avatar fullName followersCount postsCount storiesCount isVerified')
+        .sort({ followersCount: -1 })
+        .limit(20)
+        .lean();
+    }
+
+    if (type === 'shayars') {
+      // Top Shayars — by total post likesCount, aggregated per author
+      const match = { isDeleted: { $ne: true }, isTakenDown: { $ne: true } };
+      if (since) match.createdAt = { $gte: since };
+      const agg = await Post.aggregate([
+        { $match: match },
+        { $group: { _id: '$author', totalLikes: { $sum: '$likesCount' }, postsCount: { $sum: 1 } } },
+        { $sort: { totalLikes: -1 } },
+        { $limit: 20 },
+      ]);
+      const users = await User.find({ _id: { $in: agg.map(a => a._id) } })
+        .select('_id username avatar fullName isVerified').lean();
+      const userMap = new Map(users.map(u => [String(u._id), u]));
+      result = agg
+        .map(a => ({ ...userMap.get(String(a._id)), totalLikes: a.totalLikes, postsCount: a.postsCount }))
+        .filter(u => u._id);
+    }
+
+    if (type === 'stories') {
+      // Top Stories — by totalLikes
+      const Story = require('../models/Story');
+      const match = { status: 'published', isDeleted: false };
+      if (since) match.createdAt = { $gte: since };
+      result = await Story.find(match)
+        .select('_id title coverImage totalLikes totalReads genre author')
+        .populate('author', '_id username avatar')
+        .sort({ totalLikes: -1 })
+        .limit(20)
+        .lean();
+    }
+
+    const payload = { type, period, results: result };
+    await setCache(cacheKey, payload, 300); // 5 min cache
+    res.json(payload);
+  } catch (err) {
+    logger.error('Leaderboard failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load leaderboard.' });
+  }
+};
+
 // ─── Trending (uses counters) ─────────────────────────────────────────────────
 exports.getTrending = async (req, res) => {
   try {
