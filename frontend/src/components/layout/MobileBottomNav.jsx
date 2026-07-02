@@ -3,12 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import CreatePostModal from '../feed/CreatePostModal';
 import Avatar from '../common/Avatar';
-
+import { useSocket } from '../../hooks/useSocket'; // no-op placeholder removed below if unused
 export default function MobileBottomNav({ notifCount = 0 }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -44,7 +45,7 @@ export default function MobileBottomNav({ notifCount = 0 }) {
 
         {/* Create */}
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => setShowCreateMenu(true)}
           className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5"
         >
           <div className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -129,6 +130,22 @@ export default function MobileBottomNav({ notifCount = 0 }) {
 
               <button
                 className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
+                onClick={() => { navigate('/stories'); setShowProfileMenu(false); }}
+              >
+                <span className="text-xl">📚</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Stories</span>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
+                onClick={() => { navigate('/my-stories'); setShowProfileMenu(false); }}
+              >
+                <span className="text-xl">✍️</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>My Stories</span>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
                 onClick={() => { navigate('/settings'); setShowProfileMenu(false); }}
               >
                 <span className="text-xl">⚙️</span>
@@ -169,6 +186,47 @@ export default function MobileBottomNav({ notifCount = 0 }) {
                 onClick={handleLogout}
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create choice bottom sheet */}
+      {showCreateMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:hidden"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setShowCreateMenu(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl p-6 pb-10 animate-slide-up"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border)' }} />
+
+            <div className="space-y-1">
+              <button
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
+                onClick={() => { setShowCreateMenu(false); setShowCreate(true); }}
+              >
+                <span className="text-xl">✨</span>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Write Shayari</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>A short post, text or image</p>
+                </div>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
+                onClick={() => { setShowCreateMenu(false); navigate('/story/create'); }}
+              >
+                <span className="text-xl">📖</span>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Write Story</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Multi-chapter, Wattpad-style</p>
+                </div>
               </button>
             </div>
           </div>
