@@ -146,6 +146,14 @@ export default function MobileBottomNav({ notifCount = 0 }) {
 
               <button
                 className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
+                onClick={() => { navigate('/leaderboard'); setShowProfileMenu(false); }}
+              >
+                <span className="text-xl">🏆</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Leaderboard</span>
+              </button>
+
+              <button
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all hover:bg-white/5"
                 onClick={() => { navigate('/settings'); setShowProfileMenu(false); }}
               >
                 <span className="text-xl">⚙️</span>

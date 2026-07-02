@@ -30,6 +30,7 @@ const ReadStoryPage      = lazy(() => import('./pages/ReadStoryPage'));
 const MyStoriesPage      = lazy(() => import('./pages/MyStoriesPage'));
 const BookmarksPage      = lazy(() => import('./pages/BookmarksPage'));
 const ReadingHistoryPage = lazy(() => import('./pages/ReadingHistoryPage'));
+const LeaderboardPage    = lazy(() => import('./pages/LeaderboardPage'));
 
 
 const RouteFallback = memo(function RouteFallback() {
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="my-stories"            element={<MyStoriesPage />} />
             <Route path="story-bookmarks"       element={<BookmarksPage />} />
             <Route path="reading-history"       element={<ReadingHistoryPage />} />
+            <Route path="leaderboard"           element={<LeaderboardPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

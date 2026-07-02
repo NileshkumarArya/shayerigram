@@ -77,7 +77,8 @@ export default function Sidebar({ notifCount = 0 }) {
           <NavItem to="/notifications" icon="🔔" label="Notifications" badge={notifCount} />
           <NavItem icon="✨" label="Create Post" onClick={() => setShowCreate(true)} />
           <NavItem to="/saved"    icon="🔖" label="Saved" />
-          <NavItem to="/stories"  icon="📚" label="Stories" />
+          <NavItem to="/stories" icon="📚" label="Stories" />
+          <NavItem to="/leaderboard" icon="🏆" label="Leaderboard" />
           {user?.role === 'admin' && (
             <NavItem to="/admin" icon="⚙️" label="Admin Panel" />
           )}
