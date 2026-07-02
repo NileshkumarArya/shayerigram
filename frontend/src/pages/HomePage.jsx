@@ -28,13 +28,13 @@ export default function HomePage() {
   const [loading,    setLoading]    = useState(true);
   const [loadingMore,setLoadingMore]= useState(false);
   const [hasMore,    setHasMore]    = useState(true);
-  const [nextCursor, setNextCursor] = useState(null);
+  const [nextPage,   setNextPage]   = useState(2);
   const [showCreate, setShowCreate] = useState(false);
   const [error,      setError]      = useState('');
   const observerRef = useRef(null);
   const bottomRef   = useRef(null);
 
-  const loadPosts = useCallback(async (cursor = null, reset = false) => {
+  const loadPosts = useCallback(async (pageNum = 1, reset = false) => {
     if (reset) {
       setLoading(true);
       setError('');
@@ -42,21 +42,24 @@ export default function HomePage() {
       setLoadingMore(true);
     }
     try {
-      const params = { limit: 10 };
-      if (cursor) params.cursor = cursor;
+      const params = { limit: 10, page: pageNum };
+      // Send already-loaded post IDs so the Smart Feed doesn't repeat them
+      if (!reset && posts.length > 0) {
+        params.exclude = posts.map(p => p._id).filter(Boolean).join(',');
+      }
       const { data } = await postAPI.getFeed(params);
       const newPosts = data.posts || [];
 
       setPosts(prev => reset ? newPosts : [...prev, ...newPosts]);
       setHasMore(data.hasMore || false);
-      setNextCursor(data.nextCursor || null);
+      setNextPage(data.nextPage || pageNum + 1);
     } catch {
       if (reset) setError('Feed load nahi ho paaya. Please try again.');
     }
     if (reset) setLoading(false); else setLoadingMore(false);
-  }, []);
+  }, [posts]);
 
-  useEffect(() => { loadPosts(null, true); }, [loadPosts]);
+  useEffect(() => { loadPosts(1, true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch a small batch of latest stories once, to mix into the feed
   useEffect(() => {
@@ -68,14 +71,14 @@ export default function HomePage() {
   useEffect(() => {
     if (!bottomRef.current) return;
     observerRef.current = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasMore && !loadingMore && nextCursor) {
-        loadPosts(nextCursor);
+      ([entry]) => { if (entry.isIntersecting && hasMore && !loadingMore) {
+        loadPosts(nextPage);
       }},
       { threshold: 0.1 }
     );
     observerRef.current.observe(bottomRef.current);
     return () => observerRef.current?.disconnect();
-  }, [hasMore, loadingMore, nextCursor, loadPosts]);
+  }, [hasMore, loadingMore, nextPage, loadPosts]);
 
   const handlePostCreated = (newPost) => {
     setPosts(prev => [newPost, ...prev]);
@@ -92,7 +95,7 @@ export default function HomePage() {
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
           {error}
         </p>
-        <button onClick={() => loadPosts(null, true)} className="btn-primary py-3 px-6">
+        <button onClick={() => loadPosts(1, true)} className="btn-primary py-3 px-6">
           Try Again
         </button>
       </div>
