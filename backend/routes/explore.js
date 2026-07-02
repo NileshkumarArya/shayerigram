@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const {
-  search, getAllPosts, getByCategory, getByHashtag, getTrending, getTrendingStories,
+  search, getAllPosts, getByCategory, getByHashtag, getTrending, getTrendingStories, getNewWriters,
 } = require('../controllers/exploreController');
 const { searchValidation }  = require('../middleware/validate');
 const { searchLimiter }     = require('../middleware/rateLimiter');
@@ -21,6 +21,7 @@ try {
 router.get('/search',             optionalAuth, searchLimiter, searchValidation, search);
 router.get('/trending',                          getTrending);
 router.get('/trending/stories',                  getTrendingStories);
+router.get('/new-writers',        optionalAuth,  getNewWriters);
 router.get('/all',                optionalAuth,  getAllPosts);
 router.get('/category/:category', optionalAuth,  getByCategory);
 router.get('/hashtag/:tag',       optionalAuth,  getByHashtag);

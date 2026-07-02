@@ -148,6 +148,7 @@ export const exploreAPI = {
   getAllPosts:  (params)      => api.get('/explore/all', { params }),
   getHashtag:  (tag)         => api.get(`/explore/hashtag/${tag}`),
   getTrendingStories: ()      => api.get('/explore/trending/stories'),
+  getNewWriters:      ()      => api.get('/explore/new-writers'),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────

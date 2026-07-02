@@ -20,6 +20,7 @@ async function attachUserStatus(posts, userId) {
 
 const Post          = require('../models/Post');
 const Block         = require('../models/Block');
+const Follow        = require('../models/Follow');
 const searchService = require('../services/searchService');
 const User = require('../models/User');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
@@ -225,6 +226,37 @@ exports.getTrendingStories = async (req, res) => {
   } catch (err) {
     logger.error('Trending stories failed', { error: err.message });
     res.status(500).json({ message: 'Failed to load trending stories.' });
+  }
+};
+
+// ─── New Writers Spotlight — low-follower creators with at least 1 published work ──
+exports.getNewWriters = async (req, res) => {
+  try {
+    const excludeIds = [];
+    if (req.user) {
+      const [following, blockedUserIds] = await Promise.all([
+        Follow.find({ followerId: req.user._id }).select('followingId').lean(),
+        getBlockedUserIds(req.user._id),
+      ]);
+      excludeIds.push(req.user._id, ...following.map(f => f.followingId), ...blockedUserIds);
+    }
+
+    const newWriters = await User.find({
+      _id:            { $nin: excludeIds },
+      isSuspended:    { $ne: true },
+      isDeleted:      { $ne: true },
+      followersCount: { $lt: 200 },
+      $or: [{ postsCount: { $gt: 0 } }, { storiesCount: { $gt: 0 } }],
+    })
+      .select('_id username avatar fullName bio followersCount postsCount storiesCount isVerified createdAt')
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .lean();
+
+    res.json({ users: newWriters });
+  } catch (err) {
+    logger.error('New writers failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load new writers.' });
   }
 };
 

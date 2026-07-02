@@ -139,6 +139,8 @@ export default function ExplorePage() {
         ))}
       </div>
 
+      <NewWritersSpotlight />
+
       {/* Search bar — common for both tabs */}
       <div className="relative mb-4">
         <svg className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -518,6 +520,73 @@ function StoriesExplore({ query }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function NewWritersSpotlight() {
+  const [writers, setWriters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [followingIds, setFollowingIds] = useState(new Set());
+
+  useEffect(() => {
+    exploreAPI.getNewWriters()
+      .then(({ data }) => setWriters(data.users || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleFollow = async (id) => {
+    setFollowingIds(prev => new Set(prev).add(id));
+    try {
+      await userAPI.toggleFollow(id);
+    } catch (err) {
+      setFollowingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      console.error('Follow error:', err);
+    }
+  };
+
+  if (loading || writers.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">✨</span>
+        <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--purple-light)' }}>
+          New Writers
+        </h3>
+        <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(147,51,234,0.4),transparent)' }} />
+      </div>
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+        {writers.map(w => {
+          const isFollowing = followingIds.has(w._id);
+          return (
+            <div key={w._id} className="shrink-0 w-32 rounded-xl p-3 text-center glass"
+              style={{ border: '1px solid var(--border)' }}>
+              <Link to={`/profile/${w.username}`}>
+                <Avatar user={w} size="lg" clickable={false} />
+              </Link>
+              <Link to={`/profile/${w.username}`}
+                className="block text-xs font-semibold mt-2 truncate hover:text-purple-300 transition-colors"
+                style={{ color: 'var(--text-primary)' }}>
+                {w.username}
+              </Link>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {(w.postsCount || 0) + (w.storiesCount || 0)} posts
+              </p>
+              <button
+                onClick={() => handleFollow(w._id)}
+                disabled={isFollowing}
+                className="w-full mt-2 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-60"
+                style={isFollowing
+                  ? { background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+                  : { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
