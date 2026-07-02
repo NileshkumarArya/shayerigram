@@ -23,6 +23,7 @@ function buildMixedFeed(posts, stories) {
 }
 
 export default function HomePage() {
+  const [tab,         setTab]         = useState('forYou'); // 'forYou' | 'shayari' | 'stories'
   const [posts,      setPosts]      = useState([]);
   const [stories,    setStories]    = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -33,6 +34,15 @@ export default function HomePage() {
   const [error,      setError]      = useState('');
   const observerRef = useRef(null);
   const bottomRef   = useRef(null);
+
+  // ─── Stories tab (full list, separate pagination) ───────────────────────
+  const [storiesTabList,        setStoriesTabList]        = useState([]);
+  const [storiesTabLoading,     setStoriesTabLoading]     = useState(true);
+  const [storiesTabLoadingMore, setStoriesTabLoadingMore] = useState(false);
+  const [storiesTabPage,        setStoriesTabPage]        = useState(1);
+  const [storiesTabHasMore,     setStoriesTabHasMore]     = useState(true);
+  const storiesObserverRef = useRef(null);
+  const storiesBottomRef   = useRef(null);
 
   const loadPosts = useCallback(async (pageNum = 1, reset = false) => {
     if (reset) {
@@ -61,15 +71,16 @@ export default function HomePage() {
 
   useEffect(() => { loadPosts(1, true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch a small batch of latest stories once, to mix into the feed
+  // Fetch a small batch of latest stories once, to mix into the "For You" feed
   useEffect(() => {
     storyAPI.getStories({ limit: 6, sort: 'latest' })
       .then(({ data }) => setStories(data.stories || []))
       .catch(() => {});
   }, []);
 
+  // Posts infinite scroll — only active on 'forYou' and 'shayari' tabs
   useEffect(() => {
-    if (!bottomRef.current) return;
+    if (tab === 'stories' || !bottomRef.current) return;
     observerRef.current = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting && hasMore && !loadingMore) {
         loadPosts(nextPage);
@@ -78,7 +89,40 @@ export default function HomePage() {
     );
     observerRef.current.observe(bottomRef.current);
     return () => observerRef.current?.disconnect();
-  }, [hasMore, loadingMore, nextPage, loadPosts]);
+  }, [hasMore, loadingMore, nextPage, loadPosts, tab]);
+
+  // ─── Stories tab: load full list, lazily on first switch ────────────────
+  const loadStoriesTab = useCallback(async (pageNum = 1, reset = false) => {
+    if (reset) setStoriesTabLoading(true); else setStoriesTabLoadingMore(true);
+    try {
+      const { data } = await storyAPI.getStories({ page: pageNum, limit: 10, sort: 'latest' });
+      setStoriesTabList(prev => reset ? (data.stories || []) : [...prev, ...(data.stories || [])]);
+      setStoriesTabHasMore(!!data.hasMore);
+      setStoriesTabPage(pageNum);
+    } catch (err) {
+      console.error('Stories tab load error:', err);
+    }
+    if (reset) setStoriesTabLoading(false); else setStoriesTabLoadingMore(false);
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'stories' && storiesTabList.length === 0) {
+      loadStoriesTab(1, true);
+    }
+  }, [tab, storiesTabList.length, loadStoriesTab]);
+
+  // Stories tab infinite scroll — only active on 'stories' tab
+  useEffect(() => {
+    if (tab !== 'stories' || !storiesBottomRef.current) return;
+    storiesObserverRef.current = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && storiesTabHasMore && !storiesTabLoadingMore) {
+        loadStoriesTab(storiesTabPage + 1);
+      }},
+      { threshold: 0.1 }
+    );
+    storiesObserverRef.current.observe(storiesBottomRef.current);
+    return () => storiesObserverRef.current?.disconnect();
+  }, [tab, storiesTabHasMore, storiesTabLoadingMore, storiesTabPage, loadStoriesTab]);
 
   const handlePostCreated = (newPost) => {
     setPosts(prev => [newPost, ...prev]);
@@ -102,32 +146,79 @@ export default function HomePage() {
     );
   }
 
+  const feedItems = tab === 'forYou' ? buildMixedFeed(posts, stories) : posts;
+
   return (
     <div className="animate-fade-in">
-      {/* Posts */}
-      {posts.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-5xl mb-4 animate-float">📜</div>
-          <p className="font-shayari text-lg gradient-text mb-2">Your feed is empty</p>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Follow some shayars to see their posts here
-          </p>
-        </div>
-      ) : (
-        <>
-          {buildMixedFeed(posts, stories).map(item =>
-            item.type === 'ad'    ? <AdCard key={item._id} ad={item} /> :
-            item.type === 'story' ? <StoryFeedCard key={item._id} story={item.story} /> :
-                                     <PostCard key={item._id} post={item} />
-          )}
-          <div ref={bottomRef} className="h-4" />
-          {loadingMore && <div className="flex justify-center py-4"><LoadingSpinner /></div>}
-          {!hasMore && posts.length > 0 && (
-            <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>
-              ✦ You've seen all shayaris
-            </div>
-          )}
-        </>
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl glass mb-5 w-fit">
+        {[
+          { id: 'forYou',  label: '✨ For You' },
+          { id: 'shayari', label: '📜 Shayari' },
+          { id: 'stories', label: '📖 Stories' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={tab === t.id
+              ? { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }
+              : { color: 'var(--text-muted)' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* For You / Shayari tabs — share the same posts pagination */}
+      {tab !== 'stories' && (
+        posts.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-4 animate-float">📜</div>
+            <p className="font-shayari text-lg gradient-text mb-2">Your feed is empty</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Follow some shayars to see their posts here
+            </p>
+          </div>
+        ) : (
+          <>
+            {feedItems.map(item =>
+              item.type === 'ad'    ? <AdCard key={item._id} ad={item} /> :
+              item.type === 'story' ? <StoryFeedCard key={item._id} story={item.story} /> :
+                                       <PostCard key={item._id} post={item} />
+            )}
+            <div ref={bottomRef} className="h-4" />
+            {loadingMore && <div className="flex justify-center py-4"><LoadingSpinner /></div>}
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>
+                ✦ You've seen all shayaris
+              </div>
+            )}
+          </>
+        )
+      )}
+
+      {/* Stories tab — separate full list */}
+      {tab === 'stories' && (
+        storiesTabLoading ? (
+          <FeedSkeleton count={4} />
+        ) : storiesTabList.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-4 animate-float">📖</div>
+            <p className="font-shayari text-lg gradient-text mb-2">No stories yet</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Be the first to publish one!
+            </p>
+          </div>
+        ) : (
+          <>
+            {storiesTabList.map(s => <StoryFeedCard key={s._id} story={s} />)}
+            <div ref={storiesBottomRef} className="h-4" />
+            {storiesTabLoadingMore && <div className="flex justify-center py-4"><LoadingSpinner /></div>}
+            {!storiesTabHasMore && storiesTabList.length > 0 && (
+              <div className="text-center py-6 text-sm" style={{ color: 'var(--text-muted)' }}>
+                ✦ You've seen all stories
+              </div>
+            )}
+          </>
+        )
       )}
 
       {showCreate && (
