@@ -184,6 +184,50 @@ exports.getByHashtag = async (req, res) => {
   }
 };
 
+// ─── Trending Stories (uses counters) ──────────────────────────────────────────
+exports.getTrendingStories = async (req, res) => {
+  try {
+    const Story = require('../models/Story');
+    const cached = await getCache('trending:stories');
+    if (cached) return res.json({ stories: cached, cached: true });
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const stories = await Story.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: since },
+          status:    'published',
+          isDeleted: false,
+        },
+      },
+      {
+        $addFields: {
+          score: {
+            $add: [
+              { $ifNull: ['$totalLikes',    0] },
+              { $multiply: [{ $ifNull: ['$totalComments', 0] }, 2] },
+              { $ifNull: ['$totalReads',    0] },
+            ],
+          },
+        },
+      },
+      { $sort: { score: -1, createdAt: -1 } },
+      { $limit: 20 },
+    ]);
+
+    const populated = await Story.populate(stories, {
+      path: 'author', select: '_id username avatar isVerified',
+    });
+
+    await setCache('trending:stories', populated, 120);
+    res.json({ stories: populated });
+  } catch (err) {
+    logger.error('Trending stories failed', { error: err.message });
+    res.status(500).json({ message: 'Failed to load trending stories.' });
+  }
+};
+
 // ─── Trending (uses counters) ─────────────────────────────────────────────────
 exports.getTrending = async (req, res) => {
   try {

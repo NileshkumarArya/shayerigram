@@ -329,12 +329,20 @@ function StoriesExplore({ query }) {
   const loadStories = useCallback(async (pageNum = 1, reset = false) => {
     if (reset) setLoading(true); else setLoadingMore(true);
     try {
-      const params = { page: pageNum, limit: 12, sort: 'latest' };
-      if (genre !== 'All') params.genre = genre;
-      const { data } = await storyAPI.getStories(params);
-      setStories(prev => reset ? (data.stories || []) : [...prev, ...(data.stories || [])]);
-      setHasMore(!!data.hasMore);
-      setPage(pageNum);
+      if (genre === 'Trending') {
+        // Trending has no pagination — single top-20 list
+        const { data } = await exploreAPI.getTrendingStories();
+        setStories(data.stories || []);
+        setHasMore(false);
+        setPage(1);
+      } else {
+        const params = { page: pageNum, limit: 12, sort: 'latest' };
+        if (genre !== 'All') params.genre = genre;
+        const { data } = await storyAPI.getStories(params);
+        setStories(prev => reset ? (data.stories || []) : [...prev, ...(data.stories || [])]);
+        setHasMore(!!data.hasMore);
+        setPage(pageNum);
+      }
     } catch (err) {
       console.error('Stories load error:', err);
     }
@@ -431,6 +439,13 @@ function StoriesExplore({ query }) {
     <div>
       {/* Genre chips */}
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 mb-5 w-full">
+        <button onClick={() => setGenre('Trending')}
+          className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all"
+          style={genre === 'Trending'
+            ? { background: '#f59e0b', color: 'white', boxShadow: '0 4px 15px #f59e0b50' }
+            : { background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+          🔥 Trending
+        </button>
         {STORY_GENRES.map(g => {
           const isActive = genre === g.name;
           return (

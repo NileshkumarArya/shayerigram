@@ -147,6 +147,7 @@ export const exploreAPI = {
   getCategory: (cat, params) => api.get(`/explore/category/${cat}`, { params }),
   getAllPosts:  (params)      => api.get('/explore/all', { params }),
   getHashtag:  (tag)         => api.get(`/explore/hashtag/${tag}`),
+  getTrendingStories: ()      => api.get('/explore/trending/stories'),
 };
 
 // ─── Admin API ────────────────────────────────────────────────────────────
