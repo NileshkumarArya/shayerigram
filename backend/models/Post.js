@@ -32,6 +32,9 @@ const postSchema = new mongoose.Schema(
     // Keep for backward compat — frontend may still use category
     category: { type: String, default: 'Other' },
 
+    // Optional — post kisi club ke andar bhi post ho sakti hai (still shows in normal feed too)
+    clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', default: null },
+
     writtenIn: { type: String, enum: ['Hindi', 'Urdu', 'English', 'Mixed'], default: 'Hindi' }, // renamed from 'language' to avoid MongoDB text index conflict
     hashtags:  [{ type: String, lowercase: true }],
 

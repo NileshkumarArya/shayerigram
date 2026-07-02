@@ -237,6 +237,12 @@ const uploadStoryCoverImage = [
   processAndUpload({ folder: 'shayerigram/story-covers', width: 400, height: 600, fit: 'cover', quality: 82 }),
 ];
 
+// ─── Club cover image pipeline ────────────────────────────────────────────
+const uploadClubCoverImage = [
+  createMulter(5).single('cover'),
+  processAndUpload({ folder: 'shayerigram/club-covers', width: 800, height: 400, fit: 'cover', quality: 82 }),
+];
+
 // ─── Chapter audio pipeline (separate — audio nahi image hai) ─────────────
 const ALLOWED_AUDIO_MIME = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/x-m4a'];
 const MAX_AUDIO_BYTES = 30 * 1024 * 1024; // 30MB
@@ -343,6 +349,7 @@ module.exports = {
   processPostImage,
   uploadAvatarImage,
   uploadStoryCoverImage,
+  uploadClubCoverImage,
   uploadChapterAudio,
   multerErrorHandler,
 };

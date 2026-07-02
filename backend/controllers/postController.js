@@ -25,7 +25,7 @@ exports.getFeed = async (req, res) => {
 
 exports.createPost = async (req, res) => {
   try {
-    const { title, content, language, writtenIn, type, theme, fontStyle } = req.body;
+    const { title, content, language, writtenIn, type, theme, fontStyle, clubId } = req.body;
 
     let categories = req.body['categories[]'] || req.body.categories;
     if (typeof categories === 'string') categories = [categories];
@@ -58,7 +58,22 @@ exports.createPost = async (req, res) => {
       postData.type = 'image';
     }
 
+    // Optional — post inside a club (must be a member)
+    if (clubId) {
+      const ClubMembership = require('../models/ClubMembership');
+      const isMember = await ClubMembership.exists({ userId: req.user._id, clubId });
+      if (!isMember) {
+        return res.status(403).json({ message: 'Post karne ke liye pehle club join karo.' });
+      }
+      postData.clubId = clubId;
+    }
+
     const post = await Post.create(postData);
+
+    if (clubId) {
+      const Club = require('../models/Club');
+      Club.findByIdAndUpdate(clubId, { $inc: { postsCount: 1 } }).catch(() => {});
+    }
 
     User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: 1 } }).catch(() => {});
 
@@ -223,6 +238,14 @@ exports.deletePost = async (req, res) => {
 
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.clubId) {
+      const Club = require('../models/Club');
+      Club.findOneAndUpdate(
+        { _id: post.clubId, postsCount: { $gt: 0 } },
+        { $inc: { postsCount: -1 } }
+      ).catch(() => {});
     }
 
     User.findOneAndUpdate(

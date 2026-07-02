@@ -188,6 +188,16 @@ export const storyAPI = {
   toggleCommentLike: (id, cId)    => api.post(`/stories/${id}/comment/${cId}/like`),
 };
 
+// ─── Clubs API ────────────────────────────────────────────────────────────
+export const clubAPI = {
+  getClubs:          (params)     => api.get('/clubs', { params }),
+  getClub:           (id)         => api.get(`/clubs/${id}`),
+  getClubPosts:      (id, params) => api.get(`/clubs/${id}/posts`, { params }),
+  createClub:        (data)       => api.post('/clubs', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  toggleMembership:  (id)         => api.post(`/clubs/${id}/membership`),
+  getMyClubs:        ()           => api.get('/clubs/my/clubs'),
+};
+
 // ─── Chapters API ─────────────────────────────────────────────────────────
 export const chapterAPI = {
   getChapters:     (storyId)      => api.get(`/chapters/story/${storyId}`),
