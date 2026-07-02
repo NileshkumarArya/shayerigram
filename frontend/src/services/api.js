@@ -181,6 +181,7 @@ export const storyAPI = {
   toggleLike:      (id)           => api.post(`/stories/${id}/like`),
   addComment:      (id, text)     => api.post(`/stories/${id}/comment`, { text }),
   getComments:     (id, params)   => api.get(`/stories/${id}/comments`, { params }),
+  getSimilarStories: (id)         => api.get(`/stories/${id}/similar`),
 };
 
 // ─── Chapters API ─────────────────────────────────────────────────────────

@@ -31,15 +31,17 @@ export default function StoryDetailPage() {
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [similarStories, setSimilarStories] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [storyRes, chaptersRes, commentsRes] = await Promise.all([
+        const [storyRes, chaptersRes, commentsRes, similarRes] = await Promise.all([
           storyAPI.getStory(storyId),
           chapterAPI.getChapters(storyId),
           storyAPI.getComments(storyId),
+          storyAPI.getSimilarStories(storyId),
         ]);
         setStory(storyRes.data.story);
         setProgress(storyRes.data.progress);
@@ -48,6 +50,7 @@ export default function StoryDetailPage() {
         setLikeCount(storyRes.data.story?.totalLikes ?? 0);
         setChapters(chaptersRes.data.chapters);
         setComments(commentsRes.data.comments || []);
+        setSimilarStories(similarRes.data.stories || []);
       } catch (err) {
         console.error('Fetch error:', err);
       } finally {
@@ -265,6 +268,42 @@ export default function StoryDetailPage() {
           );
         })}
       </div>
+
+      {/* Similar Stories */}
+      {similarStories.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">📚</span>
+            <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--purple-light)' }}>
+              Similar Stories
+            </h3>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(147,51,234,0.4),transparent)' }} />
+          </div>
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+            {similarStories.map(s => (
+              <Link key={s._id} to={`/story/${s._id}`}
+                className="shrink-0 w-28 rounded-xl overflow-hidden glass-hover"
+                style={{ border: '1px solid var(--border)' }}>
+                <div className="aspect-[2/3]" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
+                  {s.coverImage ? (
+                    <img src={s.coverImage} alt={s.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center p-1.5">
+                      <p className="text-[10px] font-shayari text-center line-clamp-5" style={{ color: 'var(--text-secondary)' }}>
+                        {s.title}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-2">
+                  <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{s.title}</p>
+                  <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>by {s.author?.username}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Comments section */}
       <div className="mt-8">

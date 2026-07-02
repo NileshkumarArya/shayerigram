@@ -513,3 +513,33 @@ exports.getComments = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ─── Similar Stories — same genre or overlapping tags ───────────────────────────
+exports.getSimilarStories = async (req, res) => {
+  try {
+    const { storyId } = req.params;
+
+    const story = await Story.findOne({ _id: storyId, isDeleted: false }).select('genre tags');
+    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+
+    const similar = await Story.find({
+      _id:       { $ne: storyId },
+      status:    'published',
+      isDeleted: false,
+      $or: [
+        { genre: story.genre },
+        { tags:  { $in: story.tags } },
+      ],
+    })
+      .select('_id title coverImage genre totalLikes totalReads author')
+      .populate('author', '_id username avatar')
+      .sort({ totalLikes: -1, createdAt: -1 })
+      .limit(6)
+      .lean();
+
+    res.json({ success: true, stories: similar });
+  } catch (err) {
+    logger.error('getSimilarStories error', { error: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};

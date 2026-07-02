@@ -19,6 +19,7 @@ const {
   addComment,
   deleteComment,
   getComments,
+  getSimilarStories,
 } = require('../controllers/storyController');
 
 // ─── Public routes (optional auth — draft check ke liye) ──────────────────────
@@ -26,6 +27,7 @@ router.get('/',              getStories);
 router.get('/:storyId',      optionalAuth, getStory);
 router.get('/user/:userId',  getUserStories);
 router.get('/:storyId/comments', optionalAuth, getComments);
+router.get('/:storyId/similar',  getSimilarStories);
 
 // ─── Protected routes ──────────────────────────────────────────────────────────
 router.use(protect);
