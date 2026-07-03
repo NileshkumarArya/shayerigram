@@ -75,8 +75,8 @@ export default function LeaderboardPage() {
       ) : results.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-5xl mb-3">🏆</div>
-          <p className="font-shayari gradient-text">Koi rankings nahi mili</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Zyada creators aane pe yahan dikhega</p>
+          <p className="font-shayari gradient-text">No rankings yet</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>This will fill up as more creators join</p>
         </div>
       ) : tab === 'stories' ? (
         <div className="space-y-2">

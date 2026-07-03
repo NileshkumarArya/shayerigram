@@ -58,7 +58,7 @@ export default function ClubsPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-cinzel gradient-text mb-1">🤝 Clubs</h1>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Apni pasand ke topic pe likhne walo se judo</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Connect with writers who share your interests</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4 py-2.5">
           + Create Club
@@ -82,8 +82,8 @@ export default function ClubsPage() {
       ) : clubs.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-5xl mb-3">🤝</div>
-          <p className="font-shayari gradient-text">Koi club nahi mila</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Pehla club tu bana!</p>
+          <p className="font-shayari gradient-text">No clubs found</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Be the first to create one!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -143,7 +143,7 @@ function CreateClubModal({ onClose, onCreated }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setError('Club name zaroori hai.'); return; }
+    if (!name.trim()) { setError('Club name is required.'); return; }
     setLoading(true);
     setError('');
     try {
@@ -155,7 +155,7 @@ function CreateClubModal({ onClose, onCreated }) {
       await clubAPI.createClub(fd);
       onCreated();
     } catch (err) {
-      setError(err.response?.data?.message || 'Club create nahi hui.');
+      setError(err.response?.data?.message || 'Failed to create club.');
     } finally {
       setLoading(false);
     }
@@ -169,7 +169,7 @@ function CreateClubModal({ onClose, onCreated }) {
         className="glass rounded-2xl p-6 max-w-md w-full space-y-4 animate-fade-in"
         style={{ border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold gradient-text">🤝 Naya Club Banao</h2>
+       <h2 className="text-lg font-bold gradient-text">🤝 Create a New Club</h2>
 
         {error && (
           <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
@@ -185,12 +185,12 @@ function CreateClubModal({ onClose, onCreated }) {
           <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverChange} className="hidden" />
         </label>
 
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Club ka naam..."
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Club name..."
           maxLength={60}
           className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
           style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
 
-        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Club kis baare mein hai..."
+        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What's this club about..."
           maxLength={300} rows={3}
           className="w-full px-4 py-3 rounded-xl text-sm resize-none focus:outline-none focus:ring-1 focus:ring-purple-500"
           style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />

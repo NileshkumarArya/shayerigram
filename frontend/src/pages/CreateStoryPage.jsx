@@ -71,7 +71,7 @@ export default function CreateStoryPage() {
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
-      <h1 className="text-2xl font-bold gradient-text mb-6">📚 Naya Story Shuru Karo</h1>
+      <h1 className="text-2xl font-bold gradient-text mb-6">📚 Start a New Story</h1>
 
       <form onSubmit={handleSubmit} className="card p-6 space-y-5">
         {error && (
@@ -199,7 +199,7 @@ export default function CreateStoryPage() {
 
         {/* Submit */}
         <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-sm font-semibold disabled:opacity-50">
-          {loading ? 'Creating...' : 'Story Create Karo → Chapters Add Karo'}
+          {loading ? 'Creating...' : 'Create Story → Add Chapters'}
         </button>
       </form>
     </div>

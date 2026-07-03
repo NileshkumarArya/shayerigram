@@ -106,7 +106,7 @@ export default function ClubDetailPage() {
         <button onClick={() => setShowCreate(true)}
           className="w-full mb-5 py-3 rounded-xl text-sm font-semibold glass-hover text-left px-4"
           style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-          ✨ Is club me shayari share karo...
+          ✨ Share something in this club...
         </button>
       )}
 
@@ -116,9 +116,9 @@ export default function ClubDetailPage() {
       ) : posts.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-5xl mb-3">📝</div>
-          <p className="font-shayari gradient-text">Is club me abhi koi post nahi hai</p>
+          <p className="font-shayari gradient-text">No posts in this club yet</p>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {isMember ? 'Pehli post tu daal!' : 'Join karke pehli post daalo'}
+            {isMember ? 'Be the first to post!' : 'Join to share the first post'}
           </p>
         </div>
       ) : (

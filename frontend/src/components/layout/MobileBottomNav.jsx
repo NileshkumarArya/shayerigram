@@ -241,7 +241,7 @@ export default function MobileBottomNav({ notifCount = 0 }) {
                 <span className="text-xl">📖</span>
                 <div>
                   <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Write Story</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Multi-chapter, Wattpad-style</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Multi-chapter, long-form writing</p>
                 </div>
               </button>
             </div>

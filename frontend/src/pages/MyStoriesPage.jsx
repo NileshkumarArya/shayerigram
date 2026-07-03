@@ -25,7 +25,7 @@ export default function MyStoriesPage() {
   useEffect(() => { fetchStories(); }, [filter]);
 
   const handleDelete = async (storyId) => {
-    if (!window.confirm('Ye story delete karna hai? Ye permanent hai.')) return;
+    if (!window.confirm('Delete this story? This cannot be undone.')) return;
     try {
       await storyAPI.deleteStory(storyId);
       setStories(prev => prev.filter(s => s._id !== storyId));
@@ -37,7 +37,7 @@ export default function MyStoriesPage() {
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold gradient-text">📚 Meri Stories</h1>
+        <h1 className="text-2xl font-bold gradient-text">📚 My Stories</h1>
         <Link to="/story/create" className="btn-primary text-sm py-2.5 px-5">
           + New Story
         </Link>
@@ -61,10 +61,10 @@ export default function MyStoriesPage() {
         <div className="text-center py-16 card">
           <div className="text-5xl mb-4">📖</div>
           <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>
-            Koi story nahi hai
+            No stories yet
           </h3>
           <Link to="/story/create" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">
-            Story shuru karo
+            Start a story
           </Link>
         </div>
       ) : (

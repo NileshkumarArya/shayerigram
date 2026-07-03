@@ -41,16 +41,16 @@ export default function AnalyticsPage() {
     return (
       <div className="animate-fade-in max-w-md mx-auto text-center py-16">
         <div className="text-5xl mb-4">🔒</div>
-        <h1 className="text-xl font-bold gradient-text mb-2">Analytics abhi locked hai</h1>
+        <h1 className="text-xl font-bold gradient-text mb-2">Analytics is locked</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Kam se kam {required} posts/stories publish karo apna Analytics Dashboard unlock karne ke liye.
+          Publish at least {required} posts/stories to unlock your Analytics Dashboard.
         </p>
         <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.05)' }}>
           <div className="h-full rounded-full transition-all"
             style={{ width: `${pct}%`, background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }} />
         </div>
         <p className="text-xs mb-6" style={{ color: 'var(--text-muted)' }}>{current} / {required}</p>
-        <Link to="/create" className="btn-primary inline-block px-6 py-2.5 text-sm">✨ Kuch likho</Link>
+        <Link to="/create" className="btn-primary inline-block px-6 py-2.5 text-sm">✨ Start Writing</Link>
       </div>
     );
   }
@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
     <div className="animate-fade-in w-full min-w-0">
       <div className="mb-6">
         <h1 className="text-2xl font-cinzel gradient-text mb-1">📊 Analytics</h1>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Tera performance, ek nazar mein</p>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your performance, at a glance</p>
       </div>
 
       {/* Overview grid */}
