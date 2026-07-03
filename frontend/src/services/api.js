@@ -188,6 +188,11 @@ export const storyAPI = {
   toggleCommentLike: (id, cId)    => api.post(`/stories/${id}/comment/${cId}/like`),
 };
 
+// ─── Analytics API ────────────────────────────────────────────────────────
+export const analyticsAPI = {
+  getMyAnalytics: () => api.get('/analytics/me'),
+};
+
 // ─── Clubs API ────────────────────────────────────────────────────────────
 export const clubAPI = {
   getClubs:          (params)     => api.get('/clubs', { params }),

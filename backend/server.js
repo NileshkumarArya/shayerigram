@@ -119,6 +119,7 @@ app.use('/api/explore',       require('./routes/explore'));
 app.use('/api/stories',       require('./routes/stories'));
 app.use('/api/chapters',      require('./routes/chapters'));
 app.use('/api/clubs',         require('./routes/clubs'));
+app.use('/api/analytics',     require('./routes/analytics'));
 app.use('/api/admin',         require('./routes/admin'));
 // ─── Phase 1: Payments/Coins DISABLED — enable in Phase 2 ────────────────────
 // Set ENABLE_PAYMENTS=true in .env when ready to go live with payments

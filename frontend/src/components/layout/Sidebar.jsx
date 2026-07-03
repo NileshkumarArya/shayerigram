@@ -80,6 +80,7 @@ export default function Sidebar({ notifCount = 0 }) {
           <NavItem to="/stories" icon="📚" label="Stories" />
           <NavItem to="/leaderboard" icon="🏆" label="Leaderboard" />
           <NavItem to="/clubs" icon="🤝" label="Clubs" />
+          <NavItem to="/analytics" icon="📊" label="Analytics" />
           {user?.role === 'admin' && (
             <NavItem to="/admin" icon="⚙️" label="Admin Panel" />
           )}

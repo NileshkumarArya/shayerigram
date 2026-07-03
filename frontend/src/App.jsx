@@ -33,6 +33,7 @@ const ReadingHistoryPage = lazy(() => import('./pages/ReadingHistoryPage'));
 const LeaderboardPage    = lazy(() => import('./pages/LeaderboardPage'));
 const ClubsPage          = lazy(() => import('./pages/ClubsPage'));
 const ClubDetailPage     = lazy(() => import('./pages/ClubDetailPage'));
+const AnalyticsPage      = lazy(() => import('./pages/AnalyticsPage'));
 
 
 const RouteFallback = memo(function RouteFallback() {
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="leaderboard"           element={<LeaderboardPage />} />
             <Route path="clubs"                 element={<ClubsPage />} />
             <Route path="clubs/:clubId"         element={<ClubDetailPage />} />
+            <Route path="analytics"             element={<AnalyticsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
