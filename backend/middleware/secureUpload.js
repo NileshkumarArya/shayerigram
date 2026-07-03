@@ -54,22 +54,24 @@ const alertSuspiciousUpload = (reason, req, extra = {}) => {
 
 // ─── Duplicate detection via SHA-256 hash (per user) ─────────────────────
 // FIX B: Prevent same file being uploaded repeatedly (spam/flood)
-const getUploadCacheKey = (buffer, userId) => {
+const getUploadCacheKey = (buffer, userId, folder) => {
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-  return `upload_hash:${userId}:${hash}`;
+  // Scoped by folder too — reusing the same photo for avatar/post/story-cover
+  // is legitimate, only rapid re-submission within the SAME context is spam.
+  return `upload_hash:${userId}:${folder}:${hash}`;
 };
 
-const isDuplicateUpload = async (buffer, userId) => {
+const isDuplicateUpload = async (buffer, userId, folder) => {
   try {
-    return !!(await getCache(getUploadCacheKey(buffer, userId)));
+    return !!(await getCache(getUploadCacheKey(buffer, userId, folder)));
   } catch {
     return false;
   }
 };
 
-const markUploadHash = async (buffer, userId) => {
+const markUploadHash = async (buffer, userId, folder) => {
   try {
-    await setCache(getUploadCacheKey(buffer, userId), '1', 86400);
+    await setCache(getUploadCacheKey(buffer, userId, folder), '1', 86400);
   } catch {
     // Cache unavailable — upload already succeeded, so do not fail response.
   }
@@ -119,7 +121,7 @@ const processAndUpload = ({ folder, width, height, fit = 'inside', quality = 82 
 
       // ── FIX B: Duplicate detection ─────────────────────────────────────
       if (req.user?._id) {
-        const duplicate = await isDuplicateUpload(buffer, String(req.user._id));
+        const duplicate = await isDuplicateUpload(buffer, String(req.user._id), folder);
         if (duplicate) {
           alertSuspiciousUpload('Duplicate upload detected', req, { folder });
           return res.status(400).json({
@@ -204,7 +206,7 @@ const processAndUpload = ({ folder, width, height, fit = 'inside', quality = 82 
       const uploaded = await uploadToCloudinary(safeBuffer, folder);
 
       if (req.user?._id) {
-        await markUploadHash(buffer, String(req.user._id));
+        await markUploadHash(buffer, String(req.user._id), folder);
       }
 
       req.safeUpload = { url: uploaded.secure_url, publicId: uploaded.public_id };

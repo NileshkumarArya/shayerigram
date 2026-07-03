@@ -83,6 +83,8 @@ StorySchema.index({ totalReads: -1 });
 StorySchema.index({ totalLikes: -1 });
 StorySchema.index({ createdAt: -1 });
 StorySchema.index({ status: 1, createdAt: -1 });
-StorySchema.index({ title: 'text', description: 'text', tags: 'text' });
+// ✅ NO text index — 'language' field (hindi/urdu/hinglish) breaks MongoDB's
+// text-index language stemmer ("language override unsupported: hindi").
+// Story search uses regex (searchService.js), so this index isn't needed anyway.
 
 module.exports = mongoose.model('Story', StorySchema);
