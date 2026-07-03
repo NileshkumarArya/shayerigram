@@ -51,7 +51,7 @@ exports.updateStory = async (req, res) => {
     const { title, description, genre, tags, language, contentType, status } = req.body;
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     if (title)       story.title       = title.trim();
     if (description) story.description = description.trim();
@@ -89,7 +89,7 @@ exports.deleteStory = async (req, res) => {
     const { storyId } = req.params;
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     // Soft delete
     story.isDeleted = true;
@@ -106,7 +106,7 @@ exports.deleteStory = async (req, res) => {
       $inc: { storiesCount: -1 },
     });
 
-    res.json({ success: true, message: 'Story delete ho gayi.' });
+    res.json({ success: true, message: 'Story deleted.' });
   } catch (err) {
     logger.error('deleteStory error', { error: err.message });
     res.status(500).json({ message: err.message });
@@ -121,11 +121,11 @@ exports.getStory = async (req, res) => {
     const story = await Story.findOne({ _id: storyId, isDeleted: false })
       .populate('author', 'username fullName avatar isVerified');
 
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     // Draft story sirf author dekh sakta hai
     if (story.status === 'draft' && String(story.author._id) !== String(req.user?._id)) {
-      return res.status(403).json({ message: 'Access nahi hai.' });
+      return res.status(403).json({ message: 'Access denied.' });
     }
 
     // Read count increment (author khud na ho)
@@ -248,7 +248,7 @@ exports.toggleBookmark = async (req, res) => {
     const { storyId } = req.params;
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const existing = await Bookmark.findOne({ user: req.user._id, story: storyId });
 
@@ -349,7 +349,7 @@ exports.toggleLike = async (req, res) => {
     const { storyId } = req.params;
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     // Race-condition safe removal
     const removed = await Like.deleteOne({ userId: req.user._id, targetType: 'Story', targetId: storyId });
@@ -408,7 +408,7 @@ exports.addComment = async (req, res) => {
     const { text, parentId } = req.body;
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const comment = await Comment.create({
       authorId:   req.user._id,
@@ -459,16 +459,16 @@ exports.deleteComment = async (req, res) => {
     const { storyId, commentId } = req.params;
 
     const comment = await Comment.findOne({ _id: commentId, targetType: 'Story', targetId: storyId });
-    if (!comment) return res.status(404).json({ message: 'Comment nahi mila.' });
+    if (!comment) return res.status(404).json({ message: 'Comment not found.' });
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const isOwner      = String(comment.authorId) === String(req.user._id);
     const isStoryOwner = String(story.author)      === String(req.user._id);
 
     if (!isOwner && !isStoryOwner) {
-      return res.status(403).json({ message: 'Authorized nahi hai.' });
+      return res.status(403).json({ message: 'You are not authorized to do this.' });
     }
 
     const deleted = await Comment.findOneAndDelete({ _id: commentId, targetType: 'Story', targetId: storyId });
@@ -479,7 +479,7 @@ exports.deleteComment = async (req, res) => {
       { $inc: { totalComments: -1 } }
     );
 
-    res.json({ success: true, message: 'Comment delete ho gaya.' });
+    res.json({ success: true, message: 'Comment deleted.' });
   } catch (err) {
     logger.error('deleteStoryComment error', { error: err.message });
     res.status(500).json({ message: err.message });
@@ -540,7 +540,7 @@ exports.getSimilarStories = async (req, res) => {
     const { storyId } = req.params;
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false }).select('genre tags');
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const similar = await Story.find({
       _id:       { $ne: storyId },

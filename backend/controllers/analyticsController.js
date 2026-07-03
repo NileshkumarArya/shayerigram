@@ -115,6 +115,6 @@ exports.getMyAnalytics = async (req, res) => {
     });
   } catch (err) {
     logger.error('getMyAnalytics error', { error: err.message });
-    res.status(500).json({ message: 'Analytics load nahi ho payi.' });
+    res.status(500).json({ message: 'Failed to load analytics.' });
   }
 };

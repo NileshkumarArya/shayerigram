@@ -10,7 +10,7 @@ exports.addChapter = async (req, res) => {
     const { title, content, contentType } = req.body;
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const nextChapterNumber = story.totalChapters + 1;
 
@@ -88,7 +88,7 @@ exports.deleteChapter = async (req, res) => {
       author: req.user._id,
       isDeleted: false,
     });
-    if (!chapter) return res.status(404).json({ message: 'Chapter nahi mila.' });
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
 
     chapter.isDeleted = true;
     await chapter.save();
@@ -101,7 +101,7 @@ exports.deleteChapter = async (req, res) => {
     // Story ka totalChapters update karo
     await Story.findByIdAndUpdate(chapter.story, { $inc: { totalChapters: -1 } });
 
-    res.json({ success: true, message: 'Chapter delete ho gaya.' });
+    res.json({ success: true, message: 'Chapter deleted.' });
   } catch (err) {
     logger.error('deleteChapter error', { error: err.message });
     res.status(500).json({ message: err.message });
@@ -117,11 +117,11 @@ exports.getChapter = async (req, res) => {
       .populate('author', 'username fullName avatar')
       .populate('story', 'title author status');
 
-    if (!chapter) return res.status(404).json({ message: 'Chapter nahi mila.' });
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
 
     // Draft chapter sirf author dekh sakta hai
     if (chapter.status === 'draft' && String(chapter.author._id) !== String(req.user?._id)) {
-      return res.status(403).json({ message: 'Access nahi hai.' });
+      return res.status(403).json({ message: 'Access denied.' });
     }
 
     // Read count increment (author khud na ho)
@@ -157,7 +157,7 @@ exports.getChapters = async (req, res) => {
     const { storyId } = req.params;
 
     const story = await Story.findOne({ _id: storyId, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const isAuthor = req.user && String(story.author) === String(req.user._id);
     const query = { story: storyId, isDeleted: false };
@@ -183,7 +183,7 @@ exports.reorderChapters = async (req, res) => {
     const { chapterOrder } = req.body; // Array of { chapterId, chapterNumber }
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
-    if (!story) return res.status(404).json({ message: 'Story nahi mili.' });
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const bulkOps = chapterOrder.map(({ chapterId, chapterNumber }) => ({
       updateOne: {
