@@ -11,9 +11,14 @@ const MIN_CONTENT_FOR_ANALYTICS = 11;
 exports.getMyAnalytics = async (req, res) => {
   try {
     const userId = req.user._id;
-    const me = await User.findById(userId).select('postsCount storiesCount').lean();
-    const totalPostsCount   = me?.postsCount   || 0;
-    const totalStoriesCount = me?.storiesCount || 0;
+
+    // Live counts — denormalized User.postsCount/storiesCount fields can drift
+    // out of sync (e.g. posts created before that counter existed), so we
+    // count the actual documents instead, same as ProfilePage does.
+    const [totalPostsCount, totalStoriesCount] = await Promise.all([
+      Post.countDocuments({ author: userId, isDeleted: { $ne: true } }),
+      Story.countDocuments({ author: userId, isDeleted: false }),
+    ]);
     const contentCount = totalPostsCount + totalStoriesCount;
 
     if (contentCount < MIN_CONTENT_FOR_ANALYTICS) {
