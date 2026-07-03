@@ -24,7 +24,7 @@ export const useSocket = (onNotification) => {
       socketInstance = io(SOCKET_URL, {
         withCredentials: true,
         // ✅ FIX: polling pehle — cross-domain cookies polling mein kaam karte hain
-        // WebSocket upgrade baad mein hoti hai automatically
+       // WebSocket upgrade happens automatically afterward
         transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,

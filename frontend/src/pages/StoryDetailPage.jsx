@@ -156,7 +156,7 @@ export default function StoryDetailPage() {
     return (
       <div className="text-center py-16">
         <div className="text-5xl mb-4">📖</div>
-        <h3 className="text-lg font-semibold mb-2">Story nahi mili</h3>
+        <h3 className="text-lg font-semibold mb-2">Story not found</h3>
       </div>
     );
   }
@@ -224,7 +224,7 @@ export default function StoryDetailPage() {
           </Link>
         ) : (
           <div className="flex-1 text-center py-3 text-sm rounded-xl" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>
-            Koi chapter published nahi hai
+            No chapters published yet
           </div>
         )}
 

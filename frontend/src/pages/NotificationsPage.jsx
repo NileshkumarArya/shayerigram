@@ -110,7 +110,7 @@ export default function NotificationsPage() {
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true, read: true })));
       } catch {
         setNotifications([]);
-        setError('Notifications load nahi ho paayi. Please try again.');
+        setError('Failed to load notifications. Please try again.');
       } finally {
         setLoading(false);
       }

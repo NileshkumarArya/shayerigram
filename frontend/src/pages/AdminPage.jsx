@@ -289,7 +289,7 @@ export default function AdminPage() {
                 </button>
               </div>
               <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                User ID MongoDB Compass se copy karo (24 char hex)
+                Copy User ID from MongoDB Compass (24 char hex)
               </p>
             </div>
           </div>
@@ -344,12 +344,12 @@ export default function AdminPage() {
               <h3 className="text-base font-semibold mb-3 gradient-text">Admin Guide</h3>
               <div className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {[
-                  ['🔑 Make someone admin', 'MongoDB Compass mein user ka `role` field `"admin"` karo'],
-                  ['🚨 Report flow', 'User "Report" dabata hai → Report table mein aata hai → Tum review karo'],
+                  ['🔑 Make someone admin', 'Set the user\'s `role` field to `"admin"` in MongoDB Compass'],
+                  ['🚨 Report flow', 'User taps "Report" → it appears in the Report table → you review it'],
                   ['✅ Resolve', 'Report genuine tha, action liya — mark resolved'],
                   ['❌ Reject', 'Report false/malicious tha — mark rejected'],
                   ['🗑️ Remove Post', 'Post ko `isTakenDown: true` karta hai — feed se hata deta hai'],
-                  ['🚫 Suspend User', 'User login nahi kar payega — unsuspend se wapas la sakte ho'],
+                  ['🚫 Suspend User', 'User won\'t be able to log in — unsuspend to restore access'],
                   ['📊 Stats', 'Real-time counts — Refresh dabao latest ke liye'],
                 ].map(([title, desc]) => (
                   <div key={title} className="flex gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>

@@ -9,7 +9,7 @@ export const setLoggingOut = (value) => {
 };
 
 // ─── Axios Instance ───────────────────────────────────────────────────────
-// withCredentials: true — HttpOnly cookies automatically send/receive hoti hain
+// withCredentials: true — HttpOnly cookies are sent/received automatically
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://shayerigram.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
@@ -17,7 +17,7 @@ const api = axios.create({
 });
 
 // ─── Public Path Check ────────────────────────────────────────────────────
-// In paths pe 401 se redirect nahi hoga
+// No redirect on 401 for these paths
 const isPublicPath = (path) =>
   path === '/login' ||
   path === '/register' ||
@@ -25,7 +25,7 @@ const isPublicPath = (path) =>
 
 // ─── Token Refresh Queue ──────────────────────────────────────────────────
 // Refresh in-flight ho to baaki requests queue me rakhti hain,
-// refresh complete hone pe sab retry hoti hain
+// all get retried once refresh completes
 let isRefreshing = false;
 let failedQueue  = [];
 
@@ -44,12 +44,12 @@ api.interceptors.response.use(
     const requestUrl = err.config?.url || '';
     const original   = err.config;
 
-    // Logout chal raha ho to refresh bilkul mat karo
+    // Never refresh while logout is in progress
     if (isLoggingOut) {
       return Promise.reject(err);
     }
 
-    // Auth endpoints pe refresh loop avoid karna zaroori hai
+    // Must avoid a refresh loop on auth endpoints
     const isAuthEndpoint =
       requestUrl.includes('/auth/refresh') ||
       requestUrl.includes('/auth/login')   ||
@@ -58,7 +58,7 @@ api.interceptors.response.use(
 
     if (status === 401 && !isAuthEndpoint && !original._retry) {
       if (isRefreshing) {
-        // Refresh already chal raha hai — queue me daal do
+        // Refresh already in progress — queue this request
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(() => api(original)).catch(e => Promise.reject(e));

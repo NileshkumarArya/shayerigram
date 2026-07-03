@@ -80,14 +80,14 @@ export default function ProfilePage() {
         setPosts(postsRes.data.posts || []);
         setFollowing(p.data.user.isFollowing ?? false);
 
-        // Stories fetch karo
+        // Fetch stories
         storyAPI.getUserStories(p.data.user._id)
           .then(res => setStories(res.data.stories || []))
           .catch(() => setStories([]));
       } catch {
         setProfile(null);
         setPosts([]);
-        setError('Profile load nahi ho paaya. Please try again.');
+        setError('Failed to load profile. Please try again.');
       }
       setLoading(false);
     };
@@ -217,7 +217,7 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* View toggle — sirf posts tab mein */}
+      {/* View toggle — only on posts tab */}
       {contentTab === 'posts' && (
         <div className="flex gap-1 p-1 rounded-xl mb-4 w-fit glass">
           {[['grid', '⊞'], ['list', '☰']].map(([v, icon]) => (

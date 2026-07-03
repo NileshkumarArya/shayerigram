@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
     return (
       <div className="text-center py-16">
         <div className="text-5xl mb-3">📊</div>
-        <p className="font-shayari gradient-text">Analytics load nahi ho paayi</p>
+        <p className="font-shayari gradient-text">Failed to load analytics</p>
       </div>
     );
   }

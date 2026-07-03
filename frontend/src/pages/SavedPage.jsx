@@ -75,7 +75,7 @@ export default function SavedPage() {
         setPosts(data.posts || []);
       } catch {
         setPosts([]);
-        setError('Saved shayari load nahi ho paayi. Please try again.');
+        setError('Failed to load saved shayari. Please try again.');
       } finally {
         setLoading(false);
       }

@@ -64,7 +64,7 @@ export default function ExplorePage() {
       setHasMore(data.hasMore || false);
       setNextCursor(data.nextCursor || null);
     } catch {
-      if (reset) setError('Explore load nahi ho paaya. Please try again.');
+      if (reset) setError('Failed to load Explore. Please try again.');
     }
     if (reset) setLoading(false); else setLoadingMore(false);
   }, [activeCategory]);

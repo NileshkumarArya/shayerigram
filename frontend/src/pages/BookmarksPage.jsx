@@ -31,10 +31,10 @@ export default function BookmarksPage() {
         <div className="text-center py-16 card">
           <div className="text-5xl mb-4">🔖</div>
           <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>
-            Koi saved story nahi hai
+            No saved stories yet
           </h3>
           <Link to="/stories" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">
-            Stories explore karo
+            Explore stories
           </Link>
         </div>
       ) : (

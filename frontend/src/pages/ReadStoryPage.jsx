@@ -64,7 +64,7 @@ export default function ReadStoryPage() {
   }, [saveProgress]);
 
   if (loading) return <LoadingSpinner />;
-  if (!chapter) return <div className="text-center py-16">Chapter nahi mila.</div>;
+  if (!chapter) return <div className="text-center py-16">Chapter not found.</div>;
 
   const bgColor = darkMode ? '#0e0e1a' : '#fdf6e3';
   const textColor = darkMode ? '#e5e5e5' : '#2d2d2d';

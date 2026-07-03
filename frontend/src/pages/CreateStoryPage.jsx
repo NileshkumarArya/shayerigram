@@ -45,7 +45,7 @@ export default function CreateStoryPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Title likhna zaroori hai.');
+      setError('Title is required.');
       return;
     }
 
@@ -63,7 +63,7 @@ export default function CreateStoryPage() {
       const { data } = await storyAPI.createStory(formData);
       navigate(`/story/${data.story._id}/edit`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Story create nahi hui. Try again.');
+      setError(err.response?.data?.message || 'Failed to create story. Try again.');
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ export default function CreateStoryPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Story ka naam likho..."
+            placeholder="Enter your story title..."
             maxLength={200}
             className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
             style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}

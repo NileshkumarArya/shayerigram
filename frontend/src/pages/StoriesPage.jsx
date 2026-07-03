@@ -120,10 +120,10 @@ export default function StoriesPage() {
         <div className="text-center py-16 card">
           <div className="text-5xl mb-4">📖</div>
           <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>
-            Koi story nahi hai abhi
+            No stories yet
           </h3>
           <Link to="/story/create" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">
-            Pehli story likho
+            Write the first story
           </Link>
         </div>
       ) : (

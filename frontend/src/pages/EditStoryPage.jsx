@@ -62,11 +62,11 @@ export default function EditStoryPage() {
 
   const handleSaveChapter = async (publish = false) => {
     if (!chapterTitle.trim()) {
-      setError('Chapter title likhna zaroori hai.');
+      setError('Chapter title is required.');
       return;
     }
     if (contentType !== 'audio' && !chapterContent.trim()) {
-      setError('Chapter content likhna zaroori hai.');
+      setError('Chapter content is required.');
       return;
     }
 
@@ -89,7 +89,7 @@ export default function EditStoryPage() {
       resetChapterForm();
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.message || 'Chapter save nahi hua.');
+      setError(err.response?.data?.message || 'Failed to save chapter.');
     } finally {
       setSaving(false);
     }
@@ -119,7 +119,7 @@ export default function EditStoryPage() {
   };
 
   if (loading) return <LoadingSpinner />;
-  if (!story) return <div className="text-center py-16">Story nahi mili.</div>;
+  if (!story) return <div className="text-center py-16">Story not found.</div>;
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
@@ -143,12 +143,12 @@ export default function EditStoryPage() {
 
         {story.status === 'draft' && story.totalChapters > 0 && (
           <button onClick={handlePublishStory} className="btn-primary w-full mt-4 py-2.5 text-sm">
-            🚀 Story Publish Karo
+            🚀 Publish Story
           </button>
         )}
         {story.status === 'draft' && story.totalChapters === 0 && (
           <p className="text-xs mt-3 text-center" style={{ color: 'var(--text-muted)' }}>
-            Publish karne ke liye kam se kam 1 chapter add karo
+            Add at least 1 chapter to publish
           </p>
         )}
       </div>
@@ -165,7 +165,7 @@ export default function EditStoryPage() {
 
       {chapters.length === 0 && !showAddChapter && (
         <div className="text-center py-10 card mb-4">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Koi chapter nahi hai abhi</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No chapters yet</p>
         </div>
       )}
 
@@ -196,7 +196,7 @@ export default function EditStoryPage() {
       {showAddChapter && (
         <div className="card p-6 space-y-4">
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {editingChapterId ? 'Chapter Edit Karo' : 'Naya Chapter'}
+            {editingChapterId ? 'Edit Chapter' : 'New Chapter'}
           </h3>
 
           {error && (
@@ -231,7 +231,7 @@ export default function EditStoryPage() {
             <textarea
               value={chapterContent}
               onChange={(e) => setChapterContent(e.target.value)}
-              placeholder="Chapter likho yahan..."
+              placeholder="Write your chapter here..."
               rows={10}
               maxLength={50000}
               className="w-full px-4 py-3 rounded-xl text-sm resize-none focus:outline-none focus:ring-1 focus:ring-purple-500 font-shayari leading-relaxed"

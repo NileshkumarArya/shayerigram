@@ -64,7 +64,7 @@ export default function HomePage() {
       setHasMore(data.hasMore || false);
       setNextPage(data.nextPage || pageNum + 1);
     } catch {
-      if (reset) setError('Feed load nahi ho paaya. Please try again.');
+      if (reset) setError('Failed to load feed. Please try again.');
     }
     if (reset) setLoading(false); else setLoadingMore(false);
   }, [posts]);

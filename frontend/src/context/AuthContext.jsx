@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ── App init — cookie se current user fetch karo (no localStorage needed) ──
+  // ── App init — fetch current user via cookie (no localStorage needed) ──
   useEffect(() => {
     let active = true;
 
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // ── Login — backend HttpOnly cookie set karta hai, hum sirf user data lete hain ──
+  // ── Login — backend sets HttpOnly cookie, we just receive user data ──
   const login = useCallback(async (identifier, password) => {
     setLoggingOut(false);
     await authAPI.login({ identifier, password });
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // ── Register — backend cookie set karta hai + ToS acceptance record hoti hai ──
+ // ── Register — backend sets cookie + records ToS acceptance ──
   const register = useCallback(async (formData) => {
     setLoggingOut(false);
     const { data } = await authAPI.register(formData);
@@ -56,8 +56,8 @@ export const AuthProvider = ({ children }) => {
     return createdUser;
   }, []);
 
-  // ── Logout — refresh interceptor band karo, cookie clear karo, state reset karo ──
-  // setLoggingOut(true) zaroori hai: warna pending 401 requests refresh trigger
+  // ── Logout — disable refresh interceptor, clear cookie, reset state ──
+  // setLoggingOut(true) is required: otherwise pending 401 requests trigger refresh
   // kar ke user ko wapas login kar deti hain (race condition)
   // finally me setUser(null) guarantee karta hai ke server fail ho tab bhi logout ho
   const logout = useCallback(async () => {
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       sessionStorage.clear();
-      // Thodi der baad guard hatao — redirect/unmount ho chuka hoga tab tak
+      // Remove the guard shortly after — redirect/unmount will be done by then
       setTimeout(() => {
         setLoggingOut(false);
       }, 800);

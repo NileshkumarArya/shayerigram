@@ -39,10 +39,10 @@ export default function ReadingHistoryPage() {
         <div className="text-center py-16 card">
           <div className="text-5xl mb-4">📖</div>
           <h3 className="text-lg font-shayari mb-2" style={{ color: 'var(--text-secondary)' }}>
-            Koi reading history nahi hai
+            No reading history yet
           </h3>
           <Link to="/stories" className="btn-primary inline-block text-sm py-2.5 px-6 mt-2">
-            Stories padhna shuru karo
+            Start reading stories
           </Link>
         </div>
       ) : (
