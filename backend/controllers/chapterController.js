@@ -53,7 +53,7 @@ exports.updateChapter = async (req, res) => {
       author: req.user._id,
       isDeleted: false,
     });
-    if (!chapter) return res.status(404).json({ message: 'Chapter nahi mila.' });
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
 
     if (title)       chapter.title       = title.trim();
     if (content !== undefined) chapter.content = content;

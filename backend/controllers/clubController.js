@@ -11,7 +11,7 @@ exports.createClub = async (req, res) => {
   try {
     const { name, description, theme, emoji } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ message: 'Club name zaroori hai.' });
+      return res.status(400).json({ message: 'Club name is required.' });
     }
 
     let slug = slugify(name);
@@ -35,7 +35,7 @@ exports.createClub = async (req, res) => {
     res.status(201).json({ success: true, club });
   } catch (err) {
     logger.error('createClub error', { error: err.message });
-    res.status(500).json({ message: 'Club create nahi ho payi.' });
+    res.status(500).json({ message: 'Failed to create club.' });
   }
 };
 
@@ -72,7 +72,7 @@ exports.getClub = async (req, res) => {
     const club = await Club.findOne({ _id: req.params.clubId, isDeleted: false })
       .populate('createdBy', '_id username avatar')
       .lean();
-    if (!club) return res.status(404).json({ message: 'Club nahi mila.' });
+    if (!club) return res.status(404).json({ message: 'Club not found.' });
 
     let isMember = false;
     if (req.user) {
@@ -91,11 +91,11 @@ exports.toggleMembership = async (req, res) => {
   try {
     const { clubId } = req.params;
     const club = await Club.findOne({ _id: clubId, isDeleted: false });
-    if (!club) return res.status(404).json({ message: 'Club nahi mila.' });
+    if (!club) return res.status(404).json({ message: 'Club not found.' });
 
     // Creator apna khud ka club leave nahi kar sakta
     if (String(club.createdBy) === String(req.user._id)) {
-      return res.status(400).json({ message: 'Club creator apna hi club leave nahi kar sakta.' });
+      return res.status(400).json({ message: 'Club creator cannot leave their own club.' });
     }
 
     const removed = await ClubMembership.deleteOne({ userId: req.user._id, clubId });

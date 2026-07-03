@@ -63,7 +63,7 @@ exports.createPost = async (req, res) => {
       const ClubMembership = require('../models/ClubMembership');
       const isMember = await ClubMembership.exists({ userId: req.user._id, clubId });
       if (!isMember) {
-        return res.status(403).json({ message: 'Post karne ke liye pehle club join karo.' });
+        return res.status(403).json({ message: 'Join the club before posting.' });
       }
       postData.clubId = clubId;
     }
