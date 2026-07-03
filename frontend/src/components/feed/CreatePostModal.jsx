@@ -34,7 +34,7 @@ const FONTS = [
   { id: 'minimal',     label: 'Minimal',  css: "'Inter',sans-serif",             sample: 'Minimal' },
 ];
 
-export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
+export default function CreatePostModal({ onClose, onCreated, onPostCreated, clubId }) {
   const [step,       setStep]       = useState(1);
   const [type,       setType]       = useState('text');
   const [content,    setContent]    = useState(() => loadDraft()?.content || '');
@@ -102,6 +102,7 @@ export default function CreatePostModal({ onClose, onCreated, onPostCreated }) {
       fd.append('fontStyle', font.id);
       categories.forEach(c => fd.append('categories[]', c));
       if (type === 'image' && image) fd.append('image', image);
+      if (clubId) fd.append('clubId', clubId);
       const { data } = await postAPI.createPost(fd);
       clearDraft();
       onCreated?.(data.post);
