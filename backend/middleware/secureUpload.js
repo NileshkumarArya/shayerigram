@@ -205,11 +205,20 @@ const processAndUpload = ({ folder, width, height, fit = 'inside', quality = 82 
       // ── Upload to Cloudinary ───────────────────────────────────────────
       const uploaded = await uploadToCloudinary(safeBuffer, folder);
 
+      req.safeUpload = { url: uploaded.secure_url, publicId: uploaded.public_id };
+
+      // Only count this against the 24h dedup window if the overall request
+      // actually succeeds. Otherwise a downstream failure (e.g. validation
+      // error, DB error) would burn this image for 24h even though nothing
+      // was actually created — which is exactly what just happened here.
       if (req.user?._id) {
-        await markUploadHash(buffer, String(req.user._id), folder);
+        res.on('finish', () => {
+          if (res.statusCode < 400) {
+            markUploadHash(buffer, String(req.user._id), folder).catch(() => {});
+          }
+        });
       }
 
-      req.safeUpload = { url: uploaded.secure_url, publicId: uploaded.public_id };
       next();
 
     } catch (err) {
