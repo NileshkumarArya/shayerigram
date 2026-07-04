@@ -54,6 +54,7 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
+  ...getStore(),
   message: { message: 'Too many accounts created from this IP. Please try again later.' },
   handler: (req, res, next, options) => {
     console.warn(`[SECURITY] Register rate limit hit - IP: ${req.ip}`);
@@ -72,6 +73,7 @@ const createPostLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
+  ...getStore(),
   message: { message: 'Post limit reached. Max 30 posts per hour.' },
 });
 
@@ -82,6 +84,7 @@ const commentLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
+  ...getStore(),
   message: { message: 'Commenting too fast. Please slow down.' },
 });
 
@@ -92,6 +95,7 @@ const followLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
+  ...getStore(),
   message: { message: 'Too many follow actions. Please slow down.' },
 });
 
@@ -102,6 +106,7 @@ const likeLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
+  ...getStore(),
   message: { message: 'Too many likes. Please slow down.' },
 });
 
@@ -113,17 +118,11 @@ const uploadLimiter = rateLimit({
   // Run after multer. Text-only posts should not consume image upload limit.
   skip: (req) => isTest || !req.file,
   keyGenerator: userOrIpKey,
+  ...getStore(),
   message: { message: 'Upload limit reached. Max 5 image uploads per hour.' },
 });
 
-const searchLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: () => isTest,
-  message: { message: 'Too many search requests.' },
-});
+
 
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000,  // 1 minute
@@ -131,6 +130,7 @@ const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
+  ...getStore(),
   message: { message: 'Admin rate limit exceeded. Please slow down.' },
   keyGenerator: (req) => `admin:${req.user?._id || req.ip}`, // per-admin, not per-IP
 });
@@ -141,6 +141,7 @@ const forgotLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
+  ...getStore(),
   message: { message: 'Too many password reset requests. Try again in 1 hour.' },
 });
 

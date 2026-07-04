@@ -16,8 +16,9 @@ const verifyTurnstile = async (req, res, next) => {
   // Skip if no key configured or in test mode
   if (!secretKey || process.env.NODE_ENV === 'test') return next();
 
-  // Temporary bypass — remove once Cloudflare Turnstile domain is configured
-  if (process.env.TURNSTILE_BYPASS === 'true') return next();
+  // Temporary bypass — remove once Cloudflare Turnstile domain is configured.
+  // Hard-gated to non-production so this can never silently disable captcha in prod.
+  if (process.env.TURNSTILE_BYPASS === 'true' && process.env.NODE_ENV !== 'production') return next();
 
   const token = req.body['cf-turnstile-response'] || req.body.captchaToken;
   if (!token) {

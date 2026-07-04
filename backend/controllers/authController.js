@@ -192,7 +192,11 @@ exports.login = async (req, res) => {
       const candidates = await User.find({ email: identifier, isDeleted: { $ne: true } })
         .select('+password +failedLoginAttempts +lockUntil +knownIps');
 
-            // Pehle non-suspended, non-locked user dhundho jiska password match kare
+            // Find the first non-suspended, non-locked candidate whose password matches.
+      // Failed-attempt counters are only applied AFTER the full loop, and only if
+      // NO candidate matched — otherwise a correct login on account B would also
+      // penalize an unrelated sibling account A that shares the same email.
+      const attemptedCandidates = [];
       for (const candidate of candidates) {
         if (candidate.isSuspended) continue;
         if (candidate.isLocked?.()) continue;
@@ -202,10 +206,13 @@ exports.login = async (req, res) => {
           user = candidate;
           break;
         }
+        attemptedCandidates.push(candidate);
+      }
 
-        if (candidate.incrementFailedLogin) {
-          candidate.incrementFailedLogin().catch(() => {});
-        }
+      if (!user) {
+        attemptedCandidates.forEach(c => {
+          if (c.incrementFailedLogin) c.incrementFailedLogin().catch(() => {});
+        });
       }
 
       // Agar koi match nahi — locked ya suspended check karo for specific error

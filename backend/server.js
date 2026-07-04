@@ -98,7 +98,12 @@ app.use((req, res, next) => {
   const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
   if (!mutating) return next();
   const origin = req.headers.origin;
-  if (!origin) return next();
+  // Fail CLOSED — missing Origin on a mutating request is rejected, not waved through.
+  // Legit mobile/server-to-server clients should use a bearer token, not cookies, anyway.
+  if (!origin) {
+    logger.warn('Mutating request with no Origin header blocked', { ip: req.ip, path: req.path });
+    return res.status(403).json({ message: 'Origin required.' });
+  }
   if (!allowedOriginSet.has(origin)) {
     logger.warn('Origin blocked', { origin, ip: req.ip, path: req.path });
     return res.status(403).json({ message: 'Origin not allowed.' });
