@@ -135,6 +135,16 @@ const adminLimiter = rateLimit({
   keyGenerator: (req) => `admin:${req.user?._id || req.ip}`, // per-admin, not per-IP
 });
 
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isTest,
+  ...getStore(),
+  message: { message: 'Too many search requests.' },
+});
+
 const forgotLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
