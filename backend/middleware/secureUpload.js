@@ -275,7 +275,9 @@ const processAudioUpload = async (req, res, next) => {
 
     // Magic byte check — audio files ke liye bhi zaroori hai
     const detected = await FileType.fromBuffer(buffer);
-    const allowedAudioMagic = ['audio/mpeg', 'audio/x-wav', 'audio/mp4'];
+    // 'file-type' reports real WAV files as 'audio/vnd.wave', not 'audio/x-wav' —
+    // without this, every genuine WAV upload was being rejected as invalid.
+    const allowedAudioMagic = ['audio/mpeg', 'audio/x-wav', 'audio/vnd.wave', 'audio/mp4'];
     if (!detected || !allowedAudioMagic.includes(detected.mime)) {
       alertSuspiciousUpload('Audio magic byte mismatch', req, {
         detectedMime: detected?.mime || 'unknown',

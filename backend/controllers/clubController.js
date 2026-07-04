@@ -62,7 +62,7 @@ exports.getClubs = async (req, res) => {
     res.json({ success: true, clubs: withMembership });
   } catch (err) {
     logger.error('getClubs error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -82,7 +82,7 @@ exports.getClub = async (req, res) => {
     res.json({ success: true, club, isMember });
   } catch (err) {
     logger.error('getClub error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -123,7 +123,7 @@ exports.toggleMembership = async (req, res) => {
     res.json({ success: true, isMember: true, membersCount: updated?.membersCount || 0 });
   } catch (err) {
     logger.error('toggleMembership error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -136,7 +136,7 @@ exports.getMyClubs = async (req, res) => {
     res.json({ success: true, clubs });
   } catch (err) {
     logger.error('getMyClubs error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -173,6 +173,6 @@ exports.getClubPosts = async (req, res) => {
     res.json({ success: true, posts: items, hasMore, nextCursor });
   } catch (err) {
     logger.error('getClubPosts error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };

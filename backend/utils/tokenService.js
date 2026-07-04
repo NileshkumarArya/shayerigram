@@ -19,7 +19,7 @@ const generateAccessToken = (userId) => {
   return jwt.sign(
     { id: String(userId), type: 'access' },
     process.env.JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRY }
+    { expiresIn: ACCESS_TOKEN_EXPIRY, algorithm: 'HS256' }
   );
 };
 

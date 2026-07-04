@@ -145,7 +145,19 @@ const forgotLimiter = rateLimit({
   message: { message: 'Too many password reset requests. Try again in 1 hour.' },
 });
 
+const clubLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isTest,
+  keyGenerator: userOrIpKey,
+  ...getStore(),
+  message: { message: 'Club creation limit reached. Max 5 clubs per day.' },
+});
+
 module.exports = {
+  clubLimiter,
   generalLimiter,
   loginLimiter,
   registerLimiter,

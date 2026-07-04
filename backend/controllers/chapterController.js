@@ -12,19 +12,36 @@ exports.addChapter = async (req, res) => {
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
     if (!story) return res.status(404).json({ message: 'Story not found.' });
 
-    const nextChapterNumber = story.totalChapters + 1;
+    // Atomic increment — guarantees each concurrent request gets a distinct
+    // chapter number (two rapid "Add Chapter" clicks can no longer collide).
+    const updatedStory = await Story.findByIdAndUpdate(
+      storyId,
+      { $inc: { totalChapters: 1 } },
+      { new: true }
+    );
+    const nextChapterNumber = updatedStory.totalChapters;
 
-    const chapter = await Chapter.create({
-      story:       storyId,
-      author:      req.user._id,
-      title:       title.trim(),
-      content:     content || '',
-      chapterNumber: nextChapterNumber,
-      contentType: contentType || 'text',
-      status:      'draft',
-    });
+    let chapter;
+    try {
+      chapter = await Chapter.create({
+        story:       storyId,
+        author:      req.user._id,
+        title:       title.trim(),
+        content:     content || '',
+        chapterNumber: nextChapterNumber,
+        contentType: contentType || 'text',
+        status:      'draft',
+      });
+    } catch (createErr) {
+      // Roll back the counter so it doesn't drift if chapter creation failed
+      await Story.findByIdAndUpdate(storyId, { $inc: { totalChapters: -1 } });
+      if (createErr.code === 11000) {
+        return res.status(409).json({ message: 'That chapter number already exists. Please try again.' });
+      }
+      throw createErr;
+    }
 
-    // Audio — secureUpload middleware ne already process kar diya hai
+    // Audio — secureUpload middleware has already processed it
     if (req.safeUpload) {
       chapter.audioUrl      = req.safeUpload.url;
       chapter.audioPublicId = req.safeUpload.publicId;
@@ -32,13 +49,10 @@ exports.addChapter = async (req, res) => {
       await chapter.save();
     }
 
-    // Story ka totalChapters update karo
-    await Story.findByIdAndUpdate(storyId, { $inc: { totalChapters: 1 } });
-
     res.status(201).json({ success: true, chapter });
   } catch (err) {
     logger.error('addChapter error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -74,7 +88,7 @@ exports.updateChapter = async (req, res) => {
     res.json({ success: true, chapter });
   } catch (err) {
     logger.error('updateChapter error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -104,7 +118,7 @@ exports.deleteChapter = async (req, res) => {
     res.json({ success: true, message: 'Chapter deleted.' });
   } catch (err) {
     logger.error('deleteChapter error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -124,8 +138,9 @@ exports.getChapter = async (req, res) => {
       return res.status(403).json({ message: 'Access denied.' });
     }
 
-    // Read count increment (author khud na ho)
-    if (req.user && String(chapter.author._id) !== String(req.user._id)) {
+    // Count the read unless the viewer is the chapter's own author.
+    // Anonymous (logged-out) visitors should still count.
+    if (!req.user || String(chapter.author._id) !== String(req.user._id)) {
       await Chapter.findByIdAndUpdate(chapterId, { $inc: { totalReads: 1 } });
     }
 
@@ -147,7 +162,7 @@ exports.getChapter = async (req, res) => {
     res.json({ success: true, chapter, nextChapter, prevChapter });
   } catch (err) {
     logger.error('getChapter error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -172,7 +187,7 @@ exports.getChapters = async (req, res) => {
     res.json({ success: true, chapters });
   } catch (err) {
     logger.error('getChapters error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -197,6 +212,6 @@ exports.reorderChapters = async (req, res) => {
     res.json({ success: true, message: 'Chapters reorder ho gaye.' });
   } catch (err) {
     logger.error('reorderChapters error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };

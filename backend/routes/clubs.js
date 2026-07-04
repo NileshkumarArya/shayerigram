@@ -5,7 +5,8 @@ const {
 } = require('../controllers/clubController');
 const { protect, optionalAuth } = require('../middleware/auth');
 const { uploadClubCoverImage } = require('../middleware/secureUpload');
-const { mongoIdValidation } = require('../middleware/validate');
+const { mongoIdValidation, createClubValidation } = require('../middleware/validate');
+const { clubLimiter } = require('../middleware/rateLimiter');
 
 // ─── Public ─────────────────────────────────────────────────────────────────
 router.get('/',                     optionalAuth, getClubs);
@@ -15,7 +16,7 @@ router.get('/:clubId/posts',        ...mongoIdValidation('clubId'), getClubPosts
 // ─── Protected ──────────────────────────────────────────────────────────────
 router.use(protect);
 
-router.post('/',                    uploadClubCoverImage, createClub);
+router.post('/',                    clubLimiter, uploadClubCoverImage, createClubValidation, createClub);
 router.get('/my/clubs',             getMyClubs);
 router.post('/:clubId/membership',  ...mongoIdValidation('clubId'), toggleMembership);
 

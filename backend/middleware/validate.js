@@ -141,6 +141,14 @@ const mongoIdValidation = (paramName) => [
 ];
 
 // ─── Single exports block — all validators defined above ─────────────────
+const createClubValidation = [
+  body('name').trim().isLength({ min: 2, max: 60 }).withMessage('Club name must be 2-60 characters'),
+  body('description').optional().trim().isLength({ max: 300 }).withMessage('Description max 300 characters'),
+  body('theme').optional().isIn(['Love','Sad','Horror','Motivation','Comedy','Thriller','Fantasy','Poetry','Spiritual','General'])
+    .withMessage('Invalid theme'),
+  validate,
+];
+
 module.exports = {
   validate,
   registerValidation,
@@ -152,4 +160,5 @@ module.exports = {
   updateProfileValidation,
   searchValidation,
   mongoIdValidation,
+  createClubValidation,
 };

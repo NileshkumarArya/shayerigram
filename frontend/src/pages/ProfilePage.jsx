@@ -170,10 +170,6 @@ export default function ProfilePage() {
                   className={following ? 'btn-ghost text-sm py-2 px-5' : 'btn-primary text-sm py-2 px-5'}>
                   {followLoading ? '...' : following ? 'Following' : 'Follow'}
                 </button>
-                <Link to={`/chat`} state={{ userId: profile._id }}
-                 className="btn-ghost text-sm py-2 px-5">
-                 💬 Message
-                </Link>
             </div>
             )}
           </div>

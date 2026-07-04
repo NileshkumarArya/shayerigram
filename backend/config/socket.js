@@ -79,7 +79,7 @@ const initSocket = (io) => {
 
       if (!token) return next(new Error('Unauthorized'));
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
       socket.userId    = decoded.id;
       socket.deviceId  = socket.handshake.auth?.deviceId;
       next();

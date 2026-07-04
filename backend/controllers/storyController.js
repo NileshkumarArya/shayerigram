@@ -40,7 +40,7 @@ exports.createStory = async (req, res) => {
     res.status(201).json({ success: true, story });
   } catch (err) {
     logger.error('createStory error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -79,7 +79,7 @@ exports.updateStory = async (req, res) => {
     res.json({ success: true, story });
   } catch (err) {
     logger.error('updateStory error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -109,7 +109,7 @@ exports.deleteStory = async (req, res) => {
     res.json({ success: true, message: 'Story deleted.' });
   } catch (err) {
     logger.error('deleteStory error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -128,8 +128,10 @@ exports.getStory = async (req, res) => {
       return res.status(403).json({ message: 'Access denied.' });
     }
 
-    // Read count increment (author khud na ho)
-    if (req.user && String(story.author._id) !== String(req.user._id)) {
+    // Count the read unless the viewer is the story's own author.
+    // Anonymous (logged-out) visitors should still count — only skip when
+    // we *know* it's the author reading their own story.
+    if (!req.user || String(story.author._id) !== String(req.user._id)) {
       await Story.findByIdAndUpdate(storyId, { $inc: { totalReads: 1 } });
     }
 
@@ -158,7 +160,7 @@ exports.getStory = async (req, res) => {
     res.json({ success: true, story, progress, isBookmarked, isLiked });
   } catch (err) {
     logger.error('getStory error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -194,7 +196,7 @@ exports.getStories = async (req, res) => {
     });
   } catch (err) {
     logger.error('getStories error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -215,7 +217,7 @@ exports.getMyStories = async (req, res) => {
     res.json({ success: true, stories });
   } catch (err) {
     logger.error('getMyStories error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -238,7 +240,7 @@ exports.getUserStories = async (req, res) => {
     res.json({ success: true, stories });
   } catch (err) {
     logger.error('getUserStories error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -264,7 +266,7 @@ exports.toggleBookmark = async (req, res) => {
     res.json({ success: true, isBookmarked: true });
   } catch (err) {
     logger.error('toggleBookmark error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -290,7 +292,7 @@ exports.getMyBookmarks = async (req, res) => {
     res.json({ success: true, stories });
   } catch (err) {
     logger.error('getMyBookmarks error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -315,7 +317,7 @@ exports.saveProgress = async (req, res) => {
     res.json({ success: true, progress });
   } catch (err) {
     logger.error('saveProgress error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -340,7 +342,7 @@ exports.getReadingHistory = async (req, res) => {
     res.json({ success: true, history: filtered });
   } catch (err) {
     logger.error('getReadingHistory error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 // ─── Toggle Story Like ─────────────────────────────────────────────────────────
@@ -397,7 +399,7 @@ exports.toggleLike = async (req, res) => {
     res.json({ success: true, liked: true, totalLikes: updated?.totalLikes || 0 });
   } catch (err) {
     logger.error('toggleStoryLike error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -449,7 +451,7 @@ exports.addComment = async (req, res) => {
     });
   } catch (err) {
     logger.error('addStoryComment error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -482,7 +484,7 @@ exports.deleteComment = async (req, res) => {
     res.json({ success: true, message: 'Comment deleted.' });
   } catch (err) {
     logger.error('deleteStoryComment error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -530,7 +532,7 @@ exports.getComments = async (req, res) => {
     res.json({ success: true, comments: mapped });
   } catch (err) {
     logger.error('getStoryComments error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };
 
@@ -560,6 +562,6 @@ exports.getSimilarStories = async (req, res) => {
     res.json({ success: true, stories: similar });
   } catch (err) {
     logger.error('getSimilarStories error', { error: err.message });
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };

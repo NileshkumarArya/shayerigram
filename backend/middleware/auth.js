@@ -16,10 +16,10 @@ const extractToken = (req) => {
 
 const verifyAccessToken = (token) => {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch (err) {
     if (process.env.JWT_SECRET_PREV) {
-      try { return jwt.verify(token, process.env.JWT_SECRET_PREV); }
+      try { return jwt.verify(token, process.env.JWT_SECRET_PREV, { algorithms: ['HS256'] }); }
       catch {}
     }
     throw err;
