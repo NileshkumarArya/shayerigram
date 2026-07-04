@@ -35,7 +35,7 @@ exports.createClub = async (req, res) => {
     res.status(201).json({ success: true, club });
   } catch (err) {
     logger.error('createClub error', { error: err.message });
-    res.status(500).json({ message: 'Failed to create club.' });
+    res.status(500).json({ message: 'Failed to create club.' }); 
   }
 };
 

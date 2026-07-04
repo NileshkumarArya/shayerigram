@@ -66,7 +66,7 @@ exports.createPost = async (req, res) => {
         return res.status(403).json({ message: 'Join the club before posting.' });
       }
       postData.clubId = clubId;
-    }
+    } 
 
     const post = await Post.create(postData);
 
