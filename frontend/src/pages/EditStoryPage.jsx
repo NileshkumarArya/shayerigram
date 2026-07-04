@@ -15,6 +15,8 @@ export default function EditStoryPage() {
   const [chapterTitle, setChapterTitle] = useState('');
   const [chapterContent, setChapterContent] = useState('');
   const [audioFile, setAudioFile] = useState(null);
+  const [chapterCoverFile, setChapterCoverFile] = useState(null);
+  const [chapterCoverPreview, setChapterCoverPreview] = useState(null);
   const [contentType, setContentType] = useState('text');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -39,6 +41,8 @@ export default function EditStoryPage() {
   useEffect(() => { fetchData(); }, [storyId]);
 
   const resetChapterForm = () => {
+    setChapterCoverFile(null);
+    setChapterCoverPreview(null);
     setChapterTitle('');
     setChapterContent('');
     setAudioFile(null);
@@ -79,6 +83,7 @@ export default function EditStoryPage() {
       formData.append('contentType', contentType);
       if (publish) formData.append('status', 'published');
       if (audioFile) formData.append('audio', audioFile);
+      if (chapterCoverFile) formData.append('cover', chapterCoverFile);
 
       if (editingChapterId) {
         await chapterAPI.updateChapter(editingChapterId, formData);
@@ -217,6 +222,22 @@ export default function EditStoryPage() {
               </button>
             ))}
           </div>
+
+          <label className="block w-full h-32 rounded-xl cursor-pointer overflow-hidden border-2 border-dashed flex items-center justify-center"
+            style={{ borderColor: 'var(--border)' }}>
+            {chapterCoverPreview ? (
+              <img src={chapterCoverPreview} alt="Chapter cover" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-2xl" style={{ color: 'var(--text-muted)' }}>📷 Chapter Cover (optional)</span>
+            )}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setChapterCoverFile(file);
+                setChapterCoverPreview(URL.createObjectURL(file));
+              }} />
+          </label>
 
           <input
             type="text"

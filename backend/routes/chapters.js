@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { protect, optionalAuth } = require('../middleware/auth');
-const { uploadChapterAudio }    = require('../middleware/secureUpload');
+const { uploadChapterMedia }    = require('../middleware/secureUpload');
 
 const {
   addChapter,
@@ -19,8 +19,8 @@ router.get('/:chapterId',         optionalAuth, getChapter);
 // ─── Protected routes ────────────────────────────────────────────────────────────
 router.use(protect);
 
-router.post('/story/:storyId',          uploadChapterAudio, addChapter);
-router.put('/:chapterId',               uploadChapterAudio, updateChapter);
+router.post('/story/:storyId',          uploadChapterMedia, addChapter);
+router.put('/:chapterId',               uploadChapterMedia, updateChapter);
 router.delete('/:chapterId',            deleteChapter);
 router.put('/story/:storyId/reorder',   reorderChapters);
 

@@ -42,10 +42,16 @@ exports.addChapter = async (req, res) => {
     }
 
     // Audio — secureUpload middleware has already processed it
-    if (req.safeUpload) {
-      chapter.audioUrl      = req.safeUpload.url;
-      chapter.audioPublicId = req.safeUpload.publicId;
-      chapter.audioDuration = req.safeUpload.duration || 0;
+    if (req.safeCoverUpload) {
+      chapter.coverImage         = req.safeCoverUpload.url;
+      chapter.coverImagePublicId = req.safeCoverUpload.publicId;
+    }
+    if (req.safeAudioUpload) {
+      chapter.audioUrl      = req.safeAudioUpload.url;
+      chapter.audioPublicId = req.safeAudioUpload.publicId;
+      chapter.audioDuration = req.safeAudioUpload.duration || 0;
+    }
+    if (req.safeCoverUpload || req.safeAudioUpload) {
       await chapter.save();
     }
 
@@ -73,15 +79,21 @@ exports.updateChapter = async (req, res) => {
     if (content !== undefined) chapter.content = content;
     if (contentType) chapter.contentType = contentType;
     if (status)       chapter.status      = status;
-
-    // Audio update — secureUpload middleware ne already process kar diya hai
-    if (req.safeUpload) {
+// Cover/audio update — secureUpload middleware has already processed these
+    if (req.safeCoverUpload) {
+      if (chapter.coverImagePublicId) {
+        await cloudinary.uploader.destroy(chapter.coverImagePublicId).catch(() => {});
+      }
+      chapter.coverImage         = req.safeCoverUpload.url;
+      chapter.coverImagePublicId = req.safeCoverUpload.publicId;
+    }
+    if (req.safeAudioUpload) {
       if (chapter.audioPublicId) {
         await cloudinary.uploader.destroy(chapter.audioPublicId, { resource_type: 'video' }).catch(() => {});
       }
-      chapter.audioUrl      = req.safeUpload.url;
-      chapter.audioPublicId = req.safeUpload.publicId;
-      chapter.audioDuration = req.safeUpload.duration || 0;
+      chapter.audioUrl      = req.safeAudioUpload.url;
+      chapter.audioPublicId = req.safeAudioUpload.publicId;
+      chapter.audioDuration = req.safeAudioUpload.duration || 0;
     }
 
     await chapter.save();

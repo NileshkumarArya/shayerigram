@@ -42,6 +42,10 @@ const ChapterSchema = new mongoose.Schema(
     audioPublicId: { type: String, default: null },
     audioDuration: { type: Number, default: null }, // seconds mein
 
+    // Cover image support
+    coverImage:         { type: String, default: '' },
+    coverImagePublicId: { type: String, default: '' },
+
     // Content type
     contentType: {
       type: String,

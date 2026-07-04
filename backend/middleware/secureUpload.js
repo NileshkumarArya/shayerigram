@@ -342,6 +342,120 @@ const uploadChapterAudio = [
   processAudioUpload,
 ];
 
+// ─── Chapter cover + audio — combined pipeline (both optional, both in one request) ──
+const chapterMediaMulter = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_AUDIO_BYTES, files: 2 },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'cover') {
+      if (!ALLOWED_MIME.includes(file.mimetype)) {
+        return cb(new Error('Invalid cover image type. Only JPEG, PNG, WebP are allowed.'));
+      }
+      return cb(null, true);
+    }
+    if (file.fieldname === 'audio') {
+      if (!ALLOWED_AUDIO_MIME.includes(file.mimetype)) {
+        return cb(new Error('Invalid audio type. Only MP3, WAV, M4A allowed.'));
+      }
+      return cb(null, true);
+    }
+    return cb(new Error('Unexpected file field.'));
+  },
+}).fields([{ name: 'cover', maxCount: 1 }, { name: 'audio', maxCount: 1 }]);
+
+const processChapterMedia = async (req, res, next) => {
+  const coverFile = req.files?.cover?.[0];
+  const audioFile = req.files?.audio?.[0];
+  if (!coverFile && !audioFile) return next();
+
+  try {
+    // ── Cover image ─────────────────────────────────────────────────────
+    if (coverFile) {
+      const buffer = coverFile.buffer;
+
+      if (req.user?._id) {
+        const dup = await isDuplicateUpload(buffer, String(req.user._id), 'shayerigram/chapter-covers');
+        if (dup) {
+          return res.status(400).json({ message: 'This cover image was already uploaded recently. Please use a different image.' });
+        }
+      }
+
+      const detected = await FileType.fromBuffer(buffer);
+      if (!detected || !ALLOWED_MIME.includes(detected.mime)) {
+        alertSuspiciousUpload('Magic byte mismatch — chapter cover', req);
+        return res.status(400).json({ message: 'Invalid cover image. File content does not match allowed types.' });
+      }
+
+      let resized;
+      try {
+        resized = await sharp(buffer, { limitInputPixels: MAX_PIXELS })
+          .rotate()
+          .resize({ width: 400, height: 600, fit: 'cover', withoutEnlargement: true })
+          .jpeg({ quality: 82, mozjpeg: true })
+          .toBuffer();
+      } catch (sharpErr) {
+        alertSuspiciousUpload('Sharp processing failed — chapter cover', req, { error: sharpErr.message });
+        return res.status(400).json({ message: 'Cover image processing failed. Please use a valid JPG/PNG image.' });
+      }
+
+      const uploadedCover = await uploadToCloudinary(resized, 'shayerigram/chapter-covers');
+      req.safeCoverUpload = { url: uploadedCover.secure_url, publicId: uploadedCover.public_id };
+
+      res.on('finish', () => {
+        if (res.statusCode < 400 && req.user?._id) {
+          markUploadHash(buffer, String(req.user._id), 'shayerigram/chapter-covers').catch(() => {});
+        }
+      });
+    }
+
+    // ── Audio ───────────────────────────────────────────────────────────
+    if (audioFile) {
+      const buffer = audioFile.buffer;
+      const detected = await FileType.fromBuffer(buffer);
+      const allowedAudioMagic = ['audio/mpeg', 'audio/x-wav', 'audio/vnd.wave', 'audio/mp4'];
+      if (!detected || !allowedAudioMagic.includes(detected.mime)) {
+        alertSuspiciousUpload('Audio magic byte mismatch', req);
+        return res.status(400).json({ message: 'Invalid audio file. Content does not match allowed types.' });
+      }
+
+      if (req.user?._id) {
+        const dup = await isDuplicateUpload(buffer, String(req.user._id), 'shayerigram/chapter-audio');
+        if (dup) {
+          return res.status(400).json({ message: 'This audio was already uploaded recently.' });
+        }
+      }
+
+      const safePublicId = uuidv4();
+      const uploadedAudio = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'shayerigram/chapter-audio', public_id: safePublicId, resource_type: 'video', overwrite: false },
+          (error, result) => (error ? reject(error) : resolve(result))
+        );
+        stream.end(buffer);
+      });
+
+      req.safeAudioUpload = {
+        url:      uploadedAudio.secure_url,
+        publicId: uploadedAudio.public_id,
+        duration: Math.round(uploadedAudio.duration || 0),
+      };
+
+      res.on('finish', () => {
+        if (res.statusCode < 400 && req.user?._id) {
+          markUploadHash(buffer, String(req.user._id), 'shayerigram/chapter-audio').catch(() => {});
+        }
+      });
+    }
+
+    next();
+  } catch (err) {
+    logger.error('[CHAPTER MEDIA UPLOAD ERROR]', { error: err.message, userId: req.user?._id });
+    return res.status(400).json({ message: 'Media processing failed. Please try valid image/audio files.' });
+  }
+};
+
+const uploadChapterMedia = [chapterMediaMulter, processChapterMedia];
+
 // ─── Multer error handler ─────────────────────────────────────────────────
 const multerErrorHandler = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -364,5 +478,6 @@ module.exports = {
   uploadStoryCoverImage,
   uploadClubCoverImage,
   uploadChapterAudio,
+  uploadChapterMedia,
   multerErrorHandler,
 };

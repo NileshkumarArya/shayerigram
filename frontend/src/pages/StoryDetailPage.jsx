@@ -268,28 +268,40 @@ export default function StoryDetailPage() {
         Chapters ({publishedChapters.length})
       </h2>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {publishedChapters.map(ch => {
           const isRead = progress?.lastChapterNumber > ch.chapterNumber;
           const isCurrent = progress?.lastChapterNumber === ch.chapterNumber;
           return (
             <Link key={ch._id} to={`/read/${ch._id}`}
-              className="card p-4 flex items-center justify-between hover:opacity-90 transition-opacity">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xs w-8 shrink-0" style={{ color: 'var(--text-muted)' }}>
-                  {ch.chapterNumber}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {ch.title}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {ch.readingTime} min read
-                  </p>
+              className="flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.01]"
+              style={{
+                background: isCurrent ? 'rgba(147,51,234,0.08)' : 'rgba(255,255,255,0.03)',
+                border: isCurrent ? '1px solid rgba(147,51,234,0.3)' : '1px solid var(--border)',
+              }}>
+              {ch.coverImage ? (
+                <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0">
+                  <img src={ch.coverImage} alt={ch.title} className="w-full h-full object-cover" />
                 </div>
+              ) : (
+                <div className="w-10 h-14 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
+                  style={{
+                    background: isCurrent ? 'linear-gradient(135deg,#9333ea,#7c3aed)' : 'rgba(255,255,255,0.06)',
+                    color: isCurrent ? 'white' : 'var(--text-muted)',
+                  }}>
+                  {ch.chapterNumber}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                  {ch.title}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {ch.readingTime} min read
+                </p>
               </div>
-              {isCurrent && <span className="text-xs shrink-0" style={{ color: 'var(--purple-light)' }}>● Reading</span>}
-              {isRead && !isCurrent && <span className="text-xs shrink-0" style={{ color: '#4ade80' }}>✓</span>}
+              {isCurrent && <span className="text-xs shrink-0 font-medium" style={{ color: 'var(--purple-light)' }}>● Reading</span>}
+              {isRead && !isCurrent && <span className="text-base shrink-0" style={{ color: '#4ade80' }}>✓</span>}
             </Link>
           );
         })}
