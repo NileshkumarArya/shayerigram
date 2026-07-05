@@ -48,11 +48,17 @@ const toggleFollow = async (followerId, followingId, io) => {
 
   if (existing) {
     // ─── UNFOLLOW ───────────────────────────────────────────────────────────
-    await Follow.deleteOne({ _id: existing._id });
-    await Promise.all([
-      User.findByIdAndUpdate(followerId,  { $inc: { followingCount: -1 } }),
-      User.findByIdAndUpdate(followingId, { $inc: { followersCount: -1 } }),
-    ]);
+    const deleteResult = await Follow.deleteOne({ _id: existing._id });
+    // ✅ FIX: only decrement if THIS request actually removed the doc.
+    // A concurrent duplicate unfollow (double-tap across tabs/devices, or a
+    // network retry) would otherwise see deletedCount: 0 here but still
+    // decrement — silently drifting counters below the real value.
+    if (deleteResult.deletedCount > 0) {
+      await Promise.all([
+        User.findByIdAndUpdate(followerId,  { $inc: { followingCount: -1 } }),
+        User.findByIdAndUpdate(followingId, { $inc: { followersCount: -1 } }),
+      ]);
+    }
     await invalidateCache([`user:profile:id:${followerId}`, `user:profile:id:${followingId}`, `feed:first:${followerId}`]);
     logger.info('Unfollowed', { followerId, followingId });
     return { following: false };
