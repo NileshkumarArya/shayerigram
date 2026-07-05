@@ -94,26 +94,10 @@ exports.getProfile = async (req, res) => {
       isTakenDown: { $ne: true },
     });
 
-    const [followers, following] = await Promise.all([
-      Follow.find({ followingId: user._id })
-        .populate({
-          path: 'followerId',
-          select: '_id',
-          match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
-        })
-        .lean(),
-      Follow.find({ followerId: user._id })
-        .populate({
-          path: 'followingId',
-          select: '_id',
-          match: { isDeleted: { $ne: true }, isSuspended: { $ne: true } },
-        })
-        .lean(),
-    ]);
-
-    user.followersCount = followers.filter(f => f.followerId).length;
-    user.followingCount = following.filter(f => f.followingId).length;
-
+    // Use the denormalized counters already sitting on the User document —
+    // no need to scan every Follow relation just to count them. On Atlas M0
+    // (~100 ops/sec budget), this alone could burn a real chunk of it for
+    // anyone with a sizeable following, on a single profile view.
     const profile = safeProfileUser(user, postCount);
 
     if (req.user) {
