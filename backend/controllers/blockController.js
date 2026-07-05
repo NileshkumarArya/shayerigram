@@ -19,6 +19,33 @@ exports.blockUser = async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // Blocking should sever any existing follow relationship in EITHER
+    // direction — otherwise the Follow doc lingers, keeping followersCount/
+    // followingCount inflated even though the blocked user is hidden from
+    // the followers/following lists (causing a count-vs-list mismatch).
+    const Follow = require('../models/Follow');
+    const [removedAsFollower, removedAsFollowing] = await Promise.all([
+      Follow.findOneAndDelete({ followerId: blockerId, followingId: blockeeId }),
+      Follow.findOneAndDelete({ followerId: blockeeId, followingId: blockerId }),
+    ]);
+
+    const decrements = [];
+    if (removedAsFollower) {
+      decrements.push(User.findByIdAndUpdate(blockerId, { $inc: { followingCount: -1 } }));
+      decrements.push(User.findByIdAndUpdate(blockeeId, { $inc: { followersCount: -1 } }));
+    }
+    if (removedAsFollowing) {
+      decrements.push(User.findByIdAndUpdate(blockeeId, { $inc: { followingCount: -1 } }));
+      decrements.push(User.findByIdAndUpdate(blockerId, { $inc: { followersCount: -1 } }));
+    }
+    if (decrements.length) await Promise.all(decrements);
+
+    const { invalidateCache } = require('../utils/cache');
+    await invalidateCache([
+      `user:profile:id:${blockerId}`,
+      `user:profile:id:${blockeeId}`,
+    ]);
+
     res.json({ message: `${target.username} blocked successfully.`, isBlocked: true });
   } catch (err) {
     res.status(500).json({ message: 'Failed to block user.' });
