@@ -211,6 +211,7 @@ export const chapterAPI = {
   updateChapter:   (id, data)     => api.put(`/chapters/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteChapter:   (id)           => api.delete(`/chapters/${id}`),
   reorderChapters: (storyId, order) => api.put(`/chapters/story/${storyId}/reorder`, { chapterOrder: order }),
+  toggleLike:      (chapterId)      => api.post(`/chapters/${chapterId}/like`),
 };
 
 export default api;

@@ -16,6 +16,9 @@ export default function ReadStoryPage() {
   const [darkMode, setDarkMode] = useState(true);
   const [fontSizeIdx, setFontSizeIdx] = useState(2);
   const [showSettings, setShowSettings] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likeLoading, setLikeLoading] = useState(false);
 
   const contentRef = useRef(null);
   const progressSaveTimeout = useRef(null);
@@ -28,6 +31,8 @@ export default function ReadStoryPage() {
         setChapter(data.chapter);
         setNextChapter(data.nextChapter);
         setPrevChapter(data.prevChapter);
+        setLiked(data.isLiked || false);
+        setLikeCount(data.chapter?.totalLikes || 0);
         window.scrollTo(0, 0);
       } catch (err) {
         console.error('Chapter fetch error:', err);
@@ -51,6 +56,20 @@ export default function ReadStoryPage() {
       }).catch(() => {});
     }, 1000);
   }, [chapter]);
+
+  const handleLike = async () => {
+    if (likeLoading || !chapter) return;
+    setLikeLoading(true);
+    try {
+      const { data } = await chapterAPI.toggleLike(chapter._id);
+      setLiked(data.liked);
+      setLikeCount(data.totalLikes);
+    } catch (err) {
+      console.error('Chapter like error:', err);
+    } finally {
+      setLikeLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -130,6 +149,17 @@ export default function ReadStoryPage() {
             {chapter.content}
           </div>
         )}
+
+        {/* ✅ NEW — per-chapter like button */}
+        <div className="flex items-center gap-2 mt-8">
+          <button onClick={handleLike} disabled={likeLoading}
+            className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
+            <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
+            <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : textColor }}>
+              {likeCount} {likeCount === 1 ? 'like' : 'likes'} on this chapter
+            </span>
+          </button>
+        </div>
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-12 pt-6" style={{ borderTop: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>

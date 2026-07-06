@@ -10,6 +10,7 @@ const {
   getChapter,
   getChapters,
   reorderChapters,
+  toggleLike,
 } = require('../controllers/chapterController');
 
 // ─── Public routes ──────────────────────────────────────────────────────────────
@@ -23,5 +24,6 @@ router.post('/story/:storyId',          uploadChapterMedia, addChapter);
 router.put('/:chapterId',               uploadChapterMedia, updateChapter);
 router.delete('/:chapterId',            deleteChapter);
 router.put('/story/:storyId/reorder',   reorderChapters);
+router.post('/:chapterId/like',         toggleLike);
 
 module.exports = router;

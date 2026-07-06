@@ -56,6 +56,9 @@ const ChapterSchema = new mongoose.Schema(
     // Reading stats
     totalReads: { type: Number, default: 0, min: 0 },
 
+    // ✅ NEW — lets the writer see which chapter readers liked the most
+    totalLikes: { type: Number, default: 0, min: 0 },
+
     // Premium chapter
     isPremium: { type: Boolean, default: false },
 

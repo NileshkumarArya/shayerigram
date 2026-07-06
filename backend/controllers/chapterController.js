@@ -1,5 +1,7 @@
 const Chapter         = require('../models/Chapter');
 const Story            = require('../models/Story');
+const Like             = require('../models/Like');
+const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const { cloudinary }   = require('../config/cloudinary');
 const logger           = require('../utils/logger');
 
@@ -171,7 +173,12 @@ exports.getChapter = async (req, res) => {
       isDeleted:     false,
     }).select('_id title chapterNumber');
 
-    res.json({ success: true, chapter, nextChapter, prevChapter });
+    // ✅ NEW — tells the frontend if the current viewer already liked this chapter
+    const isLiked = req.user
+      ? !!(await Like.exists({ userId: req.user._id, targetType: 'Chapter', targetId: chapterId }))
+      : false;
+
+    res.json({ success: true, chapter, nextChapter, prevChapter, isLiked });
   } catch (err) {
     logger.error('getChapter error', { error: err.message });
     res.status(500).json({ message: 'Something went wrong. Please try again.' });
@@ -224,6 +231,67 @@ exports.reorderChapters = async (req, res) => {
     res.json({ success: true, message: 'Chapters reorder ho gaye.' });
   } catch (err) {
     logger.error('reorderChapters error', { error: err.message });
+    res.status(500).json({ message: 'Something went wrong. Please try again.' });
+  }
+};
+
+
+// ─── Toggle Chapter Like ─────────────────────────────────────────────────────
+exports.toggleLike = async (req, res) => {
+  try {
+    const { chapterId } = req.params;
+
+    const chapter = await Chapter.findOne({ _id: chapterId, isDeleted: false });
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    // Race-condition safe removal
+    const removed = await Like.deleteOne({ userId: req.user._id, targetType: 'Chapter', targetId: chapterId });
+
+    if (removed.deletedCount > 0) {
+      const updated = await Chapter.findOneAndUpdate(
+        { _id: chapterId, totalLikes: { $gt: 0 } },
+        { $inc: { totalLikes: -1 } },
+        { new: true }
+      ).select('totalLikes');
+      return res.json({ success: true, liked: false, totalLikes: Math.max(updated?.totalLikes || 0, 0) });
+    }
+
+    try {
+      await Like.create({ userId: req.user._id, targetType: 'Chapter', targetId: chapterId });
+    } catch (err) {
+      if (err.code === 11000) {
+        const current = await Chapter.findById(chapterId).select('totalLikes');
+        return res.json({ success: true, liked: true, totalLikes: current?.totalLikes || 0 });
+      }
+      throw err;
+    }
+
+    const updated = await Chapter.findByIdAndUpdate(
+      chapterId,
+      { $inc: { totalLikes: 1 } },
+      { new: true }
+    ).select('author totalLikes story');
+
+    // Notification points at the parent Story (Chapter isn't its own
+    // notification entity type) so the writer still gets notified.
+    if (updated && String(updated.author) !== String(req.user._id)) {
+      enqueueNotification({
+        recipientId: updated.author,
+        actorId:     req.user._id,
+        type:        'like',
+        entityId:    updated.story,
+        entityType:  'Story',
+      }).catch(() => {});
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`notification_${updated.author}`).emit('notification', { type: 'like', chapterId });
+      }
+    }
+
+    res.json({ success: true, liked: true, totalLikes: updated?.totalLikes || 0 });
+  } catch (err) {
+    logger.error('toggleChapterLike error', { error: err.message });
     res.status(500).json({ message: 'Something went wrong. Please try again.' });
   }
 };

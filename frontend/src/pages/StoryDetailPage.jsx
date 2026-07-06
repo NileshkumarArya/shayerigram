@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { storyAPI, chapterAPI } from '../services/api';
@@ -32,6 +32,13 @@ export default function StoryDetailPage() {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [similarStories, setSimilarStories] = useState([]);
+  const commentInputRef = useRef(null);
+
+  // ✅ FIX: scrolls to + focuses the comment input when the comment icon is clicked
+  const scrollToComments = () => {
+    commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => commentInputRef.current?.focus(), 400);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -254,12 +261,13 @@ export default function StoryDetailPage() {
             {likeCount}
           </span>
         </button>
-        <div className="flex items-center gap-2">
+        <button onClick={scrollToComments}
+          className="flex items-center gap-2 transition-all hover:scale-110">
           <span className="text-2xl">💬</span>
           <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
             {comments.length}
           </span>
-        </div>
+        </button>
         <button onClick={handleShare} className="text-2xl transition-all hover:scale-110">🔗</button>
       </div>
 
@@ -296,8 +304,9 @@ export default function StoryDetailPage() {
                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                   {ch.title}
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {ch.readingTime} min read
+                <p className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                  <span>{ch.readingTime} min read</span>
+                  {ch.totalLikes > 0 && <span>❤️ {ch.totalLikes}</span>}
                 </p>
               </div>
               {isCurrent && <span className="text-xs shrink-0 font-medium" style={{ color: 'var(--purple-light)' }}>● Reading</span>}
@@ -354,6 +363,7 @@ export default function StoryDetailPage() {
           <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
             <input
+              ref={commentInputRef}
               value={comment} onChange={e => setComment(e.target.value)}
               placeholder="Add a comment..."
               className="flex-1 bg-transparent text-sm outline-none"
