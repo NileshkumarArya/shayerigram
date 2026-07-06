@@ -106,7 +106,10 @@ userSchema.index({ isDeleted: 1 });           // Fast filter for soft-deleted ac
 // ─── Password hashing ───────────────────────────────────────────────────────
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  // Cost factor 11 (was 12) — chosen for Render's 0.1 vCPU free tier to
+  // reduce per-login/signup CPU time. Still well within OWASP's "strong"
+  // range. Revisit with an actual benchmark if the hosting tier changes.
+  this.password = await bcrypt.hash(this.password, 11);
   next();
 });
 
