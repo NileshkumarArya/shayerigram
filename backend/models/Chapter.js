@@ -81,6 +81,22 @@ ChapterSchema.pre('save', function (next) {
 // Indexes
 ChapterSchema.index({ story: 1, chapterNumber: 1 }, { unique: true });
 ChapterSchema.index({ story: 1, status: 1 });
-ChapterSchema.index({ author: 1 });
+// ✅ FIX: removed duplicate `ChapterSchema.index({ author: 1 })` — the
+// `author` field above already has `index: true`, which was causing the
+// "Duplicate schema index" warning on server boot.
 
-module.exports = mongoose.model('Chapter', ChapterSchema);
+// ✅ Auto-filter deleted chapters from ALL find queries (same pattern as Post.js/Story.js)
+// Use Chapter.findWithDeleted() to include deleted chapters (admin use)
+ChapterSchema.pre(/^find/, function (next) {
+  if (this.getOptions()._includeDeleted) return next();
+  this.where({ isDeleted: { $ne: true } });
+  next();
+});
+
+const ChapterModel = mongoose.model('Chapter', ChapterSchema);
+
+// Helper for admin queries that need deleted chapters
+ChapterModel.findWithDeleted = (filter = {}) =>
+  ChapterModel.find(filter).setOptions({ _includeDeleted: true });
+
+module.exports = ChapterModel;

@@ -87,4 +87,18 @@ StorySchema.index({ status: 1, createdAt: -1 });
 // text-index language stemmer ("language override unsupported: hindi").
 // Story search uses regex (searchService.js), so this index isn't needed anyway.
 
-module.exports = mongoose.model('Story', StorySchema);
+// ✅ Auto-filter deleted stories from ALL find queries (same pattern as Post.js)
+// Use Story.findWithDeleted() to include deleted stories (admin use)
+StorySchema.pre(/^find/, function (next) {
+  if (this.getOptions()._includeDeleted) return next();
+  this.where({ isDeleted: { $ne: true } });
+  next();
+});
+
+const StoryModel = mongoose.model('Story', StorySchema);
+
+// Helper for admin queries that need deleted stories
+StoryModel.findWithDeleted = (filter = {}) =>
+  StoryModel.find(filter).setOptions({ _includeDeleted: true });
+
+module.exports = StoryModel;
