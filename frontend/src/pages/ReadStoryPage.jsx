@@ -153,7 +153,7 @@ export default function ReadStoryPage() {
         {/* Chapter actions (like) + Navigation — grouped together below the
             divider so the like button reads as a control, not story text */}
         <div className="mt-12 pt-6" style={{ borderTop: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center justify-start gap-2 mb-6">
             <button onClick={handleLike} disabled={likeLoading}
               className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
               <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>

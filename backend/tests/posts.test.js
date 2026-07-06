@@ -103,6 +103,9 @@ jest.mock('../utils/cache', () => ({
   incrementCache: jest.fn().mockResolvedValue(1),
   decrementCache: jest.fn().mockResolvedValue(0),
   invalidateCache: jest.fn().mockResolvedValue(),
+  // ✅ FIX: added after cache.js started exporting this (Redis consolidation) —
+  // rateLimiter.js calls this at require-time, so the mock needs it too.
+  getSharedRedisClient: jest.fn().mockReturnValue(null),
 }));
 
 jest.mock('../services/likeService', () => ({
