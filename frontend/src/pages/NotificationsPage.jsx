@@ -7,10 +7,10 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { NotificationSkeleton } from '../components/common/Skeleton';
 
 const TYPE_CONFIG = {
-  like:    { emoji: '❤️', color: '#f87171', label: 'liked your shayari' },
-  comment: { emoji: '💬', color: '#60a5fa', label: 'commented on your shayari' },
+  like:    { emoji: '❤️', color: '#f87171', verb: 'liked your' },
+  comment: { emoji: '💬', color: '#60a5fa', verb: 'commented on your' },
+  save:    { emoji: '🔖', color: '#fbbf24', verb: 'saved your' },
   follow:  { emoji: '👤', color: '#c084fc', label: 'started following you' },
-  save:    { emoji: '🔖', color: '#fbbf24', label: 'saved your shayari' },
   mention: { emoji: '@',  color: '#34d399', label: 'mentioned you' },
   reply:   { emoji: '↩️', color: '#a78bfa', label: 'replied to your comment' },
 };
@@ -20,7 +20,14 @@ function NotifItem({ notif }) {
   if (!actor) return null;
 
   const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.like;
-  const post = notif.post || (typeof notif.entityId === 'object' ? notif.entityId : null);
+  // ✅ FIX: check BOTH `post` AND `story` — backend sends whichever is
+  // relevant based on entityType. Previously only `post` was checked, so
+  // story-based notifications never got a thumbnail/link at all.
+  const isStory = notif.entityType === 'Story' || !!notif.story;
+  const item = notif.story || notif.post || (typeof notif.entityId === 'object' ? notif.entityId : null);
+  // ✅ FIX: label now reflects the actual content type instead of always
+  // saying "shayari" — was hardcoded before, even for story likes/comments.
+  const label = cfg.label || `${cfg.verb} ${isStory ? 'story' : 'shayari'}`;
   const isUnread = notif.isRead === false || notif.read === false;
 
   const timeAgo = (date) => {
@@ -55,18 +62,28 @@ function NotifItem({ notif }) {
           >
             {actor.username}
           </Link>{' '}
-          <span style={{ color: 'var(--text-secondary)' }}>{cfg.label}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
         </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
           {timeAgo(notif.createdAt)}
         </p>
       </div>
 
-      {post?._id && (
-        <Link to={`/post/${post._id}`} className="shrink-0">
-          {post.type === 'image' && post.image ? (
+      {item?._id && (
+        // ✅ FIX: route to /story/ for stories, /post/ for shayari — was
+        // always /post/ before, which 404'd for story notifications.
+        <Link to={isStory ? `/story/${item._id}` : `/post/${item._id}`} className="shrink-0">
+          {!isStory && item.type === 'image' && item.image ? (
             <img
-              src={optimizeImageUrl(post.image, { width: 96, height: 96, crop: 'fill' })}
+              src={optimizeImageUrl(item.image, { width: 96, height: 96, crop: 'fill' })}
+              alt=""
+              className="w-12 h-12 object-cover rounded-lg"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : isStory && item.coverImage ? (
+            <img
+              src={optimizeImageUrl(item.coverImage, { width: 96, height: 96, crop: 'fill' })}
               alt=""
               className="w-12 h-12 object-cover rounded-lg"
               loading="lazy"
@@ -84,7 +101,7 @@ function NotifItem({ notif }) {
                 className="text-[9px] font-shayari text-center line-clamp-3"
                 style={{ color: 'var(--text-muted)' }}
               >
-                {post.content?.slice(0, 40)}
+                {isStory ? item.title : item.content?.slice(0, 40)}
               </span>
             </div>
           )}
