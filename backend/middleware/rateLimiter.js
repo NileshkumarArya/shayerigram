@@ -1,16 +1,18 @@
 const rateLimit = require('express-rate-limit');
+const { getSharedRedisClient } = require('../utils/cache');
 
-// ✅ Redis-backed store for multi-instance rate limiting
-// Falls back to memory if Redis unavailable
+// ✅ Skip ALL rate limiting in test environment
+const isTest = process.env.NODE_ENV === 'test';
+
+// ✅ FIX: reuse the SAME Redis client cache.js already connects, instead of
+// opening a second separate connection just for rate limiting.
 let redisStore = null;
 const getStore = () => {
   if (redisStore) return { store: redisStore };
-  if (process.env.REDIS_URL && !isTest) {
+  const client = getSharedRedisClient();
+  if (client && !isTest) {
     try {
       const { RedisStore } = require('rate-limit-redis');
-      const { createClient } = require('redis');
-      const client = createClient({ url: process.env.REDIS_URL });
-      client.connect().catch(() => {});
       redisStore = new RedisStore({ sendCommand: (...args) => client.sendCommand(args) });
       return { store: redisStore };
     } catch {
@@ -19,9 +21,6 @@ const getStore = () => {
   }
   return {}; // memory store (default)
 };
-
-// ✅ Skip ALL rate limiting in test environment
-const isTest = process.env.NODE_ENV === 'test';
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

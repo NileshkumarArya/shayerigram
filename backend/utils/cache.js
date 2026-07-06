@@ -5,9 +5,24 @@ let redisClient  = null;
 let redisEnabled = false;
 const memoryCache = new Map();
 
-const getRedisLib = async () => {
-  try { return require('redis'); } catch { return null; }
+// ✅ FIX: create the Redis client synchronously at module load (once) so
+// other modules (e.g. rateLimiter.js) can share the SAME connection via
+// getSharedRedisClient() instead of opening their own. connectCache()
+// below just calls .connect() on this already-created client.
+const initRedisClient = () => {
+  if (redisClient || !process.env.REDIS_URL) return redisClient;
+  try {
+    const redis = require('redis');
+    redisClient = redis.createClient({ url: process.env.REDIS_URL });
+    redisClient.on('error', (err) => logger.warn('Redis error', { error: err.message }));
+  } catch {
+    redisClient = null; // redis package missing
+  }
+  return redisClient;
 };
+initRedisClient();
+
+const getSharedRedisClient = () => redisClient;
 
 const buildKey = (key) => `sg:${key}`;
 
@@ -61,24 +76,16 @@ const decrementMemory = (key) => {
 
 // ─── Connect ──────────────────────────────────────────────────────────────
 const connectCache = async () => {
-  if (!process.env.REDIS_URL) {
+  if (!redisClient) {
     logger.info('Cache running in memory mode');
     return;
   }
-  const redis = await getRedisLib();
-  if (!redis?.createClient) {
-    logger.warn('redis package missing, cache fallback to memory');
-    return;
-  }
   try {
-    redisClient = redis.createClient({ url: process.env.REDIS_URL });
-    redisClient.on('error', (err) => logger.warn('Redis error', { error: err.message }));
     await redisClient.connect();
     redisEnabled = true;
     logger.info('Redis cache connected');
   } catch (err) {
     logger.warn('Redis unavailable, fallback to memory', { error: err.message });
-    redisClient = null;
     redisEnabled = false;
   }
 };
@@ -162,4 +169,5 @@ module.exports = {
   decrementCache,
   deleteCache,
   invalidateCache,
+  getSharedRedisClient, // ✅ NEW — lets rateLimiter.js share this connection
 };
