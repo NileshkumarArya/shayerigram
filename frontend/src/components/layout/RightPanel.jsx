@@ -11,8 +11,11 @@ function FollowBtn({ userId, initialFollowing }) {
   const toggle = async () => {
     setLoading(true);
     try {
-      await userAPI.toggleFollow(userId);
-      setFollowing(!following);
+      const { data } = await userAPI.toggleFollow(userId);
+      // ✅ FIX: use the server's actual result — this button's initial
+      // state is set once when the sidebar loads and never refreshed, so
+      // it can go stale if the user follows the same person elsewhere.
+      setFollowing(data.following);
     } catch {}
     setLoading(false);
   };

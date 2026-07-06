@@ -97,12 +97,15 @@ export default function ProfilePage() {
   const handleFollow = async () => {
     setFollowLoading(true);
     try {
-      await userAPI.toggleFollow(profile._id);
-      setFollowing(!following);
+      const { data } = await userAPI.toggleFollow(profile._id);
+      // ✅ FIX: trust the server's actual result instead of blindly flipping
+      // local state — stale local state (multi-tab, stale sidebar data)
+      // could otherwise show/count the OPPOSITE of what the server did.
+      setFollowing(data.following);
       setProfile(prev => ({
         ...prev,
-        followersCount: (prev.followersCount ?? 0) + (following ? -1 : 1),
-        isFollowing: !following
+        followersCount: Math.max(0, (prev.followersCount ?? 0) + (data.following ? 1 : -1)),
+        isFollowing: data.following
       }));
     } catch {}
     setFollowLoading(false);
