@@ -147,11 +147,15 @@ describe('Post routes', () => {
     Post.create.mockResolvedValue({ _id: '507f191e810c19729de860eb' });
 
     // Controller fetches populated post after create
+    // ✅ FIX: added .lean() to match the real chain since createPost now
+    // calls Post.findById(...).populate(...).lean()
     Post.findById.mockReturnValue({
-      populate: jest.fn().mockResolvedValue({
-        _id:     '507f191e810c19729de860eb',
-        content: 'Dil ki baat',
-        author:  { _id: '507f191e810c19729de860ea', username: 'arya' },
+      populate: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          _id:     '507f191e810c19729de860eb',
+          content: 'Dil ki baat',
+          author:  { _id: '507f191e810c19729de860ea', username: 'arya' },
+        }),
       }),
     });
 
