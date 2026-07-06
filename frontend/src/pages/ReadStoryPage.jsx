@@ -150,38 +150,40 @@ export default function ReadStoryPage() {
           </div>
         )}
 
-        {/* ✅ NEW — per-chapter like button */}
-        <div className="flex items-center gap-2 mt-8">
-          <button onClick={handleLike} disabled={likeLoading}
-            className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
-            <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
-            <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : textColor }}>
-              {likeCount} {likeCount === 1 ? 'like' : 'likes'} on this chapter
-            </span>
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-12 pt-6" style={{ borderTop: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
-          {prevChapter ? (
-            <button onClick={() => navigate(`/read/${prevChapter._id}`)} className="text-sm px-4 py-2.5 rounded-xl"
-              style={{ background: darkMode ? '#1a1a2a' : '#fff', color: textColor, border: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
-              ← Previous
+        {/* Chapter actions (like) + Navigation — grouped together below the
+            divider so the like button reads as a control, not story text */}
+        <div className="mt-12 pt-6" style={{ borderTop: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <button onClick={handleLike} disabled={likeLoading}
+              className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
+              <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
+              <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : textColor }}>
+                {likeCount} {likeCount === 1 ? 'like' : 'likes'} on this chapter
+              </span>
             </button>
-          ) : <div />}
+          </div>
 
-          {nextChapter ? (
-            <button onClick={() => navigate(`/read/${nextChapter._id}`)}
-              className="text-sm px-4 py-2.5 rounded-xl text-white"
-              style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
-              Next →
-            </button>
-          ) : (
-            <Link to={`/story/${chapter.story._id}`} className="text-sm px-4 py-2.5 rounded-xl text-white"
-              style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
-              Finish ✓
-            </Link>
-          )}
+          <div className="flex items-center justify-between">
+            {prevChapter ? (
+              <button onClick={() => navigate(`/read/${prevChapter._id}`)} className="text-sm px-4 py-2.5 rounded-xl"
+                style={{ background: darkMode ? '#1a1a2a' : '#fff', color: textColor, border: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
+                ← Previous
+              </button>
+            ) : <div />}
+
+            {nextChapter ? (
+              <button onClick={() => navigate(`/read/${nextChapter._id}`)}
+                className="text-sm px-4 py-2.5 rounded-xl text-white"
+                style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
+                Next →
+              </button>
+            ) : (
+              <Link to={`/story/${chapter.story._id}`} className="text-sm px-4 py-2.5 rounded-xl text-white"
+                style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
+                Finish ✓
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </div>
