@@ -15,7 +15,7 @@ exports.createClub = async (req, res) => {
     }
 
     let slug = slugify(name);
-    const existing = await Club.findOne({ slug });
+    const existing = await Club.findOne({ slug }).lean();
     if (existing) slug = `${slug}-${Date.now().toString(36)}`;
 
     const club = await Club.create({

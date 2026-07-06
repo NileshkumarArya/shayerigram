@@ -10,7 +10,7 @@ exports.blockUser = async (req, res) => {
     if (String(blockerId) === String(blockeeId))
       return res.status(400).json({ message: "You can't block yourself." });
 
-    const target = await User.findById(blockeeId).select('username');
+    const target = await User.findById(blockeeId).select('username').lean();
     if (!target) return res.status(404).json({ message: 'User not found.' });
 
     await Block.findOneAndUpdate(

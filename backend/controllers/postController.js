@@ -143,7 +143,8 @@ exports.createPost = async (req, res) => {
     ]);
 
     const populated = await Post.findById(post._id)
-      .populate('author', '_id username avatar fullName isVerified');
+      .populate('author', '_id username avatar fullName isVerified')
+      .lean();
 
     logger.info('Post created', { postId: post._id, userId: req.user._id });
     res.status(201).json({ post: populated });

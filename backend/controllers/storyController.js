@@ -184,7 +184,8 @@ exports.getStories = async (req, res) => {
       .sort(sortOptions[sort] || sortOptions.latest)
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
-      .select('-coverImagePublicId');
+      .select('-coverImagePublicId')
+      .lean();
 
     const total = await Story.countDocuments(query);
 
@@ -212,7 +213,8 @@ exports.getMyStories = async (req, res) => {
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
-      .select('-coverImagePublicId');
+      .select('-coverImagePublicId')
+      .lean();
 
     res.json({ success: true, stories });
   } catch (err) {
@@ -235,7 +237,8 @@ exports.getUserStories = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
-      .select('-coverImagePublicId');
+      .select('-coverImagePublicId')
+      .lean();
 
     res.json({ success: true, stories });
   } catch (err) {
@@ -283,7 +286,8 @@ exports.getMyBookmarks = async (req, res) => {
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .lean();
 
     const stories = bookmarks
       .filter(b => b.story)
@@ -541,7 +545,7 @@ exports.getSimilarStories = async (req, res) => {
   try {
     const { storyId } = req.params;
 
-    const story = await Story.findOne({ _id: storyId, isDeleted: false }).select('genre tags');
+    const story = await Story.findOne({ _id: storyId, isDeleted: false }).select('genre tags').lean();
     if (!story) return res.status(404).json({ message: 'Story not found.' });
 
     const similar = await Story.find({

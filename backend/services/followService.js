@@ -106,7 +106,8 @@ const getFollowers = async (userId, cursor, limit = 20) => {
   const follows = await Follow.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .limit(limit + 1)
-    .populate({ path: 'followerId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } });
+    .populate({ path: 'followerId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } })
+    .lean();
 
 const hasMore = follows.length > limit;
 const items   = hasMore ? follows.slice(0, limit) : follows;
@@ -129,7 +130,8 @@ const getFollowing = async (userId, cursor, limit = 20) => {
   const follows = await Follow.find(query)
     .sort({ createdAt: -1, _id: -1 })
     .limit(limit + 1)
-   .populate({ path: 'followingId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } });
+    .populate({ path: 'followingId', select: '_id username avatar fullName followersCount isVerified', match: { isDeleted: { $ne: true } } })
+    .lean();
 
 const hasMore = follows.length > limit;
 const items   = hasMore ? follows.slice(0, limit) : follows;
