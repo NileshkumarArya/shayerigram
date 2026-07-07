@@ -69,6 +69,13 @@ const validateEnv = () => {
     }
   }
 
+  // ── Turnstile secret name check ────────────────────────────────────────────
+  // verifyTurnstile.js accepts either name, but warn if BOTH are missing so a
+  // typo'd Render var name doesn't silently disable captcha with no signal.
+  if (!process.env.TURNSTILE_SECRET_KEY && !process.env.TURNSTILE_SECRET) {
+    warnings.push('Neither TURNSTILE_SECRET_KEY nor TURNSTILE_SECRET is set — captcha verification is disabled');
+  }
+
   // ── Print warnings ─────────────────────────────────────────────────────────
   if (warnings.length) {
     console.warn('\n[ENV] Warnings:');

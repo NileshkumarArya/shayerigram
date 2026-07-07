@@ -11,7 +11,10 @@ const DEV_BYPASS_TOKENS = new Set([
 ]);
 
 const verifyTurnstile = async (req, res, next) => {
-  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  // Accept either name — a past env var naming mismatch (TURNSTILE_SECRET vs
+  // TURNSTILE_SECRET_KEY) meant captcha was silently skipped whenever the
+  // configured Render var didn't match exactly what this file read.
+  const secretKey = process.env.TURNSTILE_SECRET_KEY || process.env.TURNSTILE_SECRET;
 
   // Skip if no key configured or in test mode
   if (!secretKey || process.env.NODE_ENV === 'test') return next();
