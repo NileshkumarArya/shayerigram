@@ -2,6 +2,9 @@ const express = require('express');
 const router  = express.Router();
 const { protect, optionalAuth } = require('../middleware/auth');
 const { uploadChapterMedia }    = require('../middleware/secureUpload');
+const { mongoIdValidation }     = require('../middleware/validate');
+const { likeLimiter }           = require('../middleware/rateLimiter');
+const { checkAbuse }            = require('../middleware/abuseDetection');
 
 const {
   addChapter,
@@ -14,16 +17,16 @@ const {
 } = require('../controllers/chapterController');
 
 // ─── Public routes ──────────────────────────────────────────────────────────────
-router.get('/story/:storyId',     optionalAuth, getChapters);
-router.get('/:chapterId',         optionalAuth, getChapter);
+router.get('/story/:storyId',     ...mongoIdValidation('storyId'), optionalAuth, getChapters);
+router.get('/:chapterId',         ...mongoIdValidation('chapterId'), optionalAuth, getChapter);
 
 // ─── Protected routes ────────────────────────────────────────────────────────────
 router.use(protect);
 
-router.post('/story/:storyId',          uploadChapterMedia, addChapter);
-router.put('/:chapterId',               uploadChapterMedia, updateChapter);
-router.delete('/:chapterId',            deleteChapter);
-router.put('/story/:storyId/reorder',   reorderChapters);
-router.post('/:chapterId/like',         toggleLike);
+router.post('/story/:storyId',          ...mongoIdValidation('storyId'), uploadChapterMedia, addChapter);
+router.put('/:chapterId',               ...mongoIdValidation('chapterId'), uploadChapterMedia, updateChapter);
+router.delete('/:chapterId',            ...mongoIdValidation('chapterId'), deleteChapter);
+router.put('/story/:storyId/reorder',   ...mongoIdValidation('storyId'), reorderChapters);
+router.post('/:chapterId/like',         likeLimiter, checkAbuse('like'), ...mongoIdValidation('chapterId'), toggleLike);
 
 module.exports = router;
