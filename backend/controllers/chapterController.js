@@ -1,9 +1,11 @@
 const Chapter         = require('../models/Chapter');
 const Story            = require('../models/Story');
 const Like             = require('../models/Like');
+const Read             = require('../models/Read');
 const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const { cloudinary }   = require('../config/cloudinary');
 const logger           = require('../utils/logger');
+const { getCache, setCache } = require('../utils/cache');
 
 // ─── Add Chapter ──────────────────────────────────────────────────────────────
 exports.addChapter = async (req, res) => {
@@ -152,10 +154,28 @@ exports.getChapter = async (req, res) => {
       return res.status(403).json({ message: 'Access denied.' });
     }
 
-    // Count the read unless the viewer is the chapter's own author.
-    // Anonymous (logged-out) visitors should still count.
-    if (!req.user || String(chapter.author._id) !== String(req.user._id)) {
-      await Chapter.findByIdAndUpdate(chapterId, { $inc: { totalReads: 1 } });
+    // Count the read once per reader, not on every refresh.
+    // Logged-in: permanent dedup via the Read collection (unique index) —
+    //   a duplicate create() throws 11000, which we simply swallow.
+    // Logged-out: no stable identity, so we approximate with a 24h
+    //   IP-based Redis key — good enough to stop refresh-spam.
+    const isOwnChapter = req.user && String(chapter.author._id) === String(req.user._id);
+    if (!isOwnChapter) {
+      if (req.user) {
+        try {
+          await Read.create({ userId: req.user._id, targetType: 'Chapter', targetId: chapterId });
+          await Chapter.findByIdAndUpdate(chapterId, { $inc: { totalReads: 1 } });
+        } catch (err) {
+          if (err.code !== 11000) throw err; // already read — don't recount
+        }
+      } else {
+        const dedupKey = `read:chapter:${chapterId}:ip:${req.ip}`;
+        const alreadyCounted = await getCache(dedupKey);
+        if (!alreadyCounted) {
+          await setCache(dedupKey, true, 24 * 60 * 60);
+          await Chapter.findByIdAndUpdate(chapterId, { $inc: { totalReads: 1 } });
+        }
+      }
     }
 
     // Next/Previous chapter info

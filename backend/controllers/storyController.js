@@ -4,10 +4,12 @@ const Bookmark       = require('../models/Bookmark');
 const ReadingProgress = require('../models/ReadingProgress');
 const Like            = require('../models/Like');
 const Comment          = require('../models/Comment');
+const Read             = require('../models/Read');
 const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const commentService = require('../services/commentService');
 const { cloudinary } = require('../config/cloudinary');
 const logger         = require('../utils/logger');
+const { getCache, setCache } = require('../utils/cache');
 
 // ─── Create Story ─────────────────────────────────────────────────────────────
 exports.createStory = async (req, res) => {
@@ -128,11 +130,25 @@ exports.getStory = async (req, res) => {
       return res.status(403).json({ message: 'Access denied.' });
     }
 
-    // Count the read unless the viewer is the story's own author.
-    // Anonymous (logged-out) visitors should still count — only skip when
-    // we *know* it's the author reading their own story.
-    if (!req.user || String(story.author._id) !== String(req.user._id)) {
-      await Story.findByIdAndUpdate(storyId, { $inc: { totalReads: 1 } });
+    // Count the read once per reader, not on every refresh — same
+    // dedup pattern as chapterController.js's getChapter.
+    const isOwnStory = req.user && String(story.author._id) === String(req.user._id);
+    if (!isOwnStory) {
+      if (req.user) {
+        try {
+          await Read.create({ userId: req.user._id, targetType: 'Story', targetId: storyId });
+          await Story.findByIdAndUpdate(storyId, { $inc: { totalReads: 1 } });
+        } catch (err) {
+          if (err.code !== 11000) throw err; // already read — don't recount
+        }
+      } else {
+        const dedupKey = `read:story:${storyId}:ip:${req.ip}`;
+        const alreadyCounted = await getCache(dedupKey);
+        if (!alreadyCounted) {
+          await setCache(dedupKey, true, 24 * 60 * 60);
+          await Story.findByIdAndUpdate(storyId, { $inc: { totalReads: 1 } });
+        }
+      }
     }
 
     // Reading progress fetch karo
