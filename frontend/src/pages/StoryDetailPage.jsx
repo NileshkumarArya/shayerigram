@@ -306,6 +306,7 @@ export default function StoryDetailPage() {
                 </p>
                 <p className="text-xs mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
                   <span>{ch.readingTime} min read</span>
+                  <span>👁️ {ch.totalReads || 0}</span>
                   {ch.totalLikes > 0 && <span>❤️ {ch.totalLikes}</span>}
                 </p>
               </div>
