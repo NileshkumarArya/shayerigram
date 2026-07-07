@@ -511,7 +511,7 @@ exports.deleteComment = async (req, res) => {
     }
 
     const deleted = await Comment.findOneAndDelete({ _id: commentId, targetType: 'Story', targetId: storyId });
-    if (!deleted) return res.status(404).json({ message: 'Comment nahi mila.' });
+    if (!deleted) return res.status(404).json({ message: 'Comment not found.' });
 
     await Story.findOneAndUpdate(
       { _id: storyId, totalComments: { $gt: 0 } },
