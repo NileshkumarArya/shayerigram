@@ -64,7 +64,20 @@ const toggleFollow = async (followerId, followingId, io) => {
     return { following: false };
   } else {
     // ─── FOLLOW ────────────────────────────────────────────────────────────
-    await Follow.create({ followerId: followerObjId, followingId: followingObjId });
+    // ✅ FIX: race-condition guard — a concurrent duplicate follow (double-tap,
+    // multi-tab, network retry) can hit this branch twice before either write
+    // lands. The unique index on {followerId, followingId} catches the second
+    // create() with an E11000 error; without this catch that raw Mongo error
+    // was bubbling straight to the client. Treat it as already-following —
+    // don't double-increment counters or send a duplicate notification.
+    try {
+      await Follow.create({ followerId: followerObjId, followingId: followingObjId });
+    } catch (err) {
+      if (err.code === 11000) {
+        return { following: true };
+      }
+      throw err;
+    }
     await Promise.all([
       User.findByIdAndUpdate(followerId,  { $inc: { followingCount: 1 } }),
       User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } }),

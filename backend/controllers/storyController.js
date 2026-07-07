@@ -274,12 +274,29 @@ exports.toggleBookmark = async (req, res) => {
     const existing = await Bookmark.findOne({ user: req.user._id, story: storyId });
 
     if (existing) {
-      await existing.deleteOne();
-      await Story.findByIdAndUpdate(storyId, { $inc: { totalBookmarks: -1 } });
+      // ✅ FIX: only decrement if THIS request actually removed the doc —
+      // same guard as followService's unfollow branch, prevents a concurrent
+      // duplicate toggle (double-tap) from drifting the counter negative.
+      const deleteResult = await Bookmark.deleteOne({ _id: existing._id });
+      if (deleteResult.deletedCount > 0) {
+        await Story.findByIdAndUpdate(storyId, { $inc: { totalBookmarks: -1 } });
+      }
       return res.json({ success: true, isBookmarked: false });
     }
 
-    await Bookmark.create({ user: req.user._id, story: storyId });
+    // ✅ FIX: race-condition guard — same pattern as followService.toggleFollow.
+    // A concurrent duplicate bookmark (double-tap, retry) can hit this branch
+    // twice before either write lands; the unique index on {user, story}
+    // catches the second create() with E11000, which we simply swallow
+    // instead of letting the raw Mongo error reach the client.
+    try {
+      await Bookmark.create({ user: req.user._id, story: storyId });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.json({ success: true, isBookmarked: true });
+      }
+      throw err;
+    }
     await Story.findByIdAndUpdate(storyId, { $inc: { totalBookmarks: 1 } });
 
     res.json({ success: true, isBookmarked: true });
