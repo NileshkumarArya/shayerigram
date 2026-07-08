@@ -8,8 +8,14 @@ const logger = require('../../utils/logger');
 let emailQueue = null;
 
 const initEmailQueue = async () => {
-  if (!process.env.REDIS_URL) {
-    logger.warn('REDIS_URL not set — email queue disabled, using direct send');
+  // ✅ FIX: Render par abhi koi separate email-worker process deploy nahi hota —
+  // jobs queue mein add ho jaate the but koi unhe consume nahi karta tha, isliye
+  // forgot-password / verify-email jaisi emails silently kabhi bhejti hi nahi thi.
+  // Same fix jo notificationQueue.js mein already hai: queue tabhi use karo jab
+  // ENABLE_EMAIL_QUEUE=true ho (matlab worker actually deployed hai), warna
+  // direct-send fallback use karo.
+  if (process.env.ENABLE_EMAIL_QUEUE !== 'true' || !process.env.REDIS_URL) {
+    logger.warn('Email queue disabled (set ENABLE_EMAIL_QUEUE=true once emailWorker.js is deployed) — using direct send');
     return null;
   }
   try {
