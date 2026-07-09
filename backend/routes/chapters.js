@@ -14,6 +14,7 @@ const {
   getChapters,
   reorderChapters,
   toggleLike,
+  reportChapter,
 } = require('../controllers/chapterController');
 
 // ─── Public routes ──────────────────────────────────────────────────────────────
@@ -28,5 +29,6 @@ router.put('/:chapterId',               ...mongoIdValidation('chapterId'), uploa
 router.delete('/:chapterId',            ...mongoIdValidation('chapterId'), deleteChapter);
 router.put('/story/:storyId/reorder',   ...mongoIdValidation('storyId'), reorderChapters);
 router.post('/:chapterId/like',         likeLimiter, checkAbuse('like'), ...mongoIdValidation('chapterId'), toggleLike);
+router.post('/:chapterId/report',       ...mongoIdValidation('chapterId'), reportChapter);
 
 module.exports = router;

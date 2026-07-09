@@ -68,6 +68,9 @@ const StorySchema = new mongoose.Schema(
     isPremium:  { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
 
+    isReported:  { type: Boolean, default: false },
+    reportCount: { type: Number, default: 0, min: 0 },
+
     // Soft delete
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },

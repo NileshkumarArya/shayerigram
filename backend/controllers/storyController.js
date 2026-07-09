@@ -5,6 +5,7 @@ const ReadingProgress = require('../models/ReadingProgress');
 const Like            = require('../models/Like');
 const Comment          = require('../models/Comment');
 const Read             = require('../models/Read');
+const Report            = require('../models/Report');
 const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const commentService = require('../services/commentService');
 const { cloudinary } = require('../config/cloudinary');
@@ -600,5 +601,49 @@ exports.getSimilarStories = async (req, res) => {
   } catch (err) {
     logger.error('getSimilarStories error', { error: err.message });
     res.status(500).json({ message: 'Something went wrong. Please try again.' });
+  }
+};
+
+// ─── Report Story ───────────────────────────────────────────────────────────
+exports.reportStory = async (req, res) => {
+  try {
+    const story = await Story.findOne({
+      _id: req.params.storyId,
+      isDeleted: { $ne: true },
+    }).select('_id');
+
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
+
+    const validReasons = [
+      'spam', 'harassment', 'hate_speech', 'nudity_sexual_content',
+      'violence', 'impersonation', 'copyright', 'inappropriate', 'other',
+    ];
+    const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
+    const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
+
+    try {
+      await Report.create({
+        targetType: 'story',
+        targetId: story._id,
+        reason,
+        details,
+        reportedBy: req.user._id,
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(400).json({ message: 'You have already reported this story.' });
+      }
+      throw err;
+    }
+
+    await Story.findByIdAndUpdate(story._id, {
+      $inc: { reportCount: 1 },
+      $set: { isReported: true },
+    });
+
+    res.json({ message: 'Story reported. Our team will review it.' });
+  } catch (err) {
+    logger.error('reportStory error', { error: err.message });
+    res.status(500).json({ message: 'Failed to report story.' });
   }
 };

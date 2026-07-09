@@ -378,7 +378,10 @@ exports.reportPost = async (req, res) => {
 
     if (!post) return res.status(404).json({ message: 'Post not found.' });
 
-    const validReasons = ['spam', 'harassment', 'hate_speech', 'inappropriate', 'copyright', 'other'];
+    const validReasons = [
+      'spam', 'harassment', 'hate_speech', 'nudity_sexual_content',
+      'violence', 'impersonation', 'copyright', 'inappropriate', 'other',
+    ];
     const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
     const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
 

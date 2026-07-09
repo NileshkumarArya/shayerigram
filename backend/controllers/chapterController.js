@@ -2,6 +2,7 @@ const Chapter         = require('../models/Chapter');
 const Story            = require('../models/Story');
 const Like             = require('../models/Like');
 const Read             = require('../models/Read');
+const Report            = require('../models/Report');
 const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const { cloudinary }   = require('../config/cloudinary');
 const logger           = require('../utils/logger');
@@ -313,5 +314,49 @@ exports.toggleLike = async (req, res) => {
   } catch (err) {
     logger.error('toggleChapterLike error', { error: err.message });
     res.status(500).json({ message: 'Something went wrong. Please try again.' });
+  }
+};
+
+// ─── Report Chapter ──────────────────────────────────────────────────────────
+exports.reportChapter = async (req, res) => {
+  try {
+    const chapter = await Chapter.findOne({
+      _id: req.params.chapterId,
+      isDeleted: { $ne: true },
+    }).select('_id');
+
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    const validReasons = [
+      'spam', 'harassment', 'hate_speech', 'nudity_sexual_content',
+      'violence', 'impersonation', 'copyright', 'inappropriate', 'other',
+    ];
+    const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
+    const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
+
+    try {
+      await Report.create({
+        targetType: 'chapter',
+        targetId: chapter._id,
+        reason,
+        details,
+        reportedBy: req.user._id,
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(400).json({ message: 'You have already reported this chapter.' });
+      }
+      throw err;
+    }
+
+    await Chapter.findByIdAndUpdate(chapter._id, {
+      $inc: { reportCount: 1 },
+      $set: { isReported: true },
+    });
+
+    res.json({ message: 'Chapter reported. Our team will review it.' });
+  } catch (err) {
+    logger.error('reportChapter error', { error: err.message });
+    res.status(500).json({ message: 'Failed to report chapter.' });
   }
 };

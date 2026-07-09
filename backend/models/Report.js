@@ -4,7 +4,7 @@ const reportSchema = new mongoose.Schema(
   {
     targetType: {
       type: String,
-      enum: ['post', 'user', 'comment'],
+      enum: ['post', 'user', 'comment', 'story', 'chapter'],
       required: true,
     },
     targetId: {
@@ -15,7 +15,17 @@ const reportSchema = new mongoose.Schema(
     reason: {
       type: String,
       required: true,
-      enum: ['spam', 'harassment', 'hate_speech', 'inappropriate', 'copyright', 'other'],
+      enum: [
+        'spam',
+        'harassment',
+        'hate_speech',
+        'nudity_sexual_content',
+        'violence',
+        'impersonation',
+        'copyright',
+        'inappropriate',
+        'other',
+      ],
     },
     details:    { type: String, maxlength: 500, default: '' },
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

@@ -62,6 +62,9 @@ const ChapterSchema = new mongoose.Schema(
     // Premium chapter
     isPremium: { type: Boolean, default: false },
 
+    isReported:  { type: Boolean, default: false },
+    reportCount: { type: Number, default: 0, min: 0 },
+
     // Estimated reading time (minutes)
     readingTime: { type: Number, default: 1 },
 

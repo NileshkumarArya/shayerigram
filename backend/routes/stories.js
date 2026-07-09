@@ -24,6 +24,7 @@ const {
   getComments,
   getSimilarStories,
   toggleCommentLike,
+  reportStory,
 } = require('../controllers/storyController');
 
 // ─── Public routes (optional auth — draft check ke liye) ──────────────────────
@@ -51,5 +52,6 @@ router.post('/:storyId/like',              likeLimiter, checkAbuse('like'), ...m
 router.post('/:storyId/comment',           commentLimiter, checkAbuse('comment'), ...mongoIdValidation('storyId'), commentValidation, addComment);
 router.delete('/:storyId/comment/:commentId', ...mongoIdValidation('storyId'), ...mongoIdValidation('commentId'), deleteComment);
 router.post('/:storyId/comment/:commentId/like', likeLimiter, ...mongoIdValidation('storyId'), ...mongoIdValidation('commentId'), toggleCommentLike);
+router.post('/:storyId/report',            ...mongoIdValidation('storyId'), reportStory);
 
 module.exports = router;
