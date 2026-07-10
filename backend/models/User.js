@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema(
     savedCount:     { type: Number, default: 0, min: 0 },
     storiesCount:   { type: Number, default: 0, min: 0 },
 
-    dateOfBirth: { type: Date, select: false },
+    dateOfBirth: { type: Date, required: [true, 'Date of birth is required'], select: false },
 
     role:        { type: String, enum: ['user', 'admin'], default: 'user' },
     isVerified:  { type: Boolean, default: false },

@@ -31,6 +31,12 @@ const registerValidation = [
     .optional().trim()
     .isLength({ max: 50 }).withMessage('Full name too long')
     .escape(),
+  body('dateOfBirth')
+    .notEmpty().withMessage('Date of birth is required')
+    .isISO8601().withMessage('Invalid date format')
+    .toDate()
+    .custom((value) => value <= new Date())
+    .withMessage('Date of birth cannot be in the future'),
   body('acceptTerms')
     .custom(value => value === true || value === 'true')
     .withMessage('You must accept the Terms and Community Guidelines'),

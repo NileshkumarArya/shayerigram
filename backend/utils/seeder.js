@@ -20,15 +20,15 @@ const Post = require('../models/Post');
 
 const users = [
   { username: 'mirza_ghalib', email: 'ghalib@shayari.com', password: 'password123',
-    fullName: 'Mirza Ghalib', bio: 'Dard ka haq ada karta hoon... 🌙', isVerified: true },
+    fullName: 'Mirza Ghalib', bio: 'Dard ka haq ada karta hoon... 🌙', isVerified: true, dateOfBirth: '1990-01-01' },
   { username: 'faiz_ahmed', email: 'faiz@shayari.com', password: 'password123',
-    fullName: 'Faiz Ahmed', bio: 'Ishq mujhe aur shayari ka koi maazi nahi', isVerified: true },
+    fullName: 'Faiz Ahmed', bio: 'Ishq mujhe aur shayari ka koi maazi nahi', isVerified: true, dateOfBirth: '1990-01-01' },
   { username: 'gulzar_sahab', email: 'gulzar@shayari.com', password: 'password123',
-    fullName: 'Gulzar Sahab', bio: 'Alfaazon ka jadoogar 🎭', isVerified: true },
+    fullName: 'Gulzar Sahab', bio: 'Alfaazon ka jadoogar 🎭', isVerified: true, dateOfBirth: '1990-01-01' },
   { username: 'parveen_shakir', email: 'parveen@shayari.com', password: 'password123',
-    fullName: 'Parveen Shakir', bio: 'Mohabbat ke alfaaz mere dil se nikle hain' },
+    fullName: 'Parveen Shakir', bio: 'Mohabbat ke alfaaz mere dil se nikle hain', dateOfBirth: '1990-01-01' },
   { username: 'javed_akhtar', email: 'javed@shayari.com', password: 'password123',
-    fullName: 'Javed Akhtar', bio: 'Har lafz mera apna hai' },
+    fullName: 'Javed Akhtar', bio: 'Har lafz mera apna hai', dateOfBirth: '1990-01-01' },
 ];
 
 const shayaris = [

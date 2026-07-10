@@ -129,15 +129,20 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Age gate
+    // Age gate — never treat "missing" as "pass". validate.js should already
+    // reject an absent dateOfBirth, but this controller re-checks independently
+    // rather than assuming that layer ran (defense in depth, not single point of trust).
     const { dateOfBirth } = req.body;
-    if (dateOfBirth && isUnder13(dateOfBirth)) {
+    if (!dateOfBirth) {
+      return res.status(400).json({ message: 'Date of birth is required.' });
+    }
+    if (isUnder13(dateOfBirth)) {
       return res.status(400).json({ message: 'You must be at least 13 years old to register.' });
     }
 
     const user = await User.create({
       username, email, password, fullName,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      dateOfBirth: new Date(dateOfBirth),
       termsAcceptedAt: new Date(),
       policyVersionAccepted: POLICY_VERSION,
     });
