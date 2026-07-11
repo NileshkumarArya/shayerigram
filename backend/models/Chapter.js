@@ -53,6 +53,12 @@ const ChapterSchema = new mongoose.Schema(
       default: 'text',
     },
 
+    // Mature content tag — chapter-level, not story-level (a story can mix
+    // normal and mature chapters, per design). Enforced in
+    // chapterController.getChapter(); doesn't itself hide the chapter from
+    // the chapter list (list still shows it, just badged).
+    isMature: { type: Boolean, default: false },
+
     // Reading stats
     totalReads: { type: Number, default: 0, min: 0 },
 

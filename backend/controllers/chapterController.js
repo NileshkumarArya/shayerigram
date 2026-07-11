@@ -12,7 +12,7 @@ const { getCache, setCache } = require('../utils/cache');
 exports.addChapter = async (req, res) => {
   try {
     const { storyId } = req.params;
-    const { title, content, contentType } = req.body;
+    const { title, content, contentType, isMature } = req.body;
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
     if (!story) return res.status(404).json({ message: 'Story not found.' });
@@ -36,6 +36,7 @@ exports.addChapter = async (req, res) => {
         chapterNumber: nextChapterNumber,
         contentType: contentType || 'text',
         status:      'draft',
+        isMature:    isMature === true || isMature === 'true',
       });
     } catch (createErr) {
       // Roll back the counter so it doesn't drift if chapter creation failed
@@ -71,7 +72,7 @@ exports.addChapter = async (req, res) => {
 exports.updateChapter = async (req, res) => {
   try {
     const { chapterId } = req.params;
-    const { title, content, contentType, status } = req.body;
+    const { title, content, contentType, status, isMature } = req.body;
 
     const chapter = await Chapter.findOne({
       _id:    chapterId,
@@ -84,6 +85,7 @@ exports.updateChapter = async (req, res) => {
     if (content !== undefined) chapter.content = content;
     if (contentType) chapter.contentType = contentType;
     if (status)       chapter.status      = status;
+    if (isMature !== undefined) chapter.isMature = isMature === true || isMature === 'true';
 // Cover/audio update — secureUpload middleware has already processed these
     if (req.safeCoverUpload) {
       if (chapter.coverImagePublicId) {
@@ -153,6 +155,17 @@ exports.getChapter = async (req, res) => {
     // Draft chapter sirf author dekh sakta hai
     if (chapter.status === 'draft' && String(chapter.author._id) !== String(req.user?._id)) {
       return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    // Mature content gate — author can always view their own chapter;
+    // everyone else needs a confirmed 18+ account (fails closed if DOB is
+    // missing/unset, which covers accounts created before DOB was required)
+    const isAuthorViewing = req.user && String(chapter.author._id) === String(req.user._id);
+    if (chapter.isMature && !isAuthorViewing && !req.user?.isAdult) {
+      return res.status(403).json({
+        message: 'This chapter contains mature content. Sign in with a verified 18+ account to view it.',
+        code: 'MATURE_CONTENT_RESTRICTED',
+      });
     }
 
     // Count the read once per reader, not on every refresh.

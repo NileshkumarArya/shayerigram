@@ -308,6 +308,7 @@ export default function StoryDetailPage() {
                   <span>{ch.readingTime} min read</span>
                   <span>👁️ {ch.totalReads || 0}</span>
                   {ch.totalLikes > 0 && <span>❤️ {ch.totalLikes}</span>}
+                  {ch.isMature && <span className="text-red-400 font-semibold">🔞 Mature</span>}
                 </p>
               </div>
               {isCurrent && <span className="text-xs shrink-0 font-medium" style={{ color: 'var(--purple-light)' }}>● Reading</span>}

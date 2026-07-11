@@ -5,6 +5,7 @@ const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY } = requ
 const { enqueueEmail } = require('../jobs/queues/emailQueue');
 const logger      = require('../utils/logger');
 const { sanitizeString, authCookieOptions, cookieName } = require('../middleware/security');
+const { isUnder13 } = require('../utils/age');
 
 const POLICY_VERSION    = '2026-04-13';
 const EMAIL_ACCOUNT_LIMIT = 3; // Ek email se max kitne accounts
@@ -95,12 +96,6 @@ const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
-  const isUnder13 = (dob) => {
-    if (!dob) return false;
-    const age = Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
-    return age < 13;
-  };
-
   try {
     const username    = sanitizeString(req.body.username,  30)?.toLowerCase();
     const email       = sanitizeString(req.body.email,    254)?.toLowerCase();

@@ -7,6 +7,7 @@ const User         = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
 const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY } = require('../utils/tokenService');
 const { parseCookies, cookieName, authCookieOptions } = require('./security');
+const { isAdult } = require('../utils/age');
 const logger = require('../utils/logger');
 
 const extractToken = (req) => {
@@ -66,10 +67,17 @@ const protect = async (req, res, next) => {
     if (decoded.type !== 'access') return res.status(401).json({ message: 'Invalid token type.' });
 
     req.user = await User.findById(decoded.id)
-      .select('-password -passwordResetToken -emailVerifyToken -knownIps -failedLoginAttempts');
+      .select('-password -passwordResetToken -emailVerifyToken -knownIps -failedLoginAttempts +dateOfBirth');
     if (!req.user)            return res.status(401).json({ message: 'User no longer exists.' });
     if (req.user.isSuspended) return res.status(403).json({ message: 'Account suspended.' });
     if (req.user.isDeleted)   return res.status(403).json({ message: 'Account not found.' });
+
+    // Computed once here — downstream controllers just read req.user.isAdult
+    // instead of each re-deriving the 18-year cutoff. Raw DOB dropped right
+    // after so it never rides along in req.user beyond this point.
+    req.user.isAdult = isAdult(req.user.dateOfBirth);
+    req.user.dateOfBirth = undefined;
+
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError')
@@ -183,9 +191,11 @@ const optionalAuth = async (req, res, next) => {
     const decoded = verifyAccessToken(token);
     if (decoded.type !== 'access') return next();
 
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id).select('-password +dateOfBirth');
     if (!user || user.isSuspended || user.isDeleted) return next();
 
+    user.isAdult = isAdult(user.dateOfBirth);
+    user.dateOfBirth = undefined;
     req.user = user;
   } catch {}
 

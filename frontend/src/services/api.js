@@ -129,10 +129,11 @@ export const postAPI = {
 
 // ─── Settings API ─────────────────────────────────────────────────────────
 export const settingsAPI = {
-  get:           ()     => api.get('/settings'),
-  update:        (data) => api.put('/settings', data),
-  deleteAccount: (data) => api.delete('/settings/account', { data }),
-  deactivate:    (data) => api.post('/settings/deactivate', data),
+  get:            ()     => api.get('/settings'),
+  update:         (data) => api.put('/settings', data),
+  setDateOfBirth: (data) => api.patch('/settings/date-of-birth', data),
+  deleteAccount:  (data) => api.delete('/settings/account', { data }),
+  deactivate:     (data) => api.post('/settings/deactivate', data),
 };
 
 // ─── Notifications API ────────────────────────────────────────────────────

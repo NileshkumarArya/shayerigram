@@ -90,6 +90,10 @@ export default function SettingsPage() {
   const [toast, setToast]         = useState('');
   const [section, setSection]     = useState('privacy');
 
+  const [hasDateOfBirth, setHasDateOfBirth] = useState(true); // assume true till loaded, avoids a flash of the form
+  const [dobInput, setDobInput]     = useState('');
+  const [savingDob, setSavingDob]   = useState(false);
+
   // Delete account modal
   const [showDelete, setShowDelete]   = useState(false);
   const [deletePass, setDeletePass]   = useState('');
@@ -99,9 +103,24 @@ export default function SettingsPage() {
   useEffect(() => {
     settingsAPI.get().then(({ data }) => {
       setSettings(data.settings);
+      setHasDateOfBirth(data.hasDateOfBirth);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  const handleSetDob = async () => {
+    if (!dobInput) return;
+    setSavingDob(true);
+    try {
+      await settingsAPI.setDateOfBirth({ dateOfBirth: dobInput });
+      setHasDateOfBirth(true);
+      showToast('✓ Date of birth saved');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to save.');
+    } finally {
+      setSavingDob(false);
+    }
+  };
 
   const update = async (key, value) => {
     const prev = { ...settings };
@@ -295,6 +314,26 @@ export default function SettingsPage() {
         {/* ── Account ───────────────────────────────────────────────────── */}
         {section === 'account' && (
           <>
+            {!hasDateOfBirth && (
+              <div className="glass rounded-2xl p-6 mb-4" style={{ border: '1px solid rgba(245,158,11,0.2)' }}>
+                <h2 className="text-base font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>🎂 Set Date of Birth</h2>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+                  Your account doesn't have a birth date on file — it was created before this became required.
+                  This is needed to view Mature-tagged content, and can only be set once.
+                </p>
+                <div className="flex gap-2">
+                  <input type="date" value={dobInput} onChange={e => setDobInput(e.target.value)}
+                    max={new Date(Date.now() - 13 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
+                    className="input-field text-sm flex-1" />
+                  <button onClick={handleSetDob} disabled={savingDob || !dobInput}
+                    className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-40"
+                    style={{ background: 'var(--gradient-purple)' }}>
+                    {savingDob ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <Section title="Account Management" icon="⚙️">
               <Row label="Clear cache" desc="Clear locally stored data">
                 <button onClick={() => { localStorage.clear(); showToast('Cache cleared ✓'); }}

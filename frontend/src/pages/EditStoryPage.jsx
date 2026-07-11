@@ -18,6 +18,7 @@ export default function EditStoryPage() {
   const [chapterCoverFile, setChapterCoverFile] = useState(null);
   const [chapterCoverPreview, setChapterCoverPreview] = useState(null);
   const [contentType, setContentType] = useState('text');
+  const [isMature, setIsMature] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,6 +48,7 @@ export default function EditStoryPage() {
     setChapterContent('');
     setAudioFile(null);
     setContentType('text');
+    setIsMature(false);
     setShowAddChapter(false);
     setEditingChapterId(null);
   };
@@ -58,6 +60,7 @@ export default function EditStoryPage() {
       setChapterTitle(data.chapter.title);
       setChapterContent(data.chapter.content);
       setContentType(data.chapter.contentType);
+      setIsMature(!!data.chapter.isMature);
       setShowAddChapter(true);
     } catch (err) {
       console.error('Chapter fetch error:', err);
@@ -81,6 +84,7 @@ export default function EditStoryPage() {
       formData.append('title', chapterTitle.trim());
       formData.append('content', chapterContent);
       formData.append('contentType', contentType);
+      formData.append('isMature', isMature);
       if (publish) formData.append('status', 'published');
       if (audioFile) formData.append('audio', audioFile);
       if (chapterCoverFile) formData.append('cover', chapterCoverFile);
@@ -183,6 +187,7 @@ export default function EditStoryPage() {
               </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                 {ch.status === 'published' ? '✓ Published' : '📝 Draft'} · {ch.readingTime} min read
+                {ch.isMature && <span className="ml-1.5 text-red-400 font-semibold">🔞 Mature</span>}
               </p>
             </div>
             <div className="flex gap-2 shrink-0 ml-3">
@@ -220,8 +225,13 @@ export default function EditStoryPage() {
                   : { background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 {label}
               </button>
-            ))}
+           ))}
           </div>
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: 'var(--text-secondary)' }}>
+            <input type="checkbox" checked={isMature} onChange={(e) => setIsMature(e.target.checked)} />
+            🔞 Mark this chapter as Mature (explicit/intense content)
+          </label>
 
           <label className="block w-full h-32 rounded-xl cursor-pointer overflow-hidden border-2 border-dashed flex items-center justify-center"
             style={{ borderColor: 'var(--border)' }}>

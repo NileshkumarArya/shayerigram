@@ -4,6 +4,7 @@ const Follow       = require('../models/Follow');
 const bcrypt       = require('bcryptjs');
 const logger       = require('../utils/logger');
 const { invalidateCache } = require('../utils/cache');
+const { isUnder13 } = require('../utils/age');
 
 const ALLOWED_SETTINGS = [
   'profileVisibility', 'hideFromGuests', 'disableComments',
@@ -14,10 +15,50 @@ const ALLOWED_SETTINGS = [
 // @GET /api/settings
 exports.getSettings = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('settings').lean();
-    res.json({ settings: user.settings || {} });
+    const user = await User.findById(req.user._id).select('settings +dateOfBirth').lean();
+    res.json({ settings: user.settings || {}, hasDateOfBirth: !!user.dateOfBirth });
   } catch (err) {
     res.status(500).json({ message: 'Failed to get settings.' });
+  }
+};
+
+// @PATCH /api/settings/date-of-birth — one-time set for accounts created
+// before dateOfBirth was required at signup. Not a general "edit my
+// birthday" endpoint — once set, self-service editing is blocked, since
+// allowing repeated changes would let someone toggle their declared age
+// back and forth around the 18+ mature-content gate.
+exports.setDateOfBirth = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('+dateOfBirth');
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    if (user.dateOfBirth) {
+      return res.status(400).json({
+        message: 'Date of birth is already set and cannot be changed here. Contact support if it was entered incorrectly.',
+      });
+    }
+
+    const { dateOfBirth } = req.body;
+    if (!dateOfBirth) {
+      return res.status(400).json({ message: 'Date of birth is required.' });
+    }
+
+    const dob = new Date(dateOfBirth);
+    if (isNaN(dob.getTime()) || dob > new Date()) {
+      return res.status(400).json({ message: 'Invalid date of birth.' });
+    }
+    if (isUnder13(dateOfBirth)) {
+      return res.status(400).json({ message: 'You must be at least 13 years old to use ShayeriGram.' });
+    }
+
+    user.dateOfBirth = dob;
+    await user.save();
+
+    logger.info('Date of birth set for existing account', { userId: user._id });
+    res.json({ message: 'Date of birth saved.' });
+  } catch (err) {
+    logger.error('setDateOfBirth failed', { error: err.message, userId: req.user?._id });
+    res.status(500).json({ message: 'Failed to update date of birth.' });
   }
 };
 
