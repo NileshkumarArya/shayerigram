@@ -125,7 +125,8 @@ app.use('/api/stories',       require('./routes/stories'));
 app.use('/api/chapters',      require('./routes/chapters'));
 app.use('/api/clubs',         require('./routes/clubs'));
 app.use('/api/analytics',     require('./routes/analytics'));
-app.use('/api/admin',         require('./routes/admin'));
+app.use('/api/admin',            require('./routes/admin'));
+app.use('/api/copyright-strikes', require('./routes/copyright'));
 // ─── Phase 1: Payments/Coins DISABLED — enable in Phase 2 ────────────────────
 // Set ENABLE_PAYMENTS=true in .env when ready to go live with payments
 if (process.env.ENABLE_PAYMENTS === 'true' && process.env.ENABLE_COINS === 'true') {

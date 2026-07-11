@@ -11,6 +11,50 @@ const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 // Copyright reports only make sense against authored content, not
 // user/comment targets — those fall through applyCopyrightStrike() as a no-op.
 const COPYRIGHT_TARGET_MODELS = { post: Post, story: Story, chapter: Chapter };
+const STRIKE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000; // 90-day rolling window, same as YouTube
+
+// Active strikes = issued within the last 90 days AND not paused/cleared by
+// a dispute. A 'pending' dispute excludes the strike from the count until
+// an admin rules on it — not an automatic dismissal, just paused.
+const getActiveStrikeCount = (userId) =>
+  CopyrightStrike.countDocuments({
+    user: userId,
+    createdAt: { $gte: new Date(Date.now() - STRIKE_WINDOW_MS) },
+    disputeStatus: { $nin: ['pending', 'overturned'] },
+  });
+
+const suspendIfThresholdReached = async (userId, adminId, req) => {
+  const user = await User.findById(userId).select('_id isSuspended');
+  if (!user || user.isSuspended) return;
+
+  const activeCount = await getActiveStrikeCount(userId);
+  if (activeCount >= 3) {
+    await User.findByIdAndUpdate(userId, { isSuspended: true });
+    auditLog(adminId, 'SUSPEND_USER', userId, 'User',
+      `Auto-suspended: ${activeCount} active copyright strikes in trailing 90 days`, req);
+    logger.warn('User auto-suspended for copyright strikes', { userId, activeCount, by: adminId });
+  }
+};
+
+// Soft takedown (reversible) — never a hard delete, since an overturned
+// dispute needs to be able to bring the content back.
+const takeDownStruckContent = async (targetType, targetId) => {
+  if (targetType === 'post')    await Post.findByIdAndUpdate(targetId, { isTakenDown: true });
+  if (targetType === 'story') {
+    await Story.findByIdAndUpdate(targetId, { isTakenDown: true });
+    await Chapter.updateMany({ story: targetId }, { isTakenDown: true });
+  }
+  if (targetType === 'chapter') await Chapter.findByIdAndUpdate(targetId, { isTakenDown: true });
+};
+
+const restoreStruckContent = async (targetType, targetId) => {
+  if (targetType === 'post')    await Post.findByIdAndUpdate(targetId, { isTakenDown: false });
+  if (targetType === 'story') {
+    await Story.findByIdAndUpdate(targetId, { isTakenDown: false });
+    await Chapter.updateMany({ story: targetId, isTakenDown: true }, { isTakenDown: false });
+  }
+  if (targetType === 'chapter') await Chapter.findByIdAndUpdate(targetId, { isTakenDown: false });
+};
 
 // Applies one strike to a content's author. Called only on the transition
 // into 'resolved' for a copyright-reason report (guarded in reviewReport so
@@ -27,18 +71,48 @@ const applyCopyrightStrike = async (report, adminId, req) => {
     targetType: report.targetType, targetId: report.targetId, issuedBy: adminId,
   });
 
-  const user = await User.findByIdAndUpdate(
-    content.author, { $inc: { copyrightStrikes: 1 } }, { new: true }
-  ).select('_id username copyrightStrikes isSuspended');
-  if (!user) return;
+  // Lifetime historical total, for admin visibility only — suspension is
+  // decided by the live 90-day rolling count above, not this raw total.
+  await User.findByIdAndUpdate(content.author, { $inc: { copyrightStrikes: 1 } });
 
-  auditLog(adminId, 'COPYRIGHT_STRIKE', user._id, 'User', `Report ${report._id}`, req,
-    { strikeCount: user.copyrightStrikes });
+  await takeDownStruckContent(report.targetType, report.targetId);
 
-  if (user.copyrightStrikes >= 3 && !user.isSuspended) {
-    await User.findByIdAndUpdate(user._id, { isSuspended: true });
-    auditLog(adminId, 'SUSPEND_USER', user._id, 'User', 'Auto-suspended: 3 copyright strikes', req);
-    logger.warn('User auto-suspended for 3 copyright strikes', { userId: user._id, by: adminId });
+  auditLog(adminId, 'COPYRIGHT_STRIKE', content.author, 'User', `Report ${report._id}`, req);
+
+  await suspendIfThresholdReached(content.author, adminId, req);
+};
+
+// @PATCH /api/admin/copyright-strikes/:id/resolve
+exports.resolveDispute = async (req, res) => {
+  try {
+    const { verdict } = req.body; // 'upheld' | 'overturned'
+    if (!['upheld', 'overturned'].includes(verdict)) {
+      return res.status(400).json({ message: 'Verdict must be upheld or overturned.' });
+    }
+
+    const strike = await CopyrightStrike.findById(req.params.id);
+    if (!strike) return res.status(404).json({ message: 'Strike not found.' });
+    if (strike.disputeStatus !== 'pending') {
+      return res.status(400).json({ message: 'This strike has no pending dispute.' });
+    }
+
+    strike.disputeStatus     = verdict;
+    strike.disputeResolvedBy = req.user._id;
+    strike.disputeResolvedAt = new Date();
+    await strike.save();
+
+    if (verdict === 'overturned') {
+      await User.findByIdAndUpdate(strike.user, { $inc: { copyrightStrikes: -1 } });
+      await restoreStruckContent(strike.targetType, strike.targetId);
+      auditLog(req.user._id, 'COPYRIGHT_STRIKE_OVERTURNED', strike.user, 'User', `Strike ${strike._id}`, req);
+    } else {
+      auditLog(req.user._id, 'COPYRIGHT_STRIKE_UPHELD', strike.user, 'User', `Strike ${strike._id}`, req);
+      await suspendIfThresholdReached(strike.user, req.user._id, req);
+    }
+
+    res.json({ message: `Dispute ${verdict}.`, strike });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to resolve dispute.' });
   }
 };
 

@@ -7,6 +7,7 @@ const {
   restorePost, hardDeletePost, softDeleteUser, getDeletedPosts, getAdminLogs,
   removeStory, restoreStory, hardDeleteStory, getDeletedStories,
   removeChapter, restoreChapter, hardDeleteChapter, getDeletedChapters,
+  resolveDispute,
 } = require('../controllers/adminController');
 const { mongoIdValidation } = require('../middleware/validate');
 
@@ -32,6 +33,8 @@ router.patch('/chapters/:id/takedown',    ...mongoIdValidation('id'), removeChap
 router.patch('/chapters/:id/restore',     ...mongoIdValidation('id'), restoreChapter);
 router.delete('/chapters/:id/hard-delete',...mongoIdValidation('id'), hardDeleteChapter);
 router.get('/chapters/deleted',           getDeletedChapters);
+
+router.patch('/copyright-strikes/:id/resolve', ...mongoIdValidation('id'), resolveDispute);
 
 router.get('/logs', getAdminLogs);
 module.exports = router;
