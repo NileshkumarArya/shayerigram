@@ -1,11 +1,46 @@
-const Report    = require('../models/Report');
-const AdminLog  = require('../models/AdminLog');
-const Post      = require('../models/Post');
-const Story     = require('../models/Story');
-const Chapter   = require('../models/Chapter');
-const User      = require('../models/User');
+const Report          = require('../models/Report');
+const AdminLog        = require('../models/AdminLog');
+const Post            = require('../models/Post');
+const Story           = require('../models/Story');
+const Chapter         = require('../models/Chapter');
+const User            = require('../models/User');
+const CopyrightStrike = require('../models/CopyrightStrike');
 const logger    = require('../utils/logger');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
+
+// Copyright reports only make sense against authored content, not
+// user/comment targets — those fall through applyCopyrightStrike() as a no-op.
+const COPYRIGHT_TARGET_MODELS = { post: Post, story: Story, chapter: Chapter };
+
+// Applies one strike to a content's author. Called only on the transition
+// into 'resolved' for a copyright-reason report (guarded in reviewReport so
+// re-saving an already-resolved report can't double-strike).
+const applyCopyrightStrike = async (report, adminId, req) => {
+  const Model = COPYRIGHT_TARGET_MODELS[report.targetType];
+  if (!Model) return;
+
+  const content = await Model.findById(report.targetId).select('author').lean();
+  if (!content) return;
+
+  await CopyrightStrike.create({
+    user: content.author, report: report._id,
+    targetType: report.targetType, targetId: report.targetId, issuedBy: adminId,
+  });
+
+  const user = await User.findByIdAndUpdate(
+    content.author, { $inc: { copyrightStrikes: 1 } }, { new: true }
+  ).select('_id username copyrightStrikes isSuspended');
+  if (!user) return;
+
+  auditLog(adminId, 'COPYRIGHT_STRIKE', user._id, 'User', `Report ${report._id}`, req,
+    { strikeCount: user.copyrightStrikes });
+
+  if (user.copyrightStrikes >= 3 && !user.isSuspended) {
+    await User.findByIdAndUpdate(user._id, { isSuspended: true });
+    auditLog(adminId, 'SUSPEND_USER', user._id, 'User', 'Auto-suspended: 3 copyright strikes', req);
+    logger.warn('User auto-suspended for 3 copyright strikes', { userId: user._id, by: adminId });
+  }
+};
 
 // ─── Audit log helper ────────────────────────────────────────────────────────
 const auditLog = (adminId, action, targetId, targetType, reason, req, meta = {}) =>
@@ -77,8 +112,11 @@ exports.getReports = async (req, res) => {
 // @PATCH /api/admin/reports/:id
 exports.reviewReport = async (req, res) => {
   try {
-    // ✅ SECURITY FIX: Whitelist valid status values — no arbitrary string injection
-    const VALID_STATUSES = ['open', 'reviewed', 'dismissed', 'actioned'];
+    // ✅ BUG FIX: this whitelist previously listed 'dismissed'/'actioned',
+    // which aren't valid values in Report.js's schema enum — every
+    // 'resolved' or 'rejected' call from the frontend was being rejected
+    // here before it could even reach the schema.
+    const VALID_STATUSES = ['open', 'reviewed', 'resolved', 'rejected'];
     const { status, actionTaken } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
@@ -88,11 +126,21 @@ exports.reviewReport = async (req, res) => {
     const report = await Report.findById(req.params.id);
     if (!report) return res.status(404).json({ message: 'Report not found.' });
 
+    const wasAlreadyResolved = report.status === 'resolved';
+
     report.status      = status      || report.status;
     report.actionTaken = typeof actionTaken === 'string' ? actionTaken.slice(0, 500) : '';
     report.reviewedBy  = req.user._id;
     report.reviewedAt  = new Date();
     await report.save();
+
+    // Copyright strike — only on the transition into 'resolved', so
+    // re-saving an already-resolved report doesn't strike the user twice
+    if (status === 'resolved' && !wasAlreadyResolved && report.reason === 'copyright') {
+      await applyCopyrightStrike(report, req.user._id, req).catch((err) =>
+        logger.error('applyCopyrightStrike failed', { error: err.message, reportId: report._id })
+      );
+    }
 
     // ✅ Audit log
     auditLog(req.user._id, 'REVIEW_REPORT', report._id, 'Report', actionTaken, req, { status });

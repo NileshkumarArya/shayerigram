@@ -51,6 +51,7 @@ const userSchema = new mongoose.Schema(
     isVerified:  { type: Boolean, default: false },
     isPrivate:   { type: Boolean, default: false },
     isSuspended: { type: Boolean, default: false },
+    copyrightStrikes: { type: Number, default: 0, min: 0 },
 
     // Soft delete
     isDeleted:  { type: Boolean, default: false },
