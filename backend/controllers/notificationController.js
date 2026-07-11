@@ -51,11 +51,14 @@ exports.getNotifications = async (req, res) => {
     const postMap  = new Map(posts.map(p => [String(p._id), p]));
     const storyMap = new Map(stories.map(s => [String(s._id), s]));
 
+    const MODERATION_TYPES = new Set(['takedown', 'copyright_strike', 'admin_alert']);
+
     const normalized = items.map(n => ({
       ...n,
-      sender: n.actorId || null,
-      actor:  n.actorId || null,
-      read:   n.isRead,
+      actorId: MODERATION_TYPES.has(n.type) ? null : n.actorId,
+      sender:  MODERATION_TYPES.has(n.type) ? null : (n.actorId || null),
+      actor:   MODERATION_TYPES.has(n.type) ? null : (n.actorId || null),
+      read:    n.isRead,
       post:   POST_NOTIFICATION_TYPES.has(n.type) && n.entityId && n.entityType !== 'Story'
         ? postMap.get(String(n.entityId)) || null
         : null,
