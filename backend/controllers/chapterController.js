@@ -347,8 +347,9 @@ exports.reportChapter = async (req, res) => {
     const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
     const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
 
+    let report;
     try {
-      await Report.create({
+      report = await Report.create({
         targetType: 'chapter',
         targetId: chapter._id,
         reason,
@@ -361,6 +362,8 @@ exports.reportChapter = async (req, res) => {
       }
       throw err;
     }
+
+    notifyAdminsOfReport(req.user._id, report).catch(() => {});
 
     await Chapter.findByIdAndUpdate(chapter._id, {
       $inc: { reportCount: 1 },

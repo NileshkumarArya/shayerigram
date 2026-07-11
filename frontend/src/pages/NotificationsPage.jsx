@@ -15,7 +15,48 @@ const TYPE_CONFIG = {
   reply:   { emoji: '↩️', color: '#a78bfa', label: 'replied to your comment' },
 };
 
+const MODERATION_TYPES = ['takedown', 'copyright_strike', 'admin_alert'];
+const MODERATION_CONFIG = {
+  takedown:         { emoji: '🚫', color: '#f87171', message: 'Your content was removed by a moderator.' },
+  copyright_strike: { emoji: '⚠️', color: '#fbbf24', message: 'Your content received a copyright strike and was removed.' },
+  admin_alert:      { emoji: '🚨', color: '#fbbf24', message: 'New report needs review.' },
+};
+
+function timeAgoStr(date) {
+  const diff = Date.now() - new Date(date).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function ModerationNotifItem({ notif }) {
+  const cfg = MODERATION_CONFIG[notif.type];
+  const isUnread = notif.isRead === false || notif.read === false;
+  const body = (
+    <div
+      className={`flex items-center gap-3 p-4 rounded-xl transition-all glass-hover animate-fade-in ${isUnread ? 'border-l-2' : ''}`}
+      style={isUnread
+        ? { borderLeftColor: '#9333ea', background: 'rgba(147,51,234,0.05)' }
+        : { border: '1px solid var(--border)' }}>
+      <div className="relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg"
+        style={{ background: 'rgba(255,255,255,0.05)' }}>
+        {cfg.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm" style={{ color: cfg.color }}>{cfg.message}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{timeAgoStr(notif.createdAt)}</p>
+      </div>
+    </div>
+  );
+  return notif.type === 'admin_alert' ? <Link to="/admin">{body}</Link> : body;
+}
+
 function NotifItem({ notif }) {
+  if (MODERATION_TYPES.includes(notif.type)) return <ModerationNotifItem notif={notif} />;
+
   const actor = notif.actorId || notif.actor || notif.sender;
   if (!actor) return null;
 

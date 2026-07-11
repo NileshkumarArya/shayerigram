@@ -5,6 +5,7 @@ const Story           = require('../models/Story');
 const Chapter         = require('../models/Chapter');
 const User            = require('../models/User');
 const CopyrightStrike = require('../models/CopyrightStrike');
+const { enqueueNotification } = require('../jobs/queues/notificationQueue');
 const logger    = require('../utils/logger');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
 
@@ -76,6 +77,12 @@ const applyCopyrightStrike = async (report, adminId, req) => {
   await User.findByIdAndUpdate(content.author, { $inc: { copyrightStrikes: 1 } });
 
   await takeDownStruckContent(report.targetType, report.targetId);
+
+  enqueueNotification({
+    recipientId: content.author, actorId: adminId,
+    type: 'copyright_strike', entityId: report.targetId,
+    entityType: report.targetType.charAt(0).toUpperCase() + report.targetType.slice(1),
+  }).catch(() => {});
 
   auditLog(adminId, 'COPYRIGHT_STRIKE', content.author, 'User', `Report ${report._id}`, req);
 
@@ -254,6 +261,11 @@ exports.removePost = async (req, res) => {
     );
     if (!post) return res.status(404).json({ message: 'Post not found.' });
 
+    enqueueNotification({
+      recipientId: post.author, actorId: req.user._id,
+      type: 'takedown', entityId: post._id, entityType: 'Post',
+    }).catch(() => {});
+
     // ✅ Audit log
     auditLog(req.user._id, 'TAKEDOWN_POST', post._id, 'Post', req.body.reason || '', req);
 
@@ -394,6 +406,11 @@ exports.removeStory = async (req, res) => {
     // story's chapters would still be directly readable without this
     await Chapter.updateMany({ story: story._id }, { isTakenDown: true });
 
+    enqueueNotification({
+      recipientId: story.author, actorId: req.user._id,
+      type: 'takedown', entityId: story._id, entityType: 'Story',
+    }).catch(() => {});
+
     // ✅ Audit log
     auditLog(req.user._id, 'TAKEDOWN_STORY', story._id, 'Story', req.body.reason || '', req);
 
@@ -486,6 +503,11 @@ exports.removeChapter = async (req, res) => {
       req.params.id, { isTakenDown: true }, { new: true }
     );
     if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    enqueueNotification({
+      recipientId: chapter.author, actorId: req.user._id,
+      type: 'takedown', entityId: chapter._id, entityType: 'Chapter',
+    }).catch(() => {});
 
     // ✅ Audit log
     auditLog(req.user._id, 'TAKEDOWN_CHAPTER', chapter._id, 'Chapter', req.body.reason || '', req);

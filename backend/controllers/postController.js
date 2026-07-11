@@ -1,6 +1,7 @@
 /**
  * Post Controller — Thin controller, delegates to services
  */
+const { notifyAdminsOfReport } = require('../utils/notifyAdmins');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const Report = require('../models/Report');
@@ -385,8 +386,9 @@ exports.reportPost = async (req, res) => {
     const reason = validReasons.includes(req.body.reason) ? req.body.reason : 'other';
     const details = typeof req.body.details === 'string' ? req.body.details.slice(0, 500) : '';
 
+    let report;
     try {
-      await Report.create({
+      report = await Report.create({
         targetType: 'post',
         targetId: post._id,
         reason,
@@ -400,6 +402,8 @@ exports.reportPost = async (req, res) => {
 
       throw err;
     }
+
+    notifyAdminsOfReport(req.user._id, report).catch(() => {});
 
     await Post.findByIdAndUpdate(post._id, {
       $inc: { reportCount: 1 },

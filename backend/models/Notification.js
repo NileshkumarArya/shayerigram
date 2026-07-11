@@ -10,11 +10,11 @@ const notificationSchema = new mongoose.Schema(
     actorId:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['like', 'comment', 'follow', 'reply', 'mention', 'save'],
+      enum: ['like', 'comment', 'follow', 'reply', 'mention', 'save', 'takedown', 'copyright_strike', 'admin_alert'],
       required: true,
     },
-    entityId:   { type: mongoose.Schema.Types.ObjectId }, // postId, storyId, or userId
-    entityType: { type: String, enum: ['Post', 'Story'], default: 'Post' }, // NEW — tells us which collection to look up
+    entityId:   { type: mongoose.Schema.Types.ObjectId }, // postId, storyId, chapterId, userId, or reportId
+    entityType: { type: String, enum: ['Post', 'Story', 'Chapter', 'Report'], default: 'Post' },
     isRead:   { type: Boolean, default: false },
   },
   { timestamps: true }
