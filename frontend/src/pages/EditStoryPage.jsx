@@ -140,7 +140,7 @@ export default function EditStoryPage() {
           )}
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{story.title}</h1>
-            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>{story.genre} · {story.totalChapters} chapters</p>
+            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>{(Array.isArray(story.genre) ? story.genre.join(', ') : story.genre)} · {story.totalChapters} chapters</p>
             <span className="text-xs px-2 py-1 rounded-full font-semibold"
               style={story.status === 'published'
                 ? { background: 'rgba(34,197,94,0.15)', color: '#4ade80' }

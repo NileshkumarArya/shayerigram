@@ -17,11 +17,15 @@ exports.createStory = async (req, res) => {
   try {
     const { title, description, genre, tags, language, contentType } = req.body;
 
+    let genreList = [];
+    try { genreList = genre ? JSON.parse(genre) : []; } catch { genreList = []; }
+    if (!Array.isArray(genreList) || genreList.length === 0) genreList = ['Other'];
+
     const story = await Story.create({
       author:      req.user._id,
       title:       title.trim(),
       description: description?.trim() || '',
-      genre:       genre || 'Other',
+      genre:       genreList,
       tags:        tags ? JSON.parse(tags) : [],
       language:    language || 'hindi',
       contentType: contentType || 'text',
@@ -58,7 +62,12 @@ exports.updateStory = async (req, res) => {
 
     if (title)       story.title       = title.trim();
     if (description) story.description = description.trim();
-    if (genre)       story.genre       = genre;
+    if (genre) {
+      try {
+        const genreList = JSON.parse(genre);
+        if (Array.isArray(genreList) && genreList.length > 0) story.genre = genreList;
+      } catch { /* malformed payload — keep existing genre */ }
+    }
     if (language)    story.language    = language;
     if (contentType) story.contentType = contentType;
     if (tags)        story.tags        = JSON.parse(tags);
@@ -587,7 +596,7 @@ exports.getSimilarStories = async (req, res) => {
       status:    'published',
       isDeleted: false,
       $or: [
-        { genre: story.genre },
+        { genre: { $in: story.genre } },
         { tags:  { $in: story.tags } },
       ],
     })

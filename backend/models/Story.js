@@ -23,13 +23,17 @@ const StorySchema = new mongoose.Schema(
     coverImage:        { type: String, default: null },
     coverImagePublicId:{ type: String, default: null },
     genre: {
-      type: String,
+      type: [String],
       enum: [
         'Love', 'Sad', 'Horror', 'Motivation',
         'Comedy', 'Thriller', 'Fantasy', 'Poetry',
         'Spiritual', 'Biography', 'Other'
       ],
-      default: 'Other',
+      default: ['Other'],
+      validate: {
+        validator: (arr) => arr.length > 0 && arr.length <= 3,
+        message: 'Select 1 to 3 genres',
+      },
     },
     tags: {
       type: [String],

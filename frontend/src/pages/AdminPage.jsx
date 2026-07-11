@@ -172,6 +172,55 @@ function ReportRow({ report, onReview }) {
   );
 }
 
+function StrikeRow({ strike, onResolve }) {
+  const [loading, setLoading] = useState(false);
+  const resolve = async (verdict) => {
+    if (!confirm(`Mark this dispute as ${verdict}?`)) return;
+    setLoading(true);
+    try {
+      await adminAPI.resolveDispute(strike._id, { verdict });
+      onResolve(strike._id, verdict);
+    } catch { alert('Failed to resolve.'); }
+    setLoading(false);
+  };
+  const badgeStyle = {
+    pending:    { background: 'rgba(245,158,11,0.15)', color: '#fbbf24' },
+    overturned: { background: 'rgba(34,197,94,0.15)',  color: '#4ade80' },
+    upheld:     { background: 'rgba(239,68,68,0.15)',  color: '#f87171' },
+    none:       { background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' },
+  }[strike.disputeStatus] || {};
+  return (
+    <div className="glass rounded-xl p-4 mb-3">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-sm font-semibold">{strike.user?.username || 'Unknown user'}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {strike.targetType} · {new Date(strike.createdAt).toLocaleDateString()} · issued by {strike.issuedBy?.username || '—'}
+          </p>
+          {strike.disputeReason && (
+            <p className="text-xs mt-2 italic" style={{ color: 'var(--text-secondary)' }}>"{strike.disputeReason}"</p>
+          )}
+        </div>
+        <span className="text-xs px-2 py-1 rounded-full capitalize" style={badgeStyle}>{strike.disputeStatus}</span>
+      </div>
+      {strike.disputeStatus === 'pending' && (
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => resolve('overturned')} disabled={loading}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' }}>
+            ✓ Overturn (restore content)
+          </button>
+          <button onClick={() => resolve('upheld')} disabled={loading}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+            ✕ Uphold (strike stands)
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user }      = useAuth();
@@ -182,6 +231,9 @@ export default function AdminPage() {
   const [rFilter,     setRFilter]     = useState('open');
   const [loading,     setLoading]     = useState(true);
   const [searchUser,  setSearchUser]  = useState('');
+  const [strikes,     setStrikes]     = useState([]);
+  const [sFilter,     setSFilter]     = useState('pending');
+  const [strikesLoading, setStrikesLoading] = useState(true);
 
   // Redirect non-admins
   useEffect(() => {
@@ -212,6 +264,23 @@ export default function AdminPage() {
     if (tab === 'reports') loadReports();
   }, [tab, loadReports]);
 
+  const loadStrikes = useCallback(async () => {
+    setStrikesLoading(true);
+    try {
+      const { data } = await adminAPI.getCopyrightStrikes({ status: sFilter });
+      setStrikes(data.strikes || []);
+    } catch {}
+    setStrikesLoading(false);
+  }, [sFilter]);
+
+  useEffect(() => {
+    if (tab === 'strikes') loadStrikes();
+  }, [tab, loadStrikes]);
+
+  const handleResolveDone = (id, verdict) => {
+    setStrikes(prev => prev.map(s => s._id === id ? { ...s, disputeStatus: verdict } : s));
+  };
+
   const handleReviewDone = (id, newStatus) => {
     setReports(prev => prev.map(r => r._id === id ? { ...r, status: newStatus } : r));
     loadStats(); // Refresh counts
@@ -232,6 +301,7 @@ export default function AdminPage() {
   const TABS = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'reports',  label: '🚨 Reports' },
+    { id: 'strikes',  label: '🔒 Strikes' },
     { id: 'guide',    label: '📋 Guide' },
   ];
 
@@ -363,6 +433,39 @@ export default function AdminPage() {
                   <ReportRow key={r._id} report={r} onReview={handleReviewDone} />
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ── STRIKES TAB ── */}
+        {tab === 'strikes' && (
+          <div className="animate-fade-in">
+            <div className="flex gap-2 mb-5 flex-wrap">
+              {['pending', 'none', 'upheld', 'overturned', 'all'].map(f => (
+                <button key={f} onClick={() => setSFilter(f)}
+                  className="px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all"
+                  style={sFilter === f
+                    ? { background: 'linear-gradient(135deg,#9333ea,#7c3aed)', color: 'white' }
+                    : { background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  {f}
+                </button>
+              ))}
+              <button onClick={loadStrikes}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold transition-all ml-auto"
+                style={{ background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.3)', color: 'var(--purple-light)' }}>
+                🔄 Refresh
+              </button>
+            </div>
+
+            {strikesLoading ? (
+              <div className="flex justify-center py-12"><LoadingSpinner size="lg" /></div>
+            ) : strikes.length === 0 ? (
+              <div className="text-center py-16 animate-fade-in">
+                <div className="text-5xl mb-4">✅</div>
+                <p className="font-shayari gradient-text text-lg">No {sFilter} strikes</p>
+              </div>
+            ) : (
+              strikes.map(s => <StrikeRow key={s._id} strike={s} onResolve={handleResolveDone} />)
             )}
           </div>
         )}

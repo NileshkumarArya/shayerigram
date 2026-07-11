@@ -175,6 +175,9 @@ export const adminAPI = {
   restoreChapter:     (id)     => api.patch(`/admin/chapters/${id}/restore`),
   hardDeleteChapter:  (id)     => api.delete(`/admin/chapters/${id}/hard-delete`),
   getDeletedChapters: (params) => api.get('/admin/chapters/deleted', { params }),
+
+  getCopyrightStrikes: (params)      => api.get('/admin/copyright-strikes', { params }),
+  resolveDispute:      (id, data)    => api.patch(`/admin/copyright-strikes/${id}/resolve`, data),
 };
 
 

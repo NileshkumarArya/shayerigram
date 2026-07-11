@@ -10,7 +10,13 @@ export default function CreateStoryPage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [genre, setGenre] = useState('Love');
+  const [genres, setGenres] = useState(['Love']);
+
+  const toggleGenre = (g) => {
+    setGenres(prev => prev.includes(g)
+      ? prev.filter(x => x !== g)
+      : (prev.length >= 3 ? prev : [...prev, g]));
+  };
   const [language, setLanguage] = useState('hindi');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState([]);
@@ -48,6 +54,10 @@ export default function CreateStoryPage() {
       setError('Title is required.');
       return;
     }
+    if (genres.length === 0) {
+      setError('Select at least 1 genre.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -55,7 +65,7 @@ export default function CreateStoryPage() {
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
-      formData.append('genre', genre);
+      formData.append('genre', JSON.stringify(genres));
       formData.append('language', language);
       formData.append('tags', JSON.stringify(tags));
       if (coverFile) formData.append('cover', coverFile);
@@ -138,16 +148,17 @@ export default function CreateStoryPage() {
           </label>
           <div className="flex flex-wrap gap-2">
             {GENRES.map(g => (
-              <button key={g} type="button" onClick={() => setGenre(g)}
+              <button key={g} type="button" onClick={() => toggleGenre(g)}
                 className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-                style={genre === g
+                style={genres.includes(g)
                   ? { background: 'rgba(147,51,234,0.2)', border: '1px solid rgba(147,51,234,0.4)', color: 'var(--purple-light)' }
                   : { background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 {g}
               </button>
             ))}
           </div>
-        </div>
+          <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>{genres.length}/3 selected</p>
+          </div>
 
         {/* Language */}
         <div>

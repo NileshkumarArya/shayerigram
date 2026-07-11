@@ -82,6 +82,26 @@ const applyCopyrightStrike = async (report, adminId, req) => {
   await suspendIfThresholdReached(content.author, adminId, req);
 };
 
+// @GET /api/admin/copyright-strikes
+exports.getCopyrightStrikes = async (req, res) => {
+  try {
+    const { status = 'all', limit = 50 } = req.query;
+    const filter = status !== 'all' ? { disputeStatus: status } : {};
+
+    const strikes = await CopyrightStrike.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .populate('user', '_id username')
+      .populate('issuedBy', '_id username')
+      .populate('report', 'reason details')
+      .lean();
+
+    res.json({ strikes });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load strikes.' });
+  }
+};
+
 // @PATCH /api/admin/copyright-strikes/:id/resolve
 exports.resolveDispute = async (req, res) => {
   try {

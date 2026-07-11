@@ -12,7 +12,7 @@ const { getCache, setCache } = require('../utils/cache');
 exports.addChapter = async (req, res) => {
   try {
     const { storyId } = req.params;
-    const { title, content, contentType, isMature } = req.body;
+    const { title, content, contentType, isMature, status } = req.body;
 
     const story = await Story.findOne({ _id: storyId, author: req.user._id, isDeleted: false });
     if (!story) return res.status(404).json({ message: 'Story not found.' });
@@ -35,7 +35,7 @@ exports.addChapter = async (req, res) => {
         content:     content || '',
         chapterNumber: nextChapterNumber,
         contentType: contentType || 'text',
-        status:      'draft',
+        status:      status === 'published' ? 'published' : 'draft',
         isMature:    isMature === true || isMature === 'true',
       });
     } catch (createErr) {
