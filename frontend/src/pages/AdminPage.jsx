@@ -135,6 +135,36 @@ function ReportRow({ report, onReview }) {
                 🗑️ Remove Post
               </button>
             )}
+            {report.targetType === 'story' && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Take down this story (and its chapters)?')) return;
+                  setLoading(true);
+                  try { await adminAPI.takedownStory(String(report.targetId)); alert('Story taken down.'); }
+                  catch { alert('Failed to take down story.'); }
+                  setLoading(false);
+                }}
+                disabled={loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                🗑️ Remove Story
+              </button>
+            )}
+            {report.targetType === 'chapter' && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Take down this chapter?')) return;
+                  setLoading(true);
+                  try { await adminAPI.takedownChapter(String(report.targetId)); alert('Chapter taken down.'); }
+                  catch { alert('Failed to take down chapter.'); }
+                  setLoading(false);
+                }}
+                disabled={loading}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                🗑️ Remove Chapter
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -372,8 +402,10 @@ export default function AdminPage() {
                   ['GET',   '/api/admin/stats',              'Platform stats'],
                   ['GET',   '/api/admin/reports?status=open','List reports'],
                   ['PATCH', '/api/admin/reports/:id',        'Review a report'],
-                  ['PATCH', '/api/admin/posts/:id/takedown', 'Remove a post'],
-                  ['PATCH', '/api/admin/users/:id/suspend',  'Suspend a user'],
+                  ['PATCH', '/api/admin/posts/:id/takedown',    'Remove a post'],
+                  ['PATCH', '/api/admin/stories/:id/takedown',  'Remove a story (+ its chapters)'],
+                  ['PATCH', '/api/admin/chapters/:id/takedown', 'Remove a chapter'],
+                  ['PATCH', '/api/admin/users/:id/suspend',     'Suspend a user'],
                 ].map(([method, path, desc]) => (
                   <div key={path} className="flex items-center gap-2 text-xs font-mono p-2 rounded-lg"
                     style={{ background: 'rgba(255,255,255,0.04)' }}>

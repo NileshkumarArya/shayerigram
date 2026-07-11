@@ -5,6 +5,8 @@ const { adminLimiter } = require('../middleware/rateLimiter');
 const {
   getReports, reviewReport, removePost, suspendUser, getStats,
   restorePost, hardDeletePost, softDeleteUser, getDeletedPosts, getAdminLogs,
+  removeStory, restoreStory, hardDeleteStory, getDeletedStories,
+  removeChapter, restoreChapter, hardDeleteChapter, getDeletedChapters,
 } = require('../controllers/adminController');
 const { mongoIdValidation } = require('../middleware/validate');
 
@@ -20,6 +22,16 @@ router.patch('/users/:id/soft-delete',   ...mongoIdValidation('id'), softDeleteU
 router.patch('/posts/:id/restore',       ...mongoIdValidation('id'), restorePost);
 router.delete('/posts/:id/hard-delete',  ...mongoIdValidation('id'), hardDeletePost);
 router.get('/posts/deleted',             getDeletedPosts);
+
+router.patch('/stories/:id/takedown',    ...mongoIdValidation('id'), removeStory);
+router.patch('/stories/:id/restore',     ...mongoIdValidation('id'), restoreStory);
+router.delete('/stories/:id/hard-delete',...mongoIdValidation('id'), hardDeleteStory);
+router.get('/stories/deleted',           getDeletedStories);
+
+router.patch('/chapters/:id/takedown',    ...mongoIdValidation('id'), removeChapter);
+router.patch('/chapters/:id/restore',     ...mongoIdValidation('id'), restoreChapter);
+router.delete('/chapters/:id/hard-delete',...mongoIdValidation('id'), hardDeleteChapter);
+router.get('/chapters/deleted',           getDeletedChapters);
 
 router.get('/logs', getAdminLogs);
 module.exports = router;

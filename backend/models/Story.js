@@ -71,9 +71,12 @@ const StorySchema = new mongoose.Schema(
     isReported:  { type: Boolean, default: false },
     reportCount: { type: Number, default: 0, min: 0 },
 
-    // Soft delete
-    isDeleted: { type: Boolean, default: false },
-    deletedAt: { type: Date },
+    // Soft delete / admin takedown
+    isDeleted:      { type: Boolean, default: false },
+    deletedAt:      { type: Date },
+    deletedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deletionReason: { type: String, default: '' },
+    isTakenDown:    { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -94,7 +97,7 @@ StorySchema.index({ status: 1, createdAt: -1 });
 // Use Story.findWithDeleted() to include deleted stories (admin use)
 StorySchema.pre(/^find/, function (next) {
   if (this.getOptions()._includeDeleted) return next();
-  this.where({ isDeleted: { $ne: true } });
+  this.where({ isDeleted: { $ne: true }, isTakenDown: { $ne: true } });
   next();
 });
 

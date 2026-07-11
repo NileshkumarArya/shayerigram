@@ -1,6 +1,8 @@
 const Report    = require('../models/Report');
 const AdminLog  = require('../models/AdminLog');
 const Post      = require('../models/Post');
+const Story     = require('../models/Story');
+const Chapter   = require('../models/Chapter');
 const User      = require('../models/User');
 const logger    = require('../utils/logger');
 const { buildCursorPagination, encodeCursor } = require('../utils/pagination');
@@ -235,6 +237,193 @@ exports.getDeletedPosts = async (req, res) => {
     res.json({ posts: items, hasMore, nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null });
   } catch (err) {
     res.status(500).json({ message: 'Failed to load deleted posts.' });
+  }
+};
+
+// @PATCH /api/admin/stories/:id/takedown
+exports.removeStory = async (req, res) => {
+  try {
+    const story = await Story.findByIdAndUpdate(
+      req.params.id, { isTakenDown: true }, { new: true }
+    );
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
+
+    // Cascade — getChapter() doesn't check parent story status, so a taken-down
+    // story's chapters would still be directly readable without this
+    await Chapter.updateMany({ story: story._id }, { isTakenDown: true });
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'TAKEDOWN_STORY', story._id, 'Story', req.body.reason || '', req);
+
+    logger.warn('Story taken down', { storyId: story._id, by: req.user.username });
+    res.json({ message: 'Story removed from public view.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to remove story.' });
+  }
+};
+
+// @PATCH /api/admin/stories/:id/restore — Restore soft-deleted/taken-down story
+exports.restoreStory = async (req, res) => {
+  try {
+    const story = await Story.findWithDeleted({ _id: req.params.id }).findOne();
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
+
+    await Story.findByIdAndUpdate(req.params.id, {
+      $set: { isDeleted: false, deletedAt: null, deletedBy: null, isTakenDown: false },
+    });
+
+    // Reverse the cascade — only chapters currently taken down, so we don't
+    // touch ones a chapter-level report independently took down
+    await Chapter.updateMany({ story: req.params.id, isTakenDown: true }, { isTakenDown: false });
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'RESTORE_STORY', req.params.id, 'Story', '', req);
+
+    logger.warn('Story restored by admin', { storyId: req.params.id, by: req.user.username });
+    res.json({ message: 'Story restored successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to restore story.' });
+  }
+};
+
+// @DELETE /api/admin/stories/:id/hard-delete — Permanent delete (irreversible), cascades to chapters
+exports.hardDeleteStory = async (req, res) => {
+  try {
+    const cloudinary = require('cloudinary').v2;
+    const story = await Story.findWithDeleted({ _id: req.params.id }).findOne();
+    if (!story) return res.status(404).json({ message: 'Story not found.' });
+
+    // A hard-deleted story can't leave dangling chapters pointing at nothing,
+    // so children get destroyed too (their own cloudinary assets included)
+    const chapters = await Chapter.findWithDeleted({ story: story._id });
+    for (const ch of chapters) {
+      if (ch.audioPublicId) cloudinary.uploader.destroy(ch.audioPublicId, { resource_type: 'video' }).catch(() => {});
+      if (ch.coverImagePublicId) cloudinary.uploader.destroy(ch.coverImagePublicId).catch(() => {});
+    }
+    await Chapter.deleteMany({ story: story._id });
+
+    if (story.coverImagePublicId) {
+      cloudinary.uploader.destroy(story.coverImagePublicId).catch(() => {});
+    }
+    await Story.findByIdAndDelete(req.params.id);
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'HARD_DELETE_STORY', req.params.id, 'Story', req.body.reason || '', req,
+      { chaptersDeleted: chapters.length });
+
+    logger.warn('Story HARD DELETED by admin', { storyId: req.params.id, by: req.user.username, chaptersDeleted: chapters.length });
+    res.json({ message: `Story and ${chapters.length} chapter(s) permanently deleted.` });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete story.' });
+  }
+};
+
+// @GET /api/admin/stories/deleted — List soft-deleted stories
+exports.getDeletedStories = async (req, res) => {
+  try {
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+
+    const stories = await Story.findWithDeleted({ isDeleted: true, ...cursorFilter })
+      .sort(sort).limit(limit + 1)
+      .populate('author', '_id username')
+      .populate('deletedBy', '_id username')
+      .lean();
+
+    const hasMore = stories.length > limit;
+    const items   = hasMore ? stories.slice(0, limit) : stories;
+    res.json({ stories: items, hasMore, nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load deleted stories.' });
+  }
+};
+
+// @PATCH /api/admin/chapters/:id/takedown
+exports.removeChapter = async (req, res) => {
+  try {
+    const chapter = await Chapter.findByIdAndUpdate(
+      req.params.id, { isTakenDown: true }, { new: true }
+    );
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'TAKEDOWN_CHAPTER', chapter._id, 'Chapter', req.body.reason || '', req);
+
+    logger.warn('Chapter taken down', { chapterId: chapter._id, by: req.user.username });
+    res.json({ message: 'Chapter removed from public view.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to remove chapter.' });
+  }
+};
+
+// @PATCH /api/admin/chapters/:id/restore — Restore soft-deleted/taken-down chapter
+exports.restoreChapter = async (req, res) => {
+  try {
+    const chapter = await Chapter.findWithDeleted({ _id: req.params.id }).findOne();
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    await Chapter.findByIdAndUpdate(req.params.id, {
+      $set: { isDeleted: false, deletedAt: null, deletedBy: null, isTakenDown: false },
+    });
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'RESTORE_CHAPTER', req.params.id, 'Chapter', '', req);
+
+    logger.warn('Chapter restored by admin', { chapterId: req.params.id, by: req.user.username });
+    res.json({ message: 'Chapter restored successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to restore chapter.' });
+  }
+};
+
+// @DELETE /api/admin/chapters/:id/hard-delete — Permanent delete (irreversible)
+exports.hardDeleteChapter = async (req, res) => {
+  try {
+    const cloudinary = require('cloudinary').v2;
+    const chapter = await Chapter.findWithDeleted({ _id: req.params.id }).findOne();
+    if (!chapter) return res.status(404).json({ message: 'Chapter not found.' });
+
+    if (chapter.audioPublicId) {
+      cloudinary.uploader.destroy(chapter.audioPublicId, { resource_type: 'video' }).catch(() => {});
+    }
+    if (chapter.coverImagePublicId) {
+      cloudinary.uploader.destroy(chapter.coverImagePublicId).catch(() => {});
+    }
+
+    // Only decrement if this chapter was still counted — if the author had
+    // already soft-deleted it themselves, deleteChapter() already decremented once
+    if (!chapter.isDeleted) {
+      await Story.findByIdAndUpdate(chapter.story, { $inc: { totalChapters: -1 } });
+    }
+
+    await Chapter.findByIdAndDelete(req.params.id);
+
+    // ✅ Audit log
+    auditLog(req.user._id, 'HARD_DELETE_CHAPTER', req.params.id, 'Chapter', req.body.reason || '', req);
+
+    logger.warn('Chapter HARD DELETED by admin', { chapterId: req.params.id, by: req.user.username });
+    res.json({ message: 'Chapter permanently deleted.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete chapter.' });
+  }
+};
+
+// @GET /api/admin/chapters/deleted — List soft-deleted chapters
+exports.getDeletedChapters = async (req, res) => {
+  try {
+    const { filter: cursorFilter, sort, limit } = buildCursorPagination(req.query);
+
+    const chapters = await Chapter.findWithDeleted({ isDeleted: true, ...cursorFilter })
+      .sort(sort).limit(limit + 1)
+      .populate('author', '_id username')
+      .populate('story', '_id title')
+      .populate('deletedBy', '_id username')
+      .lean();
+
+    const hasMore = chapters.length > limit;
+    const items   = hasMore ? chapters.slice(0, limit) : chapters;
+    res.json({ chapters: items, hasMore, nextCursor: hasMore ? encodeCursor(items[items.length - 1]) : null });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load deleted chapters.' });
   }
 };
 

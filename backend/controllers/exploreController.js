@@ -197,9 +197,10 @@ exports.getTrendingStories = async (req, res) => {
     const stories = await Story.aggregate([
       {
         $match: {
-          createdAt: { $gte: since },
-          status:    'published',
-          isDeleted: false,
+          createdAt:   { $gte: since },
+          status:      'published',
+          isDeleted:   false,
+          isTakenDown: false,
         },
       },
       {

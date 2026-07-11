@@ -68,8 +68,12 @@ const ChapterSchema = new mongoose.Schema(
     // Estimated reading time (minutes)
     readingTime: { type: Number, default: 1 },
 
-    // Soft delete
-    isDeleted: { type: Boolean, default: false },
+    // Soft delete / admin takedown
+    isDeleted:      { type: Boolean, default: false },
+    deletedAt:      { type: Date },
+    deletedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deletionReason: { type: String, default: '' },
+    isTakenDown:    { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -95,7 +99,7 @@ ChapterSchema.index({ story: 1, status: 1 });
 // Use Chapter.findWithDeleted() to include deleted chapters (admin use)
 ChapterSchema.pre(/^find/, function (next) {
   if (this.getOptions()._includeDeleted) return next();
-  this.where({ isDeleted: { $ne: true } });
+  this.where({ isDeleted: { $ne: true }, isTakenDown: { $ne: true } });
   next();
 });
 

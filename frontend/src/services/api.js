@@ -164,6 +164,16 @@ export const adminAPI = {
   restorePost:     (id)       => api.patch(`/admin/posts/${id}/restore`),
   hardDeletePost:  (id)       => api.delete(`/admin/posts/${id}/hard-delete`),
   getDeletedPosts: (params)   => api.get('/admin/posts/deleted', { params }),
+
+  takedownStory:    (id)       => api.patch(`/admin/stories/${id}/takedown`),
+  restoreStory:     (id)       => api.patch(`/admin/stories/${id}/restore`),
+  hardDeleteStory:  (id)       => api.delete(`/admin/stories/${id}/hard-delete`),
+  getDeletedStories:(params)   => api.get('/admin/stories/deleted', { params }),
+
+  takedownChapter:    (id)     => api.patch(`/admin/chapters/${id}/takedown`),
+  restoreChapter:     (id)     => api.patch(`/admin/chapters/${id}/restore`),
+  hardDeleteChapter:  (id)     => api.delete(`/admin/chapters/${id}/hard-delete`),
+  getDeletedChapters: (params) => api.get('/admin/chapters/deleted', { params }),
 };
 
 
