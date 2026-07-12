@@ -264,6 +264,7 @@ exports.removePost = async (req, res) => {
     enqueueNotification({
       recipientId: post.author, actorId: req.user._id,
       type: 'takedown', entityId: post._id, entityType: 'Post',
+      reasonText: req.body.reason || 'Violation of community guidelines.',
     }).catch(() => {});
 
     // ✅ Audit log
@@ -409,6 +410,7 @@ exports.removeStory = async (req, res) => {
     enqueueNotification({
       recipientId: story.author, actorId: req.user._id,
       type: 'takedown', entityId: story._id, entityType: 'Story',
+      reasonText: req.body.reason || 'Violation of community guidelines.',
     }).catch(() => {});
 
     // ✅ Audit log
@@ -507,6 +509,7 @@ exports.removeChapter = async (req, res) => {
     enqueueNotification({
       recipientId: chapter.author, actorId: req.user._id,
       type: 'takedown', entityId: chapter._id, entityType: 'Chapter',
+      reasonText: req.body.reason || 'Violation of community guidelines.',
     }).catch(() => {});
 
     // ✅ Audit log

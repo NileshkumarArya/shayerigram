@@ -47,7 +47,15 @@ function ModerationNotifItem({ notif }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm" style={{ color: cfg.color }}>{cfg.message}</p>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{timeAgoStr(notif.createdAt)}</p>
+        {notif.reasonText && (
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Reason: {notif.reasonText}</p>
+        )}
+        {(notif.type === 'takedown' || notif.type === 'copyright_strike') && (
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+            Think this was a mistake? Contact [grievance officer email].
+          </p>
+        )}
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{timeAgoStr(notif.createdAt)}</p>
       </div>
     </div>
   );

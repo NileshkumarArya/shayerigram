@@ -86,6 +86,13 @@ const POLICIES = {
         ]
       },
       {
+        heading: 'Users Under 18',
+        points: [
+          "Accounts belonging to users under 18 default to safer settings — Mature-tagged content stays hidden until you're confirmed as an adult.",
+          "India's data protection rules for users under 18 are still evolving as of 2026; we follow the same practical, industry-standard safety approach used by major platforms and will update this policy as clearer requirements are established."
+        ]
+      },
+      {
         heading: 'How We Use Information',
         points: [
           'To operate your account and display your content on the platform.',
@@ -114,6 +121,13 @@ const POLICIES = {
         points: [
           'ShayeriGram is not directed at children under 13, and we do not knowingly collect data from anyone under 13.',
           'If you believe a child under 13 has created an account, contact us at [support email] and we will investigate.'
+        ]
+      },
+      {
+        heading: 'Grievance Officer',
+        points: [
+          '[Grievance Officer Name] is the Grievance Officer for ShayeriGram, reachable at [grievance officer email].',
+          'Complaints are acknowledged within 24 hours and resolved within 15 days, in line with applicable law.'
         ]
       },
       {

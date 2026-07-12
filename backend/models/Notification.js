@@ -15,6 +15,7 @@ const notificationSchema = new mongoose.Schema(
     },
     entityId:   { type: mongoose.Schema.Types.ObjectId }, // postId, storyId, chapterId, userId, or reportId
     entityType: { type: String, enum: ['Post', 'Story', 'Chapter', 'Report'], default: 'Post' },
+    reasonText: { type: String, maxlength: 300, default: '' }, // shown to the user for takedown/strike notifications
     isRead:   { type: Boolean, default: false },
   },
   { timestamps: true }
