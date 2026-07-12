@@ -4,90 +4,161 @@ import { useAuth } from '../context/AuthContext';
 const POLICIES = {
   terms: {
     title: 'Terms of Service',
-    updated: 'April 13, 2026',
-    intro: 'These terms explain the basic rules for using ShayeriGram, what users can post, and when accounts or content can be restricted.',
+    updated: 'July 12, 2026',
+    intro: "These terms explain the rules for using ShayeriGram — what you can do here, what's expected of you, and when we may need to restrict access.",
     sections: [
       {
-        heading: 'Using ShayeriGram',
+        heading: 'Eligibility',
         points: [
-          'Use accurate account information and keep your account secure.',
-          'Meet the minimum age required by applicable law.',
-          'Do not misuse another person’s account or evade restrictions.'
+          'You must be at least 13 years old to create an account. We verify this using the date of birth you provide at signup.',
+          'Users who are not confirmed as 18 or older will not see Mature-tagged content.',
+          'You are responsible for the accuracy of the information you provide, including your date of birth.'
         ]
       },
       {
-        heading: 'Content Rules',
+        heading: 'Your Account',
         points: [
-          'You may share original poetry, lawful creative content, and respectful comments.',
-          'Do not post hate speech, harassment, threats, sexual exploitation content, scams, malware, or illegal material.',
-          'Do not upload content that violates copyright, trademark, or privacy rights.'
+          'Keep your login credentials secure and do not share your account with others.',
+          'You are responsible for activity that happens under your account.',
+          'Do not create multiple accounts to evade a suspension or ban.'
+        ]
+      },
+      {
+        heading: 'Your Content',
+        points: [
+          'You retain ownership of the shayari, stories, posts, and other content you create.',
+          'By posting, you grant ShayeriGram a license to host, display, and distribute your content on the platform.',
+          'You must only post content you own or have permission to share — see our Copyright Policy for how infringement claims are handled.'
+        ]
+      },
+      {
+        heading: 'Content Restrictions',
+        points: [
+          'Do not post hate speech, harassment, threats, sexual exploitation content, scams, malware, or unlawful material.',
+          'Explicit or intense content must be marked Mature at the chapter level — it is hidden from users who are not confirmed adults.',
+          'See our Community Guidelines and Content Policy for the full list of restrictions.'
         ]
       },
       {
         heading: 'Moderation and Enforcement',
         points: [
-          'We may remove content, limit visibility, or suspend accounts that violate platform rules.',
-          'Repeated or severe violations can result in permanent bans.',
-          'We may update these terms as the platform evolves.'
+          'We may remove content, restrict visibility, or suspend accounts that violate these terms.',
+          'Copyright strikes count on a rolling 90-day basis; 3 active strikes result in account suspension — see our Copyright Policy for details and how to dispute a strike.',
+          'Severe or repeated violations can result in immediate, permanent suspension without prior warning.'
+        ]
+      },
+      {
+        heading: 'Changes and Termination',
+        points: [
+          'We may update these terms as the platform evolves; continued use after an update means you accept the revised terms.',
+          'You may deactivate or delete your account at any time from Settings.',
+          'We may suspend or terminate accounts that violate these terms or applicable law.'
+        ]
+      },
+      {
+        heading: 'Disclaimer',
+        points: [
+          'ShayeriGram is provided "as is" without warranties of any kind.',
+          'We are not liable for content posted by users, or for indirect or consequential damages arising from your use of the platform.'
         ]
       }
     ]
   },
   privacy: {
     title: 'Privacy Policy',
-    updated: 'April 13, 2026',
-    intro: 'This policy explains what account, content, and security information ShayeriGram collects and how it is used.',
+    updated: 'July 12, 2026',
+    intro: 'This policy explains what information ShayeriGram collects, why we collect it, and the choices you have.',
     sections: [
       {
         heading: 'What We Collect',
         points: [
-          'Account details like username, email, password hash, and optional profile fields.',
-          'Posts, comments, images, saved content, and profile information you choose to share.',
-          'Security and usage data such as login attempts, IP address, device/browser details, and abuse-prevention signals.'
+          'Account details: username, email, password (stored as a secure hash, never in plain text), full name, bio, and date of birth.',
+          'Content you create: posts, stories, chapters, comments, likes, saves, and follows.',
+          'Security and usage data: IP address, device/browser details, login attempts, and signals used to detect abuse.'
+        ]
+      },
+      {
+        heading: 'Why We Collect Date of Birth',
+        points: [
+          'To confirm you meet the minimum age (13) required to use ShayeriGram.',
+          'To determine whether Mature-tagged content can be shown to you — this content is hidden by default unless you are a confirmed adult.',
+          'Your date of birth is stored securely and is never shown to other users.'
         ]
       },
       {
         heading: 'How We Use Information',
         points: [
-          'To operate your account and show your content in the product.',
-          'To secure the platform, detect abuse, and investigate fraud or spam.',
-          'To improve reliability, moderation, and user safety.'
+          'To operate your account and display your content on the platform.',
+          'To secure the platform, detect abuse, investigate reports, and enforce our policies.',
+          'To improve reliability and the overall product experience.'
+        ]
+      },
+      {
+        heading: 'Third-Party Services',
+        points: [
+          'We use Cloudinary to store and serve images and audio you upload.',
+          'We use Cloudflare Turnstile to verify you are not a bot when creating an account.',
+          'We do not sell your personal information to third parties.'
         ]
       },
       {
         heading: 'Your Choices',
         points: [
-          'You should be able to edit profile information and remove content you posted.',
-          'Some data may be retained for legal, safety, or abuse-prevention reasons.',
-          'Before launch, add a real privacy contact email and deletion workflow.'
+          "You can edit your profile information and delete content you've posted at any time.",
+          'You can deactivate or permanently delete your account from Settings.',
+          'Some data may be retained for legal, safety, or abuse-prevention reasons even after account deletion.'
+        ]
+      },
+      {
+        heading: "Children's Privacy",
+        points: [
+          'ShayeriGram is not directed at children under 13, and we do not knowingly collect data from anyone under 13.',
+          'If you believe a child under 13 has created an account, contact us at [support email] and we will investigate.'
+        ]
+      },
+      {
+        heading: 'Contact',
+        points: [
+          'Questions about this policy can be sent to [support email].'
         ]
       }
     ]
   },
   community: {
     title: 'Community Guidelines',
-    updated: 'April 13, 2026',
-    intro: 'ShayeriGram should feel creative, respectful, and safe. These guidelines define what is welcome and what is not.',
+    updated: 'July 12, 2026',
+    intro: "ShayeriGram should feel creative, respectful, and safe. These guidelines define what's welcome here and what isn't.",
     sections: [
       {
         heading: 'What Is Welcome',
         points: [
-          'Original poetry, thoughtful discussion, emotional expression, and respectful feedback.',
-          'Creative, cultural, and personal storytelling that does not target or harm others.'
+          'Original poetry, shayari, stories, and thoughtful creative writing.',
+          'Respectful discussion, feedback, and emotional expression.',
+          "Creative, cultural, and personal storytelling that doesn't target or harm others."
         ]
       },
       {
         heading: 'What Is Not Allowed',
         points: [
           'Hate speech, targeted harassment, violent threats, and bullying.',
-          'Sexual exploitation, self-harm encouragement, privacy violations, and impersonation.',
-          'Spam, fake engagement, scams, phishing, and repeated reposting of stolen content.'
+          'Sexual exploitation, self-harm encouragement, privacy violations, doxxing, and impersonation.',
+          "Spam, fake engagement, scams, phishing, and reposting others' work without permission.",
+          'Explicit or intense content posted outside a Mature-tagged chapter.'
         ]
       },
       {
-        heading: 'How Enforcement Works',
+        heading: 'Mature Content',
         points: [
-          'We may warn, remove content, reduce reach, temporarily restrict accounts, or permanently ban users.',
+          'Writers can mark individual chapters as Mature for explicit or intense content.',
+          'Mature-tagged chapters are only shown to users confirmed as 18 or older.',
+          'Marking a chapter Mature does not exempt it from our other content rules — illegal content is never allowed, tagged or not.'
+        ]
+      },
+      {
+        heading: 'Reporting and Enforcement',
+        points: [
+          'Anyone can report a post, story, or chapter that breaks these guidelines.',
+          'We may warn, remove content, limit reach, temporarily restrict, or permanently ban accounts depending on severity.',
           'Severe violations can lead to immediate suspension without prior warning.'
         ]
       }
@@ -95,58 +166,88 @@ const POLICIES = {
   },
   cookies: {
     title: 'Cookie Policy',
-    updated: 'April 13, 2026',
-    intro: 'ShayeriGram currently uses essential cookies mainly for authentication, security, and basic site functionality.',
+    updated: 'July 12, 2026',
+    intro: 'ShayeriGram currently uses essential cookies for authentication, security, and core site functionality — nothing more.',
     sections: [
       {
         heading: 'Why Cookies Are Used',
         points: [
-          'To keep users signed in securely.',
-          'To maintain sessions and reduce abuse.',
-          'To support core product functionality.'
+          'To keep you signed in securely between visits.',
+          'To maintain your session and protect against abuse (e.g. rate limiting).',
+          'To support core product functionality — these cookies are required for the site to work.'
         ]
       },
       {
-        heading: 'Launch Recommendation',
+        heading: "What We Don't Do",
         points: [
-          'Do not add non-essential trackers without also adding a clear consent flow where legally required.'
+          'We do not currently use advertising or third-party tracking cookies.',
+          'If this changes in the future, we will update this policy and add a consent flow where legally required.'
         ]
       }
     ]
   },
   content: {
     title: 'Content Policy',
-    updated: 'April 13, 2026',
-    intro: 'This policy explains what kinds of content are restricted or removed to keep ShayeriGram safe and lawful.',
+    updated: 'July 12, 2026',
+    intro: 'This policy explains what kinds of content are restricted or removed to keep ShayeriGram safe, lawful, and age-appropriate.',
     sections: [
       {
         heading: 'Restricted Content',
         points: [
-          'No hate speech, violent threats, targeted harassment, scams, phishing, malware, or illegal goods promotion.',
-          'No sexual exploitation, child safety violations, privacy leaks, doxxing, or impersonation intended to deceive.',
-          'No repeated spam, engagement manipulation, or stolen content reposting without rights or permission.'
+          'Hate speech, violent threats, targeted harassment, scams, phishing, malware, or promotion of illegal goods.',
+          'Sexual exploitation, child safety violations, privacy leaks, doxxing, or impersonation intended to deceive.',
+          "Repeated spam, engagement manipulation, or reposting others' work without rights or permission."
         ]
       },
       {
-        heading: 'Enforcement',
+        heading: 'Mature-Tagged Content',
         points: [
-          'Content may be removed, age-restricted, limited in reach, or escalated for manual review.',
-          'Accounts that repeatedly violate the rules may be suspended or permanently banned.'
+          'Explicit or intense romantic/violent content is allowed only within chapters explicitly marked Mature by the writer.',
+          'Mature-tagged chapters are hidden from anyone who is not a confirmed adult (18+) on their account.',
+          'Content that would otherwise be illegal is never permitted, regardless of tagging.'
+        ]
+      },
+      {
+        heading: 'Reporting and Enforcement',
+        points: [
+          'Users can report any post, story, or chapter directly from the platform.',
+          'Reported content is reviewed, and may be removed, age-restricted, or escalated for further review.',
+          'Accounts that repeatedly violate these rules may be suspended or permanently banned.'
         ]
       }
     ]
   },
   copyright: {
     title: 'Copyright Policy',
-    updated: 'April 13, 2026',
-    intro: 'Users must only post content they own or have permission to share.',
+    updated: 'July 12, 2026',
+    intro: 'You may only post content you own or have permission to share. This policy explains how we handle copyright reports and strikes.',
     sections: [
+      {
+        heading: 'Filing a Report',
+        points: [
+          'If you believe your copyrighted work has been posted on ShayeriGram without permission, you can report the specific post, story, or chapter.',
+          'For copyright reports that need more detail, contact [copyright contact email].'
+        ]
+      },
       {
         heading: 'What Happens on a Report',
         points: [
-          'Reported infringing content may be removed or disabled.',
-          'Repeat infringers may lose access to the platform.',
-          'Before launch, add a copyright/takedown contact email.'
+          'Reported content is reviewed, and if the report is upheld, the specific content is removed and the uploader receives a copyright strike.',
+          "The uploader is notified when a strike is issued and can dispute it if they believe the content isn't infringing."
+        ]
+      },
+      {
+        heading: 'Strikes and Suspension',
+        points: [
+          'Copyright strikes count on a rolling 90-day basis — a strike older than 90 days no longer counts toward suspension.',
+          '3 active strikes within that window result in account suspension.',
+          "A disputed strike is paused (doesn't count) while under review; if the dispute is upheld in the uploader's favor, the strike is removed and the content is restored."
+        ]
+      },
+      {
+        heading: 'Contact',
+        points: [
+          'Copyright-related questions can be sent to [copyright contact email].'
         ]
       }
     ]
