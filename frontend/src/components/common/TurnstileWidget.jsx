@@ -5,8 +5,7 @@ const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 export default function TurnstileWidget({ onVerify, onError }) {
   const containerRef = useRef(null);
   const widgetIdRef  = useRef(null);
-  const [loaded, setLoaded]     = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
+  const [status, setStatus] = useState('loading'); // loading | ready | solved | error
 
   useEffect(() => {
     // ✅ No site key — bypass captcha (local dev only). Backend also
@@ -17,30 +16,32 @@ export default function TurnstileWidget({ onVerify, onError }) {
       return;
     }
 
-    let solved = false;
-
     const render = () => {
       if (!containerRef.current || widgetIdRef.current !== null) return;
       try {
         widgetIdRef.current = window.turnstile?.render(containerRef.current, {
-          sitekey:  SITE_KEY,
-          theme:    'dark',
-          size:     'invisible',
+          sitekey: SITE_KEY,
+          theme:   'dark',
+          // Visible managed widget — user completes it directly, so no
+          // invisible auto-solve + artificial-timeout-fallback is needed
+          size:    'normal',
           callback: (token) => {
-            solved = true;
-            clearTimeout(timeout);
-            setLoaded(true);
+            setStatus('solved');
             onVerify?.(token);
           },
           'error-callback': () => {
+            setStatus('error');
             onError?.('Captcha failed. Please refresh and try again.');
           },
           'expired-callback': () => {
+            setStatus('loading');
             widgetIdRef.current = null;
             render();
           },
         });
+        setStatus('ready');
       } catch (e) {
+        setStatus('error');
         onError?.('Captcha could not load. Please refresh and try again.');
       }
     };
@@ -54,7 +55,10 @@ export default function TurnstileWidget({ onVerify, onError }) {
         script.async = true;
         script.defer = true;
         script.onload  = () => setTimeout(render, 100);
-        script.onerror = () => onError?.('Could not reach the captcha service. Check your connection and refresh.');
+        script.onerror = () => {
+          setStatus('error');
+          onError?.('Could not reach the captcha service. Check your connection and refresh.');
+        };
         document.head.appendChild(script);
       } else {
         setTimeout(render, 500);
@@ -63,19 +67,7 @@ export default function TurnstileWidget({ onVerify, onError }) {
 
     loadScript();
 
-    // Genuine timeout only now — no longer submits a fake token. Cleared the
-    // instant a real token arrives (see callback above), so a slow-but-
-    // working solve (e.g. user takes >5s filling the rest of the form) can
-    // never get silently clobbered by this firing late.
-    const timeout = setTimeout(() => {
-      if (!solved) {
-        setTimedOut(true);
-        onError?.('Captcha timed out. Please refresh and try again.');
-      }
-    }, 8000);
-
     return () => {
-      clearTimeout(timeout);
       if (widgetIdRef.current !== null) {
         window.turnstile?.remove(widgetIdRef.current);
         widgetIdRef.current = null;
@@ -88,11 +80,13 @@ export default function TurnstileWidget({ onVerify, onError }) {
   return (
     <div>
       <div ref={containerRef} className="mt-2" />
-      {loaded && (
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>✓ Security check passed</p>
-      )}
-      {timedOut && !loaded && (
-        <p className="text-xs mt-1" style={{ color: '#f87171' }}>⚠ Captcha timed out — please refresh and try again.</p>
+      {status === 'error' && (
+        <p className="text-xs mt-1" style={{ color: '#f87171' }}>
+          ⚠ Captcha failed to load —{' '}
+          <button type="button" onClick={() => window.location.reload()} className="underline">
+            refresh the page
+          </button>.
+        </p>
       )}
     </div>
   );

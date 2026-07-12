@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
   const [showPass,      setShowPass]      = useState(false);
-const [captchaToken, setCaptchaToken] = useState('auto-verify');
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -33,9 +33,9 @@ const [captchaToken, setCaptchaToken] = useState('auto-verify');
     if (!form.acceptTerms) {
       setError('You must accept the Terms and Community Guidelines to continue'); return;
     }
-    //if (!captchaToken) {
-      //setError('Captcha verification required.'); return;
-    //}
+    if (!captchaToken) {
+      setError('Please complete the captcha.'); return;
+    }
     setLoading(true);
     try {
       await register({ ...form, captchaToken });
@@ -221,7 +221,7 @@ const [captchaToken, setCaptchaToken] = useState('auto-verify');
                 onError={() => setError('Captcha failed. Please refresh and try again.')}
               />
 
-              <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
+              <button type="submit" disabled={loading || !captchaToken} className="btn-primary w-full py-3.5 mt-2">
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-white/20 inline-block"
