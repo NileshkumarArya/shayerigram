@@ -278,8 +278,9 @@ export default function StoryDetailPage() {
 
       <div className="space-y-2.5">
         {publishedChapters.map(ch => {
-          const isRead = progress?.lastChapterNumber > ch.chapterNumber;
-          const isCurrent = progress?.lastChapterNumber === ch.chapterNumber;
+          const isRead = progress?.lastChapterNumber > ch.chapterNumber ||
+            (progress?.lastChapterNumber === ch.chapterNumber && progress?.isCompleted);
+          const isCurrent = progress?.lastChapterNumber === ch.chapterNumber && !progress?.isCompleted;
           return (
             <Link key={ch._id} to={`/read/${ch._id}`}
               className="flex items-center gap-3 p-3 rounded-xl transition-all hover:scale-[1.01]"
