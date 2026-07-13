@@ -1,7 +1,7 @@
 const crypto      = require('crypto');
 const User        = require('../models/User');
 const RefreshToken = require('../models/RefreshToken');
-const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY } = require('../utils/tokenService');
+const { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY, generateTwoFactorPendingToken } = require('../utils/tokenService');
 const { enqueueEmail } = require('../jobs/queues/emailQueue');
 const logger      = require('../utils/logger');
 const { sanitizeString, authCookieOptions, cookieName } = require('../middleware/security');
@@ -32,6 +32,8 @@ const safeUser = (user) => ({
 });
 
 // ─── Issue auth response ───────────────────────────────────────────────────────
+exports.issueAuthResponse = issueAuthResponse;
+
 const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
   const accessToken = generateAccessToken(user._id);
 
@@ -169,6 +171,8 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.issueAuthResponse = issueAuthResponse;
+
 // ─── Login ────────────────────────────────────────────────────────────────────
 // FIX 3: `identifier` accept karo — email ya username dono chalega
 exports.login = async (req, res) => {
@@ -276,6 +280,12 @@ exports.login = async (req, res) => {
       $set:  { lastLoginAt: new Date(), lastLoginIp: currentIp },
       $push: { knownIps: { $each: [currentIp], $slice: -10 } },
     }).catch(() => {});
+
+    if (user.twoFactorEnabled) {
+      const tempToken = generateTwoFactorPendingToken(user._id);
+      logger.info('Login password OK, awaiting 2FA', { username: user.username, ip: req.ip });
+      return res.json({ requiresTwoFactor: true, tempToken });
+    }
 
     logger.info('Login success', { username: user.username, ip: req.ip, newIp: isNewIp });
     return issueAuthResponse(res, user, 200, req);

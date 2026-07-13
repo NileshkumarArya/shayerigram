@@ -44,4 +44,21 @@ const generateRefreshToken = async (userId, { ip, userAgent, deviceId } = {}) =>
   return raw; // Client stores raw, DB stores hash
 };
 
-module.exports = { generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY };
+/**
+ * Short-lived token for the gap between "password correct" and "2FA code
+ * verified" — proves the password step passed without yet granting a real
+ * session. 5 minutes is enough to open an authenticator app and type a code.
+ */
+const generateTwoFactorPendingToken = (userId) => {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET not set');
+  return jwt.sign(
+    { id: String(userId), type: '2fa_pending' },
+    process.env.JWT_SECRET,
+    { expiresIn: '5m', algorithm: 'HS256' }
+  );
+};
+
+module.exports = {
+  generateAccessToken, generateRefreshToken, REFRESH_TOKEN_EXPIRY,
+  generateTwoFactorPendingToken,
+};

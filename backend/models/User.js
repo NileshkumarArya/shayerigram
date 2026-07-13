@@ -53,6 +53,11 @@ const userSchema = new mongoose.Schema(
     isSuspended: { type: Boolean, default: false },
     copyrightStrikes: { type: Number, default: 0, min: 0 },
 
+    // Optional 2FA — off by default, user opts in from Settings
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret:  { type: String, select: false },
+    twoFactorBackupCodes: { type: [String], select: false, default: [] }, // bcrypt-hashed, single-use
+
     // Soft delete
     isDeleted:  { type: Boolean, default: false },
     deletedAt:  { type: Date },
