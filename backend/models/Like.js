@@ -30,6 +30,10 @@ likeSchema.index({ userId: 1, createdAt: -1 });
 // "All likes for a target" — analytics
 likeSchema.index({ targetType: 1, targetId: 1, createdAt: -1 });
 
-// Legacy index kept so existing post-like queries still work during migration
-likeSchema.index({ postId: 1, userId: 1 }, { unique: true, sparse: true });
+// Removed: { postId: 1, userId: 1 } sparse unique index — every non-Post
+// like (Story/Chapter/Comment) defaults postId to null, and a sparse index
+// still counts explicit nulls as present, so it falsely treated any two
+// different non-Post likes from the same user as duplicates. The
+// { targetType, targetId, userId } index below already provides the real
+// uniqueness guarantee for all target types, including Post.
 module.exports = mongoose.model('Like', likeSchema);
