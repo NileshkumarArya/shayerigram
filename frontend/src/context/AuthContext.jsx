@@ -33,10 +33,13 @@ export const AuthProvider = ({ children }) => {
   // ── Login — backend sets HttpOnly cookie, we just receive user data ──
   const login = useCallback(async (identifier, password) => {
     setLoggingOut(false);
-    await authAPI.login({ identifier, password });
+    const { data } = await authAPI.login({ identifier, password });
+    if (data?.requiresTwoFactor) {
+      return { requiresTwoFactor: true, tempToken: data.tempToken };
+    }
     try {
-      const { data } = await authAPI.me();
-      const currentUser = normalizeUser(data);
+      const { data: meData } = await authAPI.me();
+      const currentUser = normalizeUser(meData);
       setUser(currentUser);
       return currentUser;
     } catch {
@@ -44,6 +47,20 @@ export const AuthProvider = ({ children }) => {
       throw new Error(
         'Login successful, but your browser is blocking cookies. Please allow cookies or try normal Chrome.'
       );
+    }
+  }, []);
+
+  const verifyTwoFactor = useCallback(async (tempToken, code) => {
+    setLoggingOut(false);
+    await authAPI.verifyTwoFactor({ tempToken, code });
+    try {
+      const { data } = await authAPI.me();
+      const currentUser = normalizeUser(data);
+      setUser(currentUser);
+      return currentUser;
+    } catch {
+      setUser(null);
+      throw new Error('Verified, but your browser is blocking cookies.');
     }
   }, []);
 
@@ -82,7 +99,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, verifyTwoFactor }}>
       {children}
     </AuthContext.Provider>
   );

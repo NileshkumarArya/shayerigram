@@ -3,12 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
+
+  const [step, setStep] = useState('credentials'); // credentials | twofactor
+  const [tempToken, setTempToken] = useState('');
+  const [code, setCode] = useState('');
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,14 +24,32 @@ export default function LoginPage() {
     if (!form.identifier || !form.password) { setError('Please fill all fields'); return; }
     setLoading(true);
     try {
-      await login(form.identifier, form.password);
-      navigate('/');
-        } catch (err) {
+      const result = await login(form.identifier, form.password);
+      if (result?.requiresTwoFactor) {
+        setTempToken(result.tempToken);
+        setStep('twofactor');
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
       setError(
         err.response?.data?.message ||
         err.message ||
         'Login failed. Please check your credentials.'
       );
+    }
+    setLoading(false);
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    if (!code) { setError('Please enter your code'); return; }
+    setLoading(true);
+    try {
+      await verifyTwoFactor(tempToken, code);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid code.');
     }
     setLoading(false);
   };
@@ -105,6 +127,28 @@ export default function LoginPage() {
               </div>
             )}
 
+            {step === 'twofactor' ? (
+              <form onSubmit={handleVerify2FA} className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Enter the 6-digit code from your authenticator app
+                  </label>
+                  <input
+                    name="code" type="text" value={code}
+                    onChange={(e) => { setCode(e.target.value); if (error) setError(''); }}
+                    placeholder="123456" className="input-field" autoFocus
+                  />
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>Lost your device? You can also use a backup code here.</p>
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
+                  {loading ? 'Verifying...' : 'Verify'}
+                </button>
+                <button type="button" onClick={() => { setStep('credentials'); setCode(''); setError(''); }}
+                  className="text-sm w-full text-center" style={{ color: 'var(--text-muted)' }}>
+                  ← Back to login
+                </button>
+              </form>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -152,8 +196,7 @@ export default function LoginPage() {
                 ) : 'Sign In'}
               </button>
             </form>
-
-         
+            )}
 
             <div className="mt-5 text-center">
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

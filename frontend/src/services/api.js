@@ -97,6 +97,13 @@ export const authAPI = {
   resendVerification: (data)  => api.post('/auth/resend-verification', data),
   forgotPassword:     (data)  => api.post('/auth/forgot-password', data),
   resetPassword:      (data)  => api.post('/auth/reset-password', data),
+  verifyTwoFactor:    (data)  => api.post('/2fa/verify-login', data),
+};
+
+export const twoFactorAPI = {
+  setup:   ()     => api.post('/2fa/setup'),
+  enable:  (data) => api.post('/2fa/enable', data),
+  disable: (data) => api.post('/2fa/disable', data),
 };
 
 // ─── Users API ────────────────────────────────────────────────────────────

@@ -1,7 +1,118 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { settingsAPI } from '../services/api';
+import { settingsAPI, twoFactorAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+
+function TwoFactorSection() {
+  const { user, updateUser } = useAuth();
+  const [setup, setSetup]           = useState(null);
+  const [confirmCode, setConfirmCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState(null);
+  const [busy, setBusy]             = useState(false);
+  const [msg, setMsg]               = useState('');
+  const [showDisable, setShowDisable] = useState(false);
+  const [disablePassword, setDisablePassword] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+
+  const startSetup = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const { data } = await twoFactorAPI.setup();
+      setSetup(data);
+    } catch (err) { setMsg(err.response?.data?.message || 'Failed to start setup.'); }
+    setBusy(false);
+  };
+
+  const confirmSetup = async () => {
+    if (!confirmCode) return;
+    setBusy(true); setMsg('');
+    try {
+      const { data } = await twoFactorAPI.enable({ secret: setup.secret, code: confirmCode });
+      setBackupCodes(data.backupCodes);
+      setSetup(null);
+      setConfirmCode('');
+      updateUser({ twoFactorEnabled: true });
+    } catch (err) { setMsg(err.response?.data?.message || 'Invalid code.'); }
+    setBusy(false);
+  };
+
+  const disable2FA = async () => {
+    setBusy(true); setMsg('');
+    try {
+      await twoFactorAPI.disable({ password: disablePassword, code: disableCode });
+      setShowDisable(false); setDisablePassword(''); setDisableCode('');
+      updateUser({ twoFactorEnabled: false });
+    } catch (err) { setMsg(err.response?.data?.message || 'Failed to disable 2FA.'); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="glass rounded-2xl p-6 mb-4" style={{ border: '1px solid rgba(147,51,234,0.2)' }}>
+      <h2 className="text-base font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>🔐 Two-Factor Authentication</h2>
+      {msg && <p className="text-xs mb-3" style={{ color: '#f87171' }}>{msg}</p>}
+
+      {backupCodes ? (
+        <div>
+          <p className="text-xs mb-2" style={{ color: '#fbbf24' }}>
+            ⚠ Save these backup codes now — they won't be shown again. Each works once if you lose your authenticator app.
+          </p>
+          <div className="grid grid-cols-2 gap-2 mb-3 font-mono text-sm p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
+            {backupCodes.map(c => <span key={c}>{c}</span>)}
+          </div>
+          <button onClick={() => setBackupCodes(null)} className="text-xs underline" style={{ color: 'var(--purple-light)' }}>
+            I've saved these codes
+          </button>
+        </div>
+      ) : user?.twoFactorEnabled ? (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>2FA is enabled on your account.</p>
+          {!showDisable ? (
+            <button onClick={() => setShowDisable(true)} className="px-4 py-2 rounded-xl text-sm font-medium"
+              style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+              Disable 2FA
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <input type="password" placeholder="Current password" value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)} className="input-field text-sm" />
+              <input type="text" placeholder="6-digit code or backup code" value={disableCode}
+                onChange={e => setDisableCode(e.target.value)} className="input-field text-sm" />
+              <div className="flex gap-2">
+                <button onClick={disable2FA} disabled={busy} className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-40"
+                  style={{ background: '#ef4444' }}>Confirm Disable</button>
+                <button onClick={() => setShowDisable(false)} className="px-4 py-2 rounded-xl text-sm" style={{ color: 'var(--text-muted)' }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : setup ? (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+            Scan this with Google Authenticator, Authy, or any TOTP app, then enter the code it shows.
+          </p>
+          <img src={setup.qrDataUrl} alt="2FA QR code" className="mb-2 rounded-lg" style={{ width: 180, height: 180 }} />
+          <p className="text-xs mb-3 font-mono break-all" style={{ color: 'var(--text-muted)' }}>Manual entry: {setup.secret}</p>
+          <div className="flex gap-2">
+            <input type="text" placeholder="6-digit code" value={confirmCode}
+              onChange={e => setConfirmCode(e.target.value)} className="input-field text-sm flex-1" />
+            <button onClick={confirmSetup} disabled={busy || !confirmCode}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-40" style={{ background: 'var(--gradient-purple)' }}>
+              Confirm
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Optional — add an extra step at login using an authenticator app.</p>
+          <button onClick={startSetup} disabled={busy}
+            className="px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-40" style={{ background: 'var(--gradient-purple)' }}>
+            Enable 2FA
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const Toggle = ({ checked, onChange, disabled }) => (
   <button
@@ -333,6 +444,8 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            <TwoFactorSection />
 
             <Section title="Account Management" icon="⚙️">
               <Row label="Clear cache" desc="Clear locally stored data">
