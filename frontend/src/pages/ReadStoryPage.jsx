@@ -178,10 +178,22 @@ export default function ReadStoryPage() {
                 Next →
               </button>
             ) : (
-              <Link to={`/story/${chapter.story._id}`} className="text-sm px-4 py-2.5 rounded-xl text-white"
+              <button
+                onClick={async () => {
+                  try {
+                    await storyAPI.saveProgress(chapter.story._id, {
+                      chapterId: chapter._id,
+                      chapterNumber: chapter.chapterNumber,
+                      scrollPosition: 100,
+                      isCompleted: true,
+                    });
+                  } catch {}
+                  navigate(`/story/${chapter.story._id}`);
+                }}
+                className="text-sm px-4 py-2.5 rounded-xl text-white"
                 style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
                 Finish ✓
-              </Link>
+              </button>
             )}
           </div>
         </div>
