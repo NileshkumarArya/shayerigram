@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { useParams } from 'react-router-dom';
 import { clubAPI, postAPI } from '../services/api';
 import PostCard from '../components/feed/PostCard';
@@ -79,7 +80,7 @@ export default function ClubDetailPage() {
         <div className="h-32 flex items-center justify-center text-4xl"
           style={{ background: club.coverImage ? undefined : 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
           {club.coverImage
-            ? <img src={club.coverImage} alt={club.name} className="w-full h-full object-cover" />
+            ? <img src={optimizeImageUrl(club.coverImage, { width: 700 })} alt={club.name} className="w-full h-full object-cover" />
             : club.emoji}
         </div>
         <div className="p-5 glass">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { storyAPI, chapterAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -136,7 +137,7 @@ export default function EditStoryPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start gap-4">
           {story.coverImage && (
-            <img src={story.coverImage} alt={story.title} className="w-20 h-30 rounded-lg object-cover shrink-0" />
+            <img src={optimizeImageUrl(story.coverImage, { width: 240 })} alt={story.title} className="w-20 h-30 rounded-lg object-cover shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{story.title}</h1>

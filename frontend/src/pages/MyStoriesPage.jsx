@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { Link } from 'react-router-dom';
 import { storyAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -75,7 +76,7 @@ export default function MyStoriesPage() {
                 <div className="w-16 h-24 rounded-lg overflow-hidden"
                   style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                   {story.coverImage ? (
-                    <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" />
+                    <img src={optimizeImageUrl(story.coverImage, { width: 240 })} alt={story.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center p-1">
                       <p className="text-[8px] font-shayari text-center line-clamp-4" style={{ color: 'var(--text-secondary)' }}>

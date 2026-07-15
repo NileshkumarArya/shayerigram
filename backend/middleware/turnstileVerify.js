@@ -39,6 +39,7 @@ const verifyTurnstile = async (req, res, next) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret: secretKey, response: token, remoteip: req.ip }),
+      signal: AbortSignal.timeout(7000), // Cloudflare hang kare to user forever wait na kare
     });
     const data = await response.json();
     if (!data.success) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { Link } from 'react-router-dom';
 import { storyAPI } from '../services/api';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -53,7 +54,7 @@ export default function ReadingHistoryPage() {
               <div className="w-14 h-20 rounded-lg overflow-hidden shrink-0"
                 style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                 {item.story?.coverImage ? (
-                  <img src={item.story.coverImage} alt={item.story.title} className="w-full h-full object-cover" />
+                  <img src={optimizeImageUrl(item.story.coverImage, { width: 180 })} alt={item.story.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center p-1">
                     <p className="text-[7px] font-shayari text-center line-clamp-4" style={{ color: 'var(--text-secondary)' }}>

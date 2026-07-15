@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { Link, useSearchParams } from 'react-router-dom';
 import { exploreAPI, userAPI, storyAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
@@ -412,7 +413,7 @@ function StoriesExplore({ query }) {
                 style={{ border: '1px solid var(--border)' }}>
                 <div className="aspect-[2/3]" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                   {s.coverImage ? (
-                    <img src={s.coverImage} alt={s.title} className="w-full h-full object-cover" />
+                    <img src={optimizeImageUrl(s.coverImage, { width: 400 })} alt={s.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center p-2">
                       <p className="text-xs font-shayari text-center line-clamp-5" style={{ color: 'var(--text-secondary)' }}>

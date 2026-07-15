@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { Link } from 'react-router-dom';
 import { exploreAPI } from '../services/api';
 import Avatar from '../components/common/Avatar';
@@ -89,7 +90,7 @@ export default function LeaderboardPage() {
               </span>
               <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0"
                 style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
-                {s.coverImage && <img src={s.coverImage} alt={s.title} className="w-full h-full object-cover" />}
+                {s.coverImage && <img src={optimizeImageUrl(s.coverImage, { width: 120 })} alt={s.title} className="w-full h-full object-cover" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{s.title}</p>

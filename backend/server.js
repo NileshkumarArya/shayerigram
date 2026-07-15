@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const cors       = require('cors');
 const mongoose   = require('mongoose');
 const cookieParser = require('cookie-parser');
+const compression   = require('compression');
 
 // ── Startup env validation (must fail fast before anything else) ─────────────
 const { validateEnv } = require('./utils/validateEnv');
@@ -43,6 +44,7 @@ initSentry(app);
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(securityHeaders);
+app.use(compression());
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-Content-Type-Options', 'nosniff');

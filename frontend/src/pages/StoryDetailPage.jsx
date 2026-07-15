@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { storyAPI, chapterAPI } from '../services/api';
@@ -179,7 +180,7 @@ export default function StoryDetailPage() {
         <div className="w-32 aspect-[2/3] rounded-xl overflow-hidden shrink-0"
           style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
           {story.coverImage ? (
-            <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" />
+            <img src={optimizeImageUrl(story.coverImage, { width: 500 })} alt={story.title} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center p-2">
               <p className="text-xs font-shayari text-center line-clamp-5" style={{ color: 'var(--text-secondary)' }}>
@@ -290,7 +291,7 @@ export default function StoryDetailPage() {
               }}>
               {ch.coverImage ? (
                 <div className="w-10 h-14 rounded-lg overflow-hidden shrink-0">
-                  <img src={ch.coverImage} alt={ch.title} className="w-full h-full object-cover" />
+                  <img src={optimizeImageUrl(ch.coverImage, { width: 120 })} alt={ch.title} className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="w-10 h-14 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
@@ -336,7 +337,7 @@ export default function StoryDetailPage() {
                 style={{ border: '1px solid var(--border)' }}>
                 <div className="aspect-[2/3]" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                   {s.coverImage ? (
-                    <img src={s.coverImage} alt={s.title} className="w-full h-full object-cover" />
+                    <img src={optimizeImageUrl(s.coverImage, { width: 400 })} alt={s.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center p-1.5">
                       <p className="text-[10px] font-shayari text-center line-clamp-5" style={{ color: 'var(--text-secondary)' }}>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { optimizeImageUrl } from '../utils/image';
 import { Link } from 'react-router-dom';
 import { clubAPI } from '../services/api';
 import { FeedSkeleton } from '../components/common/Skeleton';
@@ -94,7 +95,7 @@ export default function ClubsPage() {
               <div className="h-24 flex items-center justify-center text-3xl"
                 style={{ background: c.coverImage ? undefined : 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                 {c.coverImage
-                  ? <img src={c.coverImage} alt={c.name} className="w-full h-full object-cover" />
+                  ? <img src={optimizeImageUrl(c.coverImage, { width: 500 })} alt={c.name} className="w-full h-full object-cover" />
                   : c.emoji}
               </div>
               <div className="p-4 flex-1 flex flex-col">

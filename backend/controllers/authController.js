@@ -32,8 +32,6 @@ const safeUser = (user) => ({
 });
 
 // ─── Issue auth response ───────────────────────────────────────────────────────
-exports.issueAuthResponse = issueAuthResponse;
-
 const issueAuthResponse = async (res, user, statusCode = 200, req = null) => {
   const accessToken = generateAccessToken(user._id);
 
@@ -111,15 +109,17 @@ exports.register = async (req, res) => {
     if (!acceptTerms)
       return res.status(400).json({ message: 'You must accept the Terms and Community Guidelines.' });
 
-    // ─── Username uniqueness check ─────────────────────────────────────────
-    const usernameExists = await User.findOne({ username });
+    // ─── Username uniqueness + email account limit — independent checks, run together ─
+    const [usernameExists, emailCount] = await Promise.all([
+      User.findOne({ username }),
+      User.countDocuments({ email, isDeleted: { $ne: true } }),
+    ]);
     if (usernameExists)
       return res.status(400).json({
         message: 'Unable to create account with provided details. Please try different credentials.',
       });
 
-    // ─── FIX 4: Email account limit — ek email se max EMAIL_ACCOUNT_LIMIT accounts ─
-    const emailCount = await User.countDocuments({ email, isDeleted: { $ne: true } });
+    // FIX 4: Email account limit — ek email se max EMAIL_ACCOUNT_LIMIT accounts
     if (emailCount >= EMAIL_ACCOUNT_LIMIT) {
       return res.status(400).json({
         message: `This email already has ${EMAIL_ACCOUNT_LIMIT} accounts. Maximum limit reached.`,

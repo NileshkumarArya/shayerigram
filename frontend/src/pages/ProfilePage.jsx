@@ -262,7 +262,7 @@ export default function ProfilePage() {
                 className="card overflow-hidden hover:opacity-90 transition-opacity">
                 <div className="aspect-[2/3] w-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
                   {story.coverImage ? (
-                    <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" loading="lazy" />
+                    <img src={optimizeImageUrl(story.coverImage, { width: 400 })} alt={story.title} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center p-3">
                       <p className="text-xs font-shayari text-center line-clamp-4" style={{ color: 'var(--text-secondary)' }}>

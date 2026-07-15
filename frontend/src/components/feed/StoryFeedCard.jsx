@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { optimizeImageUrl } from '../../utils/image';
 
 /**
  * StoryFeedCard — compact story preview injected into the home feed
@@ -12,7 +13,7 @@ export default function StoryFeedCard({ story }) {
       <div className="w-20 h-28 rounded-lg overflow-hidden shrink-0"
         style={{ background: 'linear-gradient(135deg, #1a0533, #0e0e1a)' }}>
         {story.coverImage ? (
-          <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" />
+          <img src={optimizeImageUrl(story.coverImage, { width: 240 })} alt={story.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center p-1">
             <p className="text-[10px] font-shayari text-center line-clamp-4" style={{ color: 'var(--text-secondary)' }}>
