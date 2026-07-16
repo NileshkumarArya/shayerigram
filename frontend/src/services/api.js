@@ -16,6 +16,24 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// ─── CSRF Token ───────────────────────────────────────────────────────────
+// Second, independent defense layer — server.js's Origin check is the first.
+// Reads the value backend/middleware/csrf.js sets in a non-httpOnly cookie —
+// readable here because this is our own page's JS. A cross-site attacker's
+// page can't read it (same-origin policy), even though their forged request
+// would still carry the cookie itself — so the header can only ever match
+// on a request that actually came from this code.
+const getCsrfToken = () => {
+  const match = document.cookie.match(/(?:^|; )csrfToken=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+api.interceptors.request.use((config) => {
+  const token = getCsrfToken();
+  if (token) config.headers['X-CSRF-Token'] = token;
+  return config;
+});
+
 // ─── Public Path Check ────────────────────────────────────────────────────
 // No redirect on 401 for these paths
 const isPublicPath = (path) =>

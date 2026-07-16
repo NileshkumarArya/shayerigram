@@ -17,6 +17,7 @@ validateEnv();
 const connectDB  = require('./config/db');
 const { connectCache } = require('./utils/cache');
 const { securityHeaders, mongoSanitize, allowedOrigins, cookieName } = require('./middleware/security');
+const { ensureCsrfCookie, verifyCsrfToken } = require('./middleware/csrf');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { initSocket }     = require('./config/socket');
 const { initSentry, sentryErrorHandler, captureError } = require('./config/sentry');
@@ -91,6 +92,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ✅ cookie-parser MUST be registered for refresh token cookies to work
 app.use(cookieParser());
+app.use(ensureCsrfCookie); // every visitor gets a token cookie, even before login
 
 // ── NoSQL sanitization ────────────────────────────────────────────────────────
 app.use(mongoSanitize({ replaceWith: '_' }));
@@ -112,6 +114,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+app.use(verifyCsrfToken); // second, independent layer — see middleware/csrf.js
 
 app.set('io', io);
 
