@@ -233,6 +233,12 @@ exports.getChapters = async (req, res) => {
     // Non-author sirf published chapters dekh sakta hai
     if (!isAuthor) query.status = 'published';
 
+    // Mature chapters ki listing wahi rule follow karti hai jo getChapter mein
+    // content access ke liye hai — author apne khud ke mature chapters dekh
+    // sakta hai, baaki sabke liye confirmed 18+ account chahiye (fails closed
+    // agar DOB missing/unset hai, ya user login hi nahi hai)
+    if (!isAuthor && !req.user?.isAdult) query.isMature = { $ne: true };
+
     const chapters = await Chapter.find(query)
       .sort({ chapterNumber: 1 })
       .select('-content'); // List mein content nahi bhejna, sirf metadata
