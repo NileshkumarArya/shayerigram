@@ -1,23 +1,36 @@
 const rateLimit = require('express-rate-limit');
 const { getSharedRedisClient } = require('../utils/cache');
 
+let RedisStoreClass = null;
+try {
+  ({ RedisStore: RedisStoreClass } = require('rate-limit-redis'));
+} catch {
+  // rate-limit-redis not installed — every limiter below falls back to memory
+}
+
 // ✅ Skip ALL rate limiting in test environment
 const isTest = process.env.NODE_ENV === 'test';
 
-// ✅ FIX: reuse the SAME Redis client cache.js already connects, instead of
-// opening a second separate connection just for rate limiting.
-let redisStore = null;
-const getStore = () => {
-  if (redisStore) return { store: redisStore };
+// Each limiter needs its OWN RedisStore instance — express-rate-limit throws
+// ERR_ERL_STORE_REUSE if the same instance is handed to more than one limiter
+// — and its own key prefix, otherwise different limiters (e.g. login vs.
+// comment) would read/write the same Redis keys and their counts would bleed
+// into each other. Also only builds a store once the shared client reports
+// isReady: building one against a client that hasn't finished connecting yet
+// fails inside RedisStore's own script-preload step, and since this runs once
+// at module-load time, that limiter would stay silently broken for the life
+// of the process. Falling back to memory here is safe and already tested;
+// getting Redis-backed limiting to actually engage needs connectCache() to
+// resolve before this file is required, which is a separate, bigger change.
+const getStore = (name) => {
   const client = getSharedRedisClient();
-  if (client && !isTest) {
-    try {
-      const { RedisStore } = require('rate-limit-redis');
-      redisStore = new RedisStore({ sendCommand: (...args) => client.sendCommand(args) });
-      return { store: redisStore };
-    } catch {
-      // rate-limit-redis not installed — memory fallback
-    }
+  if (client && client.isReady && RedisStoreClass && !isTest) {
+    return {
+      store: new RedisStoreClass({
+        prefix: `rl:${name}:`,
+        sendCommand: (...args) => client.sendCommand(args),
+      }),
+    };
   }
   return {}; // memory store (default)
 };
@@ -29,7 +42,7 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   message: { message: 'Too many requests. Please try again later.' },
-  ...getStore(), // ✅ Redis-backed in production, memory fallback in dev
+  ...getStore('general'),
 });
 
 const loginLimiter = rateLimit({
@@ -39,7 +52,7 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   skipSuccessfulRequests: true,
-  ...getStore(),
+  ...getStore('login'),
   message: { message: 'Too many login attempts. Please try again after 15 minutes.' },
   handler: (req, res, next, options) => {
     console.warn(`[SECURITY] Login rate limit hit - IP: ${req.ip} - Email: ${req.body?.email}`);
@@ -53,7 +66,7 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
-  ...getStore(),
+  ...getStore('register'),
   message: { message: 'Too many accounts created from this IP. Please try again later.' },
   handler: (req, res, next, options) => {
     console.warn(`[SECURITY] Register rate limit hit - IP: ${req.ip}`);
@@ -72,7 +85,7 @@ const createPostLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('createPost'),
   message: { message: 'Post limit reached. Max 30 posts per hour.' },
 });
 
@@ -83,7 +96,7 @@ const commentLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('comment'),
   message: { message: 'Commenting too fast. Please slow down.' },
 });
 
@@ -94,7 +107,7 @@ const followLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('follow'),
   message: { message: 'Too many follow actions. Please slow down.' },
 });
 
@@ -105,7 +118,7 @@ const likeLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('like'),
   message: { message: 'Too many likes. Please slow down.' },
 });
 
@@ -117,7 +130,7 @@ const uploadLimiter = rateLimit({
   // Run after multer. Text-only posts should not consume image upload limit.
   skip: (req) => isTest || !req.file,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('upload'),
   message: { message: 'Upload limit reached. Max 5 image uploads per hour.' },
 });
 
@@ -129,7 +142,7 @@ const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
-  ...getStore(),
+  ...getStore('admin'),
   message: { message: 'Admin rate limit exceeded. Please slow down.' },
   keyGenerator: (req) => `admin:${req.user?._id || req.ip}`, // per-admin, not per-IP
 });
@@ -140,7 +153,7 @@ const searchLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
-  ...getStore(),
+  ...getStore('search'),
   message: { message: 'Too many search requests.' },
 });
 
@@ -150,7 +163,7 @@ const forgotLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isTest,
-  ...getStore(),
+  ...getStore('forgot'),
   message: { message: 'Too many password reset requests. Try again in 1 hour.' },
 });
 
@@ -161,7 +174,7 @@ const clubLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => isTest,
   keyGenerator: userOrIpKey,
-  ...getStore(),
+  ...getStore('club'),
   message: { message: 'Club creation limit reached. Max 5 clubs per day.' },
 });
 
