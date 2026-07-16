@@ -18,19 +18,34 @@ const api = axios.create({
 
 // ─── CSRF Token ───────────────────────────────────────────────────────────
 // Second, independent defense layer — server.js's Origin check is the first.
-// Reads the value backend/middleware/csrf.js sets in a non-httpOnly cookie —
-// readable here because this is our own page's JS. A cross-site attacker's
-// page can't read it (same-origin policy), even though their forged request
-// would still carry the cookie itself — so the header can only ever match
-// on a request that actually came from this code.
-const getCsrfToken = () => {
-  const match = document.cookie.match(/(?:^|; )csrfToken=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+// Frontend aur backend alag domains pe hain (Vercel vs Render), isliye ye
+// page document.cookie se backend ki cookie padh nahi sakta — ek dedicated
+// endpoint se token laate hain aur memory mein cache kar lete hain. Ek baar
+// fetch hone ke baad har mutating request usi cached value ko header mein
+// bhejti hai.
+let csrfTokenCache = null;
+let csrfFetchPromise = null;
+
+const fetchCsrfToken = async () => {
+  if (csrfTokenCache) return csrfTokenCache;
+  if (!csrfFetchPromise) {
+    csrfFetchPromise = axios
+      .get(`${api.defaults.baseURL}/csrf-token`, { withCredentials: true })
+      .then((res) => {
+        csrfTokenCache = res.data?.csrfToken || null;
+        return csrfTokenCache;
+      })
+      .catch(() => null);
+  }
+  return csrfFetchPromise;
 };
 
-api.interceptors.request.use((config) => {
-  const token = getCsrfToken();
-  if (token) config.headers['X-CSRF-Token'] = token;
+api.interceptors.request.use(async (config) => {
+  const mutating = ['post', 'put', 'patch', 'delete'].includes((config.method || '').toLowerCase());
+  if (mutating) {
+    const token = await fetchCsrfToken();
+    if (token) config.headers['X-CSRF-Token'] = token;
+  }
   return config;
 });
 

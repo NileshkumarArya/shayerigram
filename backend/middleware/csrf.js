@@ -68,4 +68,12 @@ const verifyCsrfToken = (req, res, next) => {
   next();
 };
 
-module.exports = { ensureCsrfCookie, verifyCsrfToken, CSRF_COOKIE_NAME, CSRF_HEADER_NAME };
+// Frontend (Vercel) aur backend (Render) alag domains hain — is wajah se
+// frontend ka JS Render ke cookie ko document.cookie se padh nahi sakta
+// (browser ka same-origin rule). Isliye token value ek dedicated endpoint
+// se bhejte hain response body mein, cookie khud se nahi.
+const getCsrfToken = (req, res) => {
+  res.json({ csrfToken: req.cookies?.[CSRF_COOKIE_NAME] || null });
+};
+
+module.exports = { ensureCsrfCookie, verifyCsrfToken, getCsrfToken, CSRF_COOKIE_NAME, CSRF_HEADER_NAME };
