@@ -279,7 +279,7 @@ exports.toggleLike = async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle like.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to toggle like.' });
   }
 };
 
@@ -297,7 +297,7 @@ exports.addComment = async (req, res) => {
 
     res.status(201).json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to add comment.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to add comment.' });
   }
 };
 
@@ -311,7 +311,7 @@ exports.deleteComment = async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to delete comment.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to delete comment.' });
   }
 };
 
@@ -320,7 +320,7 @@ exports.toggleCommentLike = async (req, res) => {
     const result = await commentService.toggleCommentLike(req.params.commentId, req.user._id);
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle comment like.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to toggle comment like.' });
   }
 };
 
@@ -329,7 +329,7 @@ exports.getComments = async (req, res) => {
     const result = await commentService.getComments(req.params.id, req.query, req.user?._id);
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to load comments.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to load comments.' });
   }
 };
 
@@ -338,7 +338,7 @@ exports.toggleSave = async (req, res) => {
     const result = await saveService.toggleSave(req.user._id, req.params.id);
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Failed to toggle save.' });
+    res.status(err.status || 500).json({ message: err.message || 'Follow action failed.' });
   }
 };
 

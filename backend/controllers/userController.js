@@ -192,7 +192,7 @@ exports.toggleFollow = async (req, res) => {
     const result = await followService.toggleFollow(req.user._id, req.params.id, req.app.get('io'));
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || 'Follow action failed.' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Follow action failed.' });
   }
 };
 

@@ -541,7 +541,7 @@ exports.toggleCommentLike = async (req, res) => {
     const result = await commentService.toggleCommentLike(req.params.commentId, req.user._id);
     res.json(result);
   } catch (err) {
-    res.status(err.status || 500).json({ message: err.message });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to toggle comment like.' });
   }
 };
 
