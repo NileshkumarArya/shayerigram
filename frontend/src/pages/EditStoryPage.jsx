@@ -231,7 +231,8 @@ export default function EditStoryPage() {
 
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: 'var(--text-secondary)' }}>
             <input type="checkbox" checked={isMature} onChange={(e) => setIsMature(e.target.checked)} />
-            🔞 Mark this chapter as Mature (explicit/intense content)
+            <span className="text-red-400 font-semibold">🔞 Mark this chapter as Mature</span>
+            <span style={{ color: 'var(--text-muted)' }}>(explicit/intense content)</span>
           </label>
 
           <label className="block w-full h-32 rounded-xl cursor-pointer overflow-hidden border-2 border-dashed flex items-center justify-center"
