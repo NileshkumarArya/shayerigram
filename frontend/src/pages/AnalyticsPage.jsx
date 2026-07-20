@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
         <div className="text-5xl mb-4">🔒</div>
         <h1 className="text-xl font-bold gradient-text mb-2">Analytics is locked</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Publish at least {required} posts/stories to unlock your Analytics Dashboard.
+          Publish at least {required} posts, stories, or chapters to unlock your Analytics Dashboard.
         </p>
         <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'rgba(255,255,255,0.05)' }}>
           <div className="h-full rounded-full transition-all"

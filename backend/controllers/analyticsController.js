@@ -15,11 +15,23 @@ exports.getMyAnalytics = async (req, res) => {
     // Live counts — denormalized User.postsCount/storiesCount fields can drift
     // out of sync (e.g. posts created before that counter existed), so we
     // count the actual documents instead, same as ProfilePage does.
-    const [totalPostsCount, totalStoriesCount] = await Promise.all([
+    //
+    // Chapters count too, on top of posts+stories — a writer who publishes
+    // 20 chapters inside one long story was previously stuck at "1 story"
+    // toward this threshold forever, even though that's clearly a prolific,
+    // active writer. Existing users lose nothing here since posts+stories
+    // still count exactly as before; chapters are additive on top.
+    const [totalPostsCount, totalStoriesCount, totalChaptersCount] = await Promise.all([
       Post.countDocuments({ author: userId, isDeleted: { $ne: true } }),
       Story.countDocuments({ author: userId, isDeleted: false }),
+      Chapter.countDocuments({
+        author: userId,
+        isDeleted: { $ne: true },
+        isTakenDown: { $ne: true },
+        status: 'published',
+      }),
     ]);
-    const contentCount = totalPostsCount + totalStoriesCount;
+    const contentCount = totalPostsCount + totalStoriesCount + totalChaptersCount;
 
     if (contentCount < MIN_CONTENT_FOR_ANALYTICS) {
       return res.json({
