@@ -103,8 +103,9 @@ export default function CreateStoryPage() {
             {coverPreview ? (
               <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-3xl" style={{ color: 'var(--text-muted)' }}>
-                📷
+              <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-center px-2" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-3xl">📷</span>
+                <span className="text-xs">Upload Cover Image</span>
               </div>
             )}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverChange} className="hidden" />
