@@ -98,8 +98,8 @@ export default function ReadStoryPage() {
           ← Back
         </Link>
         <p className="text-xs truncate max-w-[40%]" style={{ color: mutedColor }}>{chapter.story.title}</p>
-        <button onClick={() => setShowSettings(p => !p)} className="text-lg" style={{ color: mutedColor }}>
-          Aa
+       <button onClick={() => setShowSettings(p => !p)} className="text-lg leading-none px-1" style={{ color: mutedColor }}>
+          ⋮
         </button>
       </div>
 
