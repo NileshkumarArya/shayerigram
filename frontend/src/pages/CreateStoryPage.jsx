@@ -81,7 +81,10 @@ export default function CreateStoryPage() {
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
-      <h1 className="text-2xl font-bold gradient-text mb-6">📚 Start a New Story</h1>
+      <h1 className="text-2xl font-bold gradient-text mb-2">📚 Start a New Story</h1>
+      <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+        Set up your story's cover and details first — you'll add chapters next.
+      </p>
 
       <form onSubmit={handleSubmit} className="card p-6 space-y-5">
         {error && (
