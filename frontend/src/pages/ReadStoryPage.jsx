@@ -150,51 +150,56 @@ export default function ReadStoryPage() {
           </div>
         )}
 
-        {/* Chapter actions (like) + Navigation — grouped together below the
-            divider so the like button reads as a control, not story text */}
+        {/* Chapter actions (like) + Navigation — one row, like always centered
+            between Previous (or nothing) on the left and Next/Finish on the
+            right, so it's level with the buttons instead of sitting above them */}
         <div className="mt-12 pt-6" style={{ borderTop: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
-          <div className="flex items-center justify-start gap-2 mb-6">
-            <button onClick={handleLike} disabled={likeLoading}
-              className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
-              <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
-              <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : textColor }}>
-                {likeCount} {likeCount === 1 ? 'like' : 'likes'} on this chapter
-              </span>
-            </button>
-          </div>
+          <div className="flex items-center">
+            <div className="flex-1 flex justify-start">
+              {prevChapter && (
+                <button onClick={() => navigate(`/read/${prevChapter._id}`)} className="text-sm px-4 py-2.5 rounded-xl"
+                  style={{ background: darkMode ? '#1a1a2a' : '#fff', color: textColor, border: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
+                  ← Previous
+                </button>
+              )}
+            </div>
 
-          <div className="flex items-center justify-between">
-            {prevChapter ? (
-              <button onClick={() => navigate(`/read/${prevChapter._id}`)} className="text-sm px-4 py-2.5 rounded-xl"
-                style={{ background: darkMode ? '#1a1a2a' : '#fff', color: textColor, border: `1px solid ${darkMode ? '#2a2a3a' : '#e0d8c0'}` }}>
-                ← Previous
+            <div className="flex-1 flex justify-center">
+              <button onClick={handleLike} disabled={likeLoading}
+                className="flex items-center gap-2 transition-all hover:scale-110 disabled:opacity-60">
+                <span className="text-2xl">{liked ? '❤️' : '🤍'}</span>
+                <span className="text-sm font-semibold" style={{ color: liked ? '#f87171' : textColor }}>
+                  {likeCount} {likeCount === 1 ? 'like' : 'likes'} on this chapter
+                </span>
               </button>
-            ) : <div />}
+            </div>
 
-            {nextChapter ? (
-              <button onClick={() => navigate(`/read/${nextChapter._id}`)}
-                className="text-sm px-4 py-2.5 rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
-                Next →
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  try {
-                    await storyAPI.saveProgress(chapter.story._id, {
-                      chapterId: chapter._id,
-                      chapterNumber: chapter.chapterNumber,
-                      scrollPosition: 100,
-                      isCompleted: true,
-                    });
-                  } catch {}
-                  navigate(`/story/${chapter.story._id}`);
-                }}
-                className="text-sm px-4 py-2.5 rounded-xl text-white"
-                style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
-                Finish ✓
-              </button>
-            )}
+            <div className="flex-1 flex justify-end">
+              {nextChapter ? (
+                <button onClick={() => navigate(`/read/${nextChapter._id}`)}
+                  className="text-sm px-4 py-2.5 rounded-xl text-white"
+                  style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
+                  Next →
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      await storyAPI.saveProgress(chapter.story._id, {
+                        chapterId: chapter._id,
+                        chapterNumber: chapter.chapterNumber,
+                        scrollPosition: 100,
+                        isCompleted: true,
+                      });
+                    } catch {}
+                    navigate(`/story/${chapter.story._id}`);
+                  }}
+                  className="text-sm px-4 py-2.5 rounded-xl text-white"
+                  style={{ background: 'linear-gradient(135deg,#9333ea,#7c3aed)' }}>
+                  Finish ✓
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
